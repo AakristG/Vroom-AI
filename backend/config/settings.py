@@ -130,7 +130,7 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------------------------
 NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
 NIM_BASE_URL = os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
-NIM_MODEL = os.environ.get("NIM_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+NIM_MODEL = os.environ.get("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
 
 RETELL_API_KEY = os.environ.get("RETELL_API_KEY", "")
 RETELL_AGENT_ID = os.environ.get("RETELL_AGENT_ID", "")

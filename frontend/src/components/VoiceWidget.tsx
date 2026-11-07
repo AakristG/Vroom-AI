@@ -19,7 +19,7 @@ export const retellConfigured = Boolean(PUBLIC_KEY && AGENT_ID);
 
 type CallStatus = "idle" | "connecting" | "live" | "ended" | "error";
 
-export function VoiceWidget() {
+export function VoiceWidget({ variant = "dark" }: { variant?: "light" | "dark" }) {
   const [status, setStatus] = useState<CallStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const clientRef = useRef<RetellClient | null>(null);
@@ -62,15 +62,19 @@ export function VoiceWidget() {
   return (
     <div>
       {active ? (
-        <button onClick={endCall} className="flex items-center gap-2 rounded-full bg-signal px-4 py-2 text-sm font-medium hover:bg-signal-deep">
+        <button onClick={endCall} className="flex items-center gap-2 rounded-full bg-signal px-4 py-2 text-sm font-medium text-white hover:bg-signal-deep">
           <PhoneOff className="h-4 w-4" /> {status === "connecting" ? "Connecting…" : "Hang up"}
         </button>
       ) : (
         <button
           onClick={startCall}
-          className="flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm font-medium hover:bg-white/10"
+          className={
+            variant === "light"
+              ? "flex items-center gap-2 rounded-full border border-line bg-paper px-4 py-2 text-sm font-medium text-ink hover:bg-daylight"
+              : "flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm font-medium hover:bg-white/10"
+          }
         >
-          <Mic className="h-4 w-4" /> Call from browser
+          <Mic className="h-4 w-4" /> Call from this browser
         </button>
       )}
       {errorMessage && <p className="mt-2 max-w-xs text-xs text-sodium">{errorMessage}</p>}

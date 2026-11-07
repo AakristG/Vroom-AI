@@ -24,6 +24,7 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from apps.ai import nim_client
+from apps.ai.account_context import account_context
 
 GREETING = "Hi, thanks for calling Toyota Financial Services. How can I help you today?"
 
@@ -31,6 +32,7 @@ GREETING = "Hi, thanks for calling Toyota Financial Services. How can I help you
 class RetellLLMConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.call_id = self.scope["url_route"]["kwargs"]["call_id"]
+        self.customer_id = None
         await self.accept()
 
         # Optional config event: ask Retell to send call_details and keep the socket alive.
@@ -73,10 +75,9 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
             return
 
         if interaction_type == "call_details":
-            # Retell sent us the registered call metadata (from the Register Call API).
-            # TODO: mirror into SpacetimeDB if you want it live on the dashboard, e.g.:
-            #   from apps.spacetime.client import call_reducer
-            #   call_reducer("upsert_call_session", [self.call_id, call["agent_id"], "ongoing", "", now_iso])
+            call = event.get("call") or {}
+            meta = call.get("metadata") or {}
+            self.customer_id = meta.get("customer_id") or self.customer_id
             return
 
         if interaction_type == "update_only":
@@ -96,7 +97,10 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
         # it to a worker thread so we don't block the event loop; for lower latency, switch to
         # nim_client.stream_reply and forward chunks as they arrive (content_complete=False
         # until the last chunk).
-        reply = await sync_to_async(nim_client.generate_reply)(messages)
+        extra = ""
+        if self.customer_id:
+            extra = await sync_to_async(account_context)(self.customer_id) or ""
+        reply = await sync_to_async(nim_client.generate_reply)(messages, extra_system=extra)
 
         await self._send_json(
             {

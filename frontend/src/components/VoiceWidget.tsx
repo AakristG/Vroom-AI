@@ -19,7 +19,7 @@ export const retellConfigured = Boolean(PUBLIC_KEY && AGENT_ID);
 
 type CallStatus = "idle" | "connecting" | "live" | "ended" | "error";
 
-export function VoiceWidget({ variant = "dark" }: { variant?: "light" | "dark" }) {
+export function VoiceWidget({ variant = "dark", customerId }: { variant?: "light" | "dark"; customerId?: string }) {
   const [status, setStatus] = useState<CallStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const clientRef = useRef<RetellClient | null>(null);
@@ -42,6 +42,7 @@ export function VoiceWidget({ variant = "dark" }: { variant?: "light" | "dark" }
     setStatus("connecting");
     callRef.current = getClient().createWebCall({
       agent_id: AGENT_ID,
+      metadata: customerId ? { customer_id: customerId } : undefined,
       hooks: {
         onStatus: (s) => setStatus(s as CallStatus),
         onEnd: () => setStatus("ended"),

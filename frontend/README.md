@@ -50,3 +50,21 @@ never put your Retell API key in frontend code) and `VITE_RETELL_AGENT_ID`. See
 This folder never imports from `backend/` or `spacetimedb/` — only talks to them over HTTP /
 WebSocket via the `VITE_*` env vars above. Keep it that way so teammates can run just this
 folder without the rest of the stack installed.
+
+## UI stack (Next Move redesign)
+
+- **Tailwind CSS v4** via `@tailwindcss/vite`, design tokens live in `src/index.css` (`@theme`)
+- **Motion** (`motion/react`) for the hero parallax, the incoming-call card, and transcript entry
+- **lucide-react** icons; **clsx + tailwind-merge** (`cn()` in `src/lib/format.ts`)
+- Fonts self-hosted with Fontsource: Bebas Neue (display), Inter Tight (body), JetBrains Mono (agent tool names)
+
+Data: `src/data/profiles.json` is generated from the Toyota data pack (synthetic):
+
+```bash
+python3 scripts/build_profiles.py <path-to>/toyota_next_move_data_pack src/data/profiles.json
+```
+
+Live call: `src/hooks/useLiveCall.ts` subscribes to SpacetimeDB `call_session` / `call_message`
+once real bindings are generated (`npm run generate:bindings`). Until then the console plays a
+scripted demo call built from the selected customer's record. `call_message` must be
+`public: true` in the SpacetimeDB module for the browser to subscribe to it.

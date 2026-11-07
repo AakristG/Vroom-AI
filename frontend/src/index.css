@@ -1,27 +1,92 @@
-:root {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  color-scheme: light dark;
+@import "tailwindcss";
+@import "@fontsource-variable/inter-tight";
+@import "@fontsource/bebas-neue";
+@import "@fontsource-variable/jetbrains-mono";
+
+/*
+  Design tokens — "night drive into daylight".
+  Night (hero, call panel) = the stressful moment a customer calls in.
+  Daylight (console) = clarity once the options are laid out.
+  Red is reserved for Toyota / the recommended move. Sodium amber marks estimates & assumptions.
+*/
+@theme {
+  --color-night: #0d1530;
+  --color-night-2: #17224d;
+  --color-night-3: #26336a;
+  --color-signal: #eb0a1e;
+  --color-signal-deep: #b8081a;
+  --color-sodium: #f4b23e;
+  --color-daylight: #eef1f6;
+  --color-paper: #ffffff;
+  --color-line: #d5dbe6;
+  --color-ink: #0d1530;
+  --color-muted: #56627f;
+  --color-go: #1f8a70;
+  --color-caution: #b26a00;
+
+  --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
+  --font-sans: "Inter Tight Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
-body {
-  margin: 0;
-  display: flex;
-  justify-content: center;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-daylight text-ink font-sans antialiased;
+    font-feature-settings: "tnum" 1, "cv11" 1;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
-.app {
-  max-width: 640px;
-  width: 100%;
-  padding: 2rem 1.5rem;
+/* Tail-light streak that runs once along the hero road on load. */
+@keyframes trail {
+  from {
+    transform: translateX(-40%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(140%);
+    opacity: 0;
+  }
+}
+.trail {
+  animation: trail 2.4s cubic-bezier(0.55, 0, 0.2, 1) 0.4s 1 both;
+}
+.trail-late {
+  animation: trail 2.8s cubic-bezier(0.55, 0, 0.2, 1) 0.9s 1 both;
 }
 
-.voice-widget {
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin-top: 1.5rem;
+/* Live call "speaking" bars */
+@keyframes level {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
 }
-
-.voice-widget-error {
-  color: #d32f2f;
+.level-bar {
+  transform-origin: bottom;
+  animation: level 0.9s ease-in-out infinite;
 }

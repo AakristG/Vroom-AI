@@ -127,7 +127,7 @@ git checkout -b <your-name>    # work on your own branch, open a PR into main
 
 - **Backend:** Django 5 + Django REST Framework + Django Channels (ASGI, for the Retell
   WebSocket) + `openai` SDK (pointed at NVIDIA NIM's OpenAI-compatible endpoint)
-- **Frontend:** React 18 + Vite + TypeScript
+- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS (Next Move customer console)
 - **Realtime state:** SpacetimeDB (Rust module, TypeScript client SDK on the frontend, HTTP API
   from the backend)
 - **AI inference:** NVIDIA NIM cloud API — Nemotron models

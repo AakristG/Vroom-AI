@@ -11,11 +11,20 @@
     "generate:bindings": "spacetime generate --lang typescript --out-dir src/spacetime/module_bindings --module-path ../spacetimedb/server"
   },
   "dependencies": {
+    "@fontsource-variable/inter-tight": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource/bebas-neue": "^5.3.0",
+    "@tailwindcss/vite": "^4.3.5",
     "axios": "^1.21.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.70.0",
+    "motion": "^14.10.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "retell-client-js-sdk": "^3.0.4",
-    "spacetimedb": "^2.14.1"
+    "spacetimedb": "^2.14.1",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.5"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

@@ -25,9 +25,9 @@ export function OptionsCompare({ p }: { p: Profile }) {
     <section className="rounded-2xl border border-line bg-paper">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line p-6">
         <div>
-          <h3 className="font-display text-3xl tracking-wide">Every option, side by side</h3>
-          <p className="mt-1 max-w-[60ch] text-sm text-muted">
-            All numbers are precomputed from the contract and rate sheet. The agent explains them; it never invents them.
+          <h3 className="text-2xl font-semibold tracking-tight">Options on your agreement</h3>
+          <p className="mt-1 max-w-[62ch] text-sm text-muted">
+            These figures come from your contract and the rate sheet. We explain what each one costs. We do not invent a new payment, and we do not start one until you choose it.
           </p>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted">

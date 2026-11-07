@@ -10,12 +10,14 @@ export interface Customer {
   state: string;
   occupation: string;
   annual_income: number;
+  other_monthly_debt: number;
   credit_tier_at_origination: string;
   credit_tier_now: string;
   preferred_channel: string;
   marketing_consent: YN;
   vulnerable_flag: YN;
   autopay: YN;
+  digital_engagement: string;
   payday_day: number;
   payment_to_income_pct: number;
   debt_to_income_pct: number;
@@ -24,24 +26,36 @@ export interface Customer {
 }
 
 export interface Vehicle {
+  vehicle_id: string;
+  customer_id: string;
   model_year: number;
   model: string;
   trim: string;
+  condition_at_purchase: string;
+  purchase_price_or_msrp: number;
   odometer_now: number;
+  annual_miles_est: number;
   est_market_value_now: number;
   toyota_care_ends: string;
   basic_warranty_ends: string;
+  last_service_date: string;
   next_service_due: string;
   open_recall: YN;
 }
 
 export interface Account {
   account_id: string;
+  customer_id: string;
+  vehicle_id: string;
   contract_type: "loan" | "lease";
+  contract_start: string;
   term_months: number;
+  months_elapsed: number;
   months_remaining: number;
   contract_end: string;
   missed_payments_12m: number;
+  autopay: YN;
+  amount_financed: number;
   apr: number | null;
   money_factor: number | null;
   monthly_payment: number;
@@ -94,7 +108,7 @@ export interface Profile {
   customer: Customer;
   vehicle: Vehicle;
   account: Account;
-  situation: { customer_says: string; context_summary: string };
+  situation: { situation_id: string; customer_id: string; customer_says: string; context_summary: string };
   options: Option[];
   golden: Golden;
   offer: Offer | null;

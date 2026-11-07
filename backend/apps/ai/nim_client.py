@@ -38,17 +38,25 @@ def _extra_body() -> dict:
     return {"chat_template_kwargs": {"enable_thinking": settings.NIM_ENABLE_THINKING}}
 
 
-def with_system_prompt(messages: Iterable[dict]) -> list[dict]:
+def with_system_prompt(messages: Iterable[dict], extra_system: str = "") -> list[dict]:
     messages = [m for m in messages if m.get("role") != "system"]
-    return [{"role": "system", "content": SYSTEM_PROMPT}, *messages]
+    content = SYSTEM_PROMPT
+    if extra_system:
+        content = (
+            f"{SYSTEM_PROMPT}\n\n"
+            "VERIFIED ACCOUNT. These figures come from the customer's Toyota Financial Services record. "
+            "Do not replace them with estimates of your own.\n"
+            f"{extra_system}"
+        )
+    return [{"role": "system", "content": content}, *messages]
 
 
-def generate_reply(messages: Iterable[dict], *, model: str | None = None) -> str:
+def generate_reply(messages: Iterable[dict], *, model: str | None = None, extra_system: str = "") -> str:
     """Non-streaming completion. `messages` is OpenAI chat-format: [{"role": "user", "content": "..."}, ...]."""
     client = get_client()
     completion = client.chat.completions.create(
         model=model or settings.NIM_MODEL,
-        messages=with_system_prompt(messages),
+        messages=with_system_prompt(messages, extra_system),
         extra_body=_extra_body(),
     )
     content = completion.choices[0].message.content or ""

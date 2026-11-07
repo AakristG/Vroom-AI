@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
+  timeout: 8000,
 });
 
 export interface ChatMessage {
@@ -12,9 +13,12 @@ export interface ChatMessage {
   content: string;
 }
 
-/** Hits POST /api/ai/chat/ — a way to test the NVIDIA NIM integration without a live Retell call. */
-export async function sendChatMessage(messages: ChatMessage[]): Promise<string> {
-  const { data } = await apiClient.post<{ reply: string }>("/api/ai/chat/", { messages });
+/** POST /api/ai/chat/ — Nemotron on the Django backend, grounded in one customer when customerId is set. */
+export async function sendChatMessage(messages: ChatMessage[], customerId?: string): Promise<string> {
+  const { data } = await apiClient.post<{ reply: string }>("/api/ai/chat/", {
+    customer_id: customerId,
+    messages,
+  });
   return data.reply;
 }
 

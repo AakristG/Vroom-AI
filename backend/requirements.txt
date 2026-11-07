@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 websockets==13.1
@@ -6,3 +7,13 @@ retell-sdk==4.0.0
 pydantic-settings==2.6.0
 python-dotenv==1.0.1
 httpx==0.27.2
+=======
+Django>=5.0,<5.3
+djangorestframework>=3.15,<3.16
+django-cors-headers>=4.4,<4.5
+channels>=4.1,<4.3
+daphne>=4.1,<4.3
+python-dotenv>=1.0,<1.1
+openai>=1.40,<2.0
+requests>=2.32,<3.0
+>>>>>>> f60d3da1d5668a56ef5800a573478a961696ac36

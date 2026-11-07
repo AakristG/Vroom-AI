@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 __pycache__/
 *.pyc
 venv/
@@ -6,3 +7,50 @@ venv/
 node_modules/
 dist/
 .DS_Store
+=======
+# ===== Env files (never commit secrets) =====
+.env
+.env.*
+!.env.example
+!*/.env.example
+
+# ===== Python / Django (backend) =====
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.venv/
+backend/venv/
+backend/env/
+backend/db.sqlite3
+backend/db.sqlite3-journal
+backend/staticfiles/
+backend/media/
+backend/*.egg-info/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+
+# ===== Node / React (frontend) =====
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/coverage/
+frontend/*.local
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# ===== Rust / SpacetimeDB =====
+spacetimedb/server/target/
+spacetimedb/server/Cargo.lock
+spacetimedb/.spacetime/
+
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+>>>>>>> f60d3da1d5668a56ef5800a573478a961696ac36

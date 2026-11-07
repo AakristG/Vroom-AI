@@ -33,6 +33,11 @@ def get_client() -> OpenAI:
     return _client
 
 
+def _extra_body() -> dict:
+    # Nemotron 3.x thinks by default; for voice we want an immediate spoken answer instead.
+    return {"chat_template_kwargs": {"enable_thinking": settings.NIM_ENABLE_THINKING}}
+
+
 def with_system_prompt(messages: Iterable[dict]) -> list[dict]:
     messages = [m for m in messages if m.get("role") != "system"]
     return [{"role": "system", "content": SYSTEM_PROMPT}, *messages]
@@ -44,6 +49,7 @@ def generate_reply(messages: Iterable[dict], *, model: str | None = None) -> str
     completion = client.chat.completions.create(
         model=model or settings.NIM_MODEL,
         messages=with_system_prompt(messages),
+        extra_body=_extra_body(),
     )
     content = completion.choices[0].message.content or ""
     return _THINK_BLOCK_RE.sub("", content).strip()
@@ -56,6 +62,7 @@ def stream_reply(messages: Iterable[dict], *, model: str | None = None) -> Itera
     stream = client.chat.completions.create(
         model=model or settings.NIM_MODEL,
         messages=with_system_prompt(messages),
+        extra_body=_extra_body(),
         stream=True,
     )
     for chunk in stream:

@@ -105,7 +105,7 @@ See each folder's own `README.md` for full details, env vars, and troubleshootin
 | Variable | Where | Purpose |
 | --- | --- | --- |
 | `NVIDIA_NIM_API_KEY` | `backend/.env` | Auth for `https://integrate.api.nvidia.com/v1` (Nemotron models) |
-| `NIM_MODEL` | `backend/.env` | Model slug from [build.nvidia.com](https://build.nvidia.com), e.g. `nvidia/llama-3.1-nemotron-70b-instruct` |
+| `NIM_MODEL` | `backend/.env` | Model slug from [build.nvidia.com](https://build.nvidia.com), e.g. `nvidia/nemotron-3.5-lightning-30b-a3b` |
 | `RETELL_API_KEY` | `backend/.env` | Retell dashboard → API Keys (must have the "webhook" badge); used both to call Retell's REST API and to verify the `X-Retell-Signature` header on incoming webhooks |
 | `SPACETIMEDB_URL` | `backend/.env`, `frontend/.env` | e.g. `http://127.0.0.1:3000` for local, or your cloud URL |
 | `SPACETIMEDB_MODULE_NAME` | `backend/.env`, `frontend/.env` | e.g. `toyota-fs-dev` |

@@ -9,12 +9,18 @@ so double check there if a model 404s).
 
 from __future__ import annotations
 
+import re
 from typing import Iterable, Iterator
 
 from django.conf import settings
 from openai import OpenAI
 
+from .prompts import SYSTEM_PROMPT
+
 _client: OpenAI | None = None
+
+# Reasoning models may emit their chain of thought inline; it must never be spoken to a caller.
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 def get_client() -> OpenAI:
@@ -27,14 +33,20 @@ def get_client() -> OpenAI:
     return _client
 
 
+def with_system_prompt(messages: Iterable[dict]) -> list[dict]:
+    messages = [m for m in messages if m.get("role") != "system"]
+    return [{"role": "system", "content": SYSTEM_PROMPT}, *messages]
+
+
 def generate_reply(messages: Iterable[dict], *, model: str | None = None) -> str:
     """Non-streaming completion. `messages` is OpenAI chat-format: [{"role": "user", "content": "..."}, ...]."""
     client = get_client()
     completion = client.chat.completions.create(
         model=model or settings.NIM_MODEL,
-        messages=list(messages),
+        messages=with_system_prompt(messages),
     )
-    return completion.choices[0].message.content or ""
+    content = completion.choices[0].message.content or ""
+    return _THINK_BLOCK_RE.sub("", content).strip()
 
 
 def stream_reply(messages: Iterable[dict], *, model: str | None = None) -> Iterator[str]:
@@ -43,7 +55,7 @@ def stream_reply(messages: Iterable[dict], *, model: str | None = None) -> Itera
     client = get_client()
     stream = client.chat.completions.create(
         model=model or settings.NIM_MODEL,
-        messages=list(messages),
+        messages=with_system_prompt(messages),
         stream=True,
     )
     for chunk in stream:

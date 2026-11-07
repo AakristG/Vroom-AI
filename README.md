@@ -115,24 +115,12 @@ See each folder's own `README.md` for full details, env vars, and troubleshootin
 
 Never commit a real `.env` — only `.env.example` files are tracked (see root `.gitignore`).
 
-## Pushing this to GitHub and sharing with your team
+## Getting the code
 
 ```bash
-cd /Users/samyampaudel/Desktop/HackUTD2026
-git init
-git add .
-git commit -m "Initial project scaffold: Django backend, React frontend, SpacetimeDB module"
-git branch -M main
-gh repo create <your-repo-name> --private --source=. --remote=origin --push
-# or, without gh CLI:
-# git remote add origin https://github.com/<you>/<your-repo-name>.git
-# git push -u origin main
-```
-
-Then add teammates as collaborators (or just share the repo URL if it's public):
-
-```bash
-gh repo edit <your-repo-name> --add-collaborator <github-username>
+git clone https://github.com/AakristG/HackUTD-2026.git
+cd HackUTD-2026
+git checkout -b <your-name>    # work on your own branch, open a PR into main
 ```
 
 ## Tech stack

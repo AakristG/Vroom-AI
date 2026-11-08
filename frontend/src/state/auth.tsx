@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getMe, isUnauthorized, login, signup, TOKEN_KEY, updateAccount, type AccountPatch, type AuthAccount, type SignupInput } from "../api/client";
+import { getMe, isUnauthorized, login, signup, TOKEN_KEY, updateAccount, type AuthAccount, type SignupInput } from "../api/client";
 import type { Profile } from "../data/types";
 import { knownProfile, shellProfile } from "../lib/sessionProfile";
 
@@ -10,8 +10,6 @@ interface Auth {
   signIn: (username: string, password: string) => Promise<void>;
   signUp: (input: SignupInput) => Promise<void>;
   saveLifeChange: (value: string) => Promise<void>;
-  /** Throws with the backend's message when the terms don't validate. */
-  saveAgreement: (patch: Pick<AccountPatch, "current_payment" | "agreement">) => Promise<void>;
   signOut: () => void;
 }
 
@@ -61,17 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const saveAgreement = useCallback(async (patch: Pick<AccountPatch, "current_payment" | "agreement">) => {
-    setAccount(await updateAccount(patch));
-  }, []);
-
   const signOut = useCallback(() => {
     sessionStorage.removeItem(TOKEN_KEY);
     setAccount(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ account, profile, ready, signIn, signUp, saveLifeChange, saveAgreement, signOut }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ account, profile, ready, signIn, signUp, saveLifeChange, signOut }}>{children}</AuthContext.Provider>
   );
 }
 

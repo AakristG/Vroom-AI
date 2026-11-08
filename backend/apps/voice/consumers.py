@@ -24,8 +24,8 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from apps.ai import nim_client
-from apps.ai.retrieve import relevant_account_context
-from apps.voice.live import append_agent, publish_session, publish_turn, sync_transcript
+from apps.ai.account_context import account_context
+from apps.voice.live import append_agent, sync_transcript
 
 GREETING = "Hi, thanks for calling Toyota Financial Services. How can I help you today?"
 
@@ -54,11 +54,9 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
                 "content_complete": True,
             }
         )
-        await sync_to_async(publish_session)(self.call_id, "ongoing", last_speaker="agent")
-        await sync_to_async(publish_turn)(self.call_id, "agent", GREETING, f"{self.call_id}-greeting")
 
     async def disconnect(self, close_code):
-        await sync_to_async(publish_session)(self.call_id, "ended", last_speaker="agent")
+        pass
 
     async def receive(self, text_data=None, bytes_data=None):
         if not text_data:
@@ -103,8 +101,7 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
         # until the last chunk).
         extra = ""
         if self.customer_id:
-            question = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-            extra = await sync_to_async(relevant_account_context)(self.customer_id, question) or ""
+            extra = await sync_to_async(account_context)(self.customer_id) or ""
         reply = await sync_to_async(nim_client.generate_reply)(messages, extra_system=extra)
         append_agent(self.customer_id, self.call_id, reply)
 

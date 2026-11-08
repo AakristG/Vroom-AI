@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from "motion/react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -17,9 +16,8 @@ import {
 import { CompareTray } from "../components/vehicles/CompareTray";
 import { VehicleCard } from "../components/vehicles/VehicleCard";
 import { SignInGate } from "../components/SignInGate";
-import { EmptyState, ErrorState, Skeleton, SourceBanner } from "../components/ui/kit";
-import { EASE, Stagger, StaggerItem } from "../components/ui/motion";
-import { CATEGORY_IMAGE, categoryKey } from "../media/vehicleImages";
+import { EmptyState, ErrorState, PageIntro, Skeleton, SourceBanner } from "../components/ui/kit";
+import { Stagger, StaggerItem } from "../components/ui/motion";
 import { cn, money } from "../lib/format";
 import { efficiencyScore } from "../lib/spec";
 import { usePageContext } from "../state/assistant";
@@ -140,7 +138,6 @@ export function ExplorePage() {
   const recommendations = useMemo(() => recommend(catalog.state === "ready" ? catalog.data : [], account?.life_change ?? ""), [account?.life_change, catalog]);
 
   const categories = status?.categories ?? [];
-  const heroImage = category ? CATEGORY_IMAGE[categoryKey(category, fuel)] : fuel === "Electric" ? CATEGORY_IMAGE.electric : fuel ? CATEGORY_IMAGE.hybrids : CATEGORY_IMAGE.trucks;
   const fuels = status?.fuel_types ?? [];
   const seatOptions = ["2", "4", "5", "7", "8"];
 
@@ -149,35 +146,9 @@ export function ExplorePage() {
 
   return (
     <main className="pb-28">
-      <section data-dark-top className="relative isolate overflow-hidden bg-charcoal pt-16 text-white md:pt-[72px]">
-        <AnimatePresence initial={false}>
-          <motion.img
-            key={heroImage}
-            src={heroImage}
-            alt=""
-            aria-hidden
-            initial={{ opacity: 0, scale: 1.04 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: EASE }}
-            className="absolute inset-y-0 right-0 -z-10 h-full w-full object-cover opacity-90 md:w-[70%]"
-          />
-        </AnimatePresence>
-        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-charcoal via-charcoal/85 to-charcoal/10 md:via-charcoal/70" />
-        <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-24 bg-gradient-to-t from-charcoal/60 to-transparent" />
-        <div className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-24">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }}>
-            <p className="eyebrow">Explore Toyota vehicles</p>
-            <h1 className="mt-4 max-w-[14ch] text-[clamp(2.5rem,5.5vw,4.5rem)] font-semibold leading-[1] tracking-[-0.03em]">
-              {category ? `Toyota ${category.toLowerCase()}s.` : "Find the Toyota that fits your life."}
-            </h1>
-            <p className="mt-4 max-w-lg text-lg leading-relaxed text-white/70">
-              Browse every model and trim we have data for. Specs are shown only when the source supplies them.
-            </p>
-          </motion.div>
-        </div>
-        <span className="absolute bottom-4 right-5 rounded-full bg-black/40 px-2.5 py-1 text-[10px] text-white/70 backdrop-blur md:right-8">Representative AI image</span>
-      </section>
+      <PageIntro eyebrow="Explore Toyota vehicles" title="Find the Toyota that fits your life.">
+        Browse every model and trim we have data for. Specs are shown only when the source supplies them.
+      </PageIntro>
 
       <div className="sticky top-16 z-30 border-b border-black/[0.06] bg-white/80 backdrop-blur-xl md:top-[72px]">
         <div className="mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-5 py-2.5 [scrollbar-width:none] md:gap-3 md:px-8 md:py-3 xl:overflow-visible [&>*]:shrink-0">
@@ -198,30 +169,17 @@ export function ExplorePage() {
             icon
           />
         </div>
-        <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-5 pb-3 [scrollbar-width:none] md:px-8" role="group" aria-label="Vehicle category">
-          {["", ...categories].map((c) => {
-            const on = category === c;
-            return (
-              <button
-                key={c || "all"}
-                onClick={() => set("category", c)}
-                aria-pressed={on}
-                className={cn(
-                  "group flex shrink-0 items-center gap-2.5 rounded-2xl border p-1.5 pr-4 text-sm font-semibold transition-[border-color,background-color,color] duration-200",
-                  on ? "border-ink bg-ink text-white" : "border-line bg-paper hover:border-ink/40"
-                )}
-              >
-                <span className="h-9 w-14 overflow-hidden rounded-xl bg-mist">
-                  {c ? (
-                    <img src={CATEGORY_IMAGE[categoryKey(c)]} alt="" aria-hidden loading="lazy" className="h-full w-full scale-125 object-cover transition-transform duration-300 group-hover:scale-[1.35]" />
-                  ) : (
-                    <span className="grid h-full w-full place-items-center text-[10px] font-semibold uppercase tracking-wider text-muted">All</span>
-                  )}
-                </span>
-                {c ? `${c}s` : "All models"}
-              </button>
-            );
-          })}
+        <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-5 pb-2.5 [scrollbar-width:none] md:px-8 md:pb-3" role="group" aria-label="Vehicle category">
+          {["", ...categories].map((c) => (
+            <button
+              key={c || "all"}
+              onClick={() => set("category", c)}
+              aria-pressed={category === c}
+              className={cn("chip shrink-0", category === c ? "border-ink bg-ink text-white" : "border-line bg-paper hover:border-ink")}
+            >
+              {c ? `${c}s` : "All"}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -305,9 +263,7 @@ function recommend(list: VehicleRecord[], life: string) {
 
 function Recommend({ label, vehicle, reason }: { label: string; vehicle: VehicleRecord; reason: string }) {
   return (
-    <Link to={vehiclePath(vehicle)} className="card card-hover flex gap-4 overflow-hidden p-0 text-left">
-      <img src={CATEGORY_IMAGE[categoryKey(vehicle.category, vehicle.fuel_type)]} alt="" aria-hidden loading="lazy" className="hidden w-40 shrink-0 object-cover sm:block" />
-      <div className="p-5">
+    <Link to={vehiclePath(vehicle)} className="card p-5 text-left">
       <div className="text-xs font-semibold uppercase tracking-wide text-signal">{label}</div>
       <div className="mt-2 text-xl font-semibold">
         {vehicle.year} {vehicle.model}
@@ -316,7 +272,6 @@ function Recommend({ label, vehicle, reason }: { label: string; vehicle: Vehicle
         {vehicle.category} · {vehicle.seating ? `${vehicle.seating} seats` : "Seats pending"} · {vehicle.msrp.value ? money(vehicle.msrp.value) : "MSRP pending"}
       </p>
       <p className="mt-2 text-sm text-muted">{reason}</p>
-      </div>
     </Link>
   );
 }

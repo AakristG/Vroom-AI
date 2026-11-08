@@ -1,10 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, LogOut, Menu, Sparkles, UserRound, X } from "lucide-react";
+import { ArrowRight, LogOut, Menu, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../lib/format";
-import { isNewAccount } from "../lib/sessionProfile";
-import { useAssistant } from "../state/assistant";
 import { useAuth } from "../state/auth";
 import { ToyotaMark } from "./ToyotaMark";
 
@@ -18,7 +16,6 @@ export const NAV_ITEMS = [
 
 export function SiteHeader() {
   const { profile, signOut } = useAuth();
-  const { setOpen: setAssistantOpen } = useAssistant();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
@@ -45,6 +42,8 @@ export function SiteHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,8 +86,8 @@ export function SiteHeader() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "group relative rounded-full px-3.5 py-2 text-sm font-medium transition-colors duration-150",
-                  overHero ? "text-white/80 hover:text-white" : "text-ink/65 hover:text-ink",
+                  "relative rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                  overHero ? "text-white/85 hover:text-white" : "text-ink/70 hover:text-ink",
                   isActive && (overHero ? "text-white" : "text-ink")
                 )
               }
@@ -96,15 +95,6 @@ export function SiteHeader() {
               {({ isActive }) => (
                 <>
                   {item.label}
-                  {!isActive && (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "absolute inset-x-3.5 -bottom-0.5 h-px origin-left scale-x-0 transition-transform duration-200 ease-[var(--ease-premium)] group-hover:scale-x-100",
-                        overHero ? "bg-white/60" : "bg-ink/40"
-                      )}
-                    />
-                  )}
                   {isActive && (
                     <motion.span
                       layoutId="nav-underline"
@@ -131,12 +121,7 @@ export function SiteHeader() {
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-signal text-xs font-semibold text-white">
                   {profile.customer.first_name[0]}
                 </span>
-                <span className="leading-tight">
-                  <span className="block">{profile.customer.first_name}</span>
-                  <span className={cn("block text-[10px] font-normal", overHero ? "text-white/60" : "text-muted")}>
-                    {isNewAccount(profile) ? "Your account" : "Demo account"}
-                  </span>
-                </span>
+                {profile.customer.first_name}
               </Link>
               <button
                 onClick={() => {
@@ -160,9 +145,12 @@ export function SiteHeader() {
               <UserRound className="h-4 w-4" /> Sign in
             </Link>
           )}
-          <button onClick={() => setAssistantOpen(true)} className="btn-primary hidden px-4 py-2.5 md:inline-flex">
-            <Sparkles className="h-4 w-4" /> Ask AI
-          </button>
+          <Link to={profile ? "/financial-services" : "/signin?next=/financial-services"} className={cn("hidden text-sm font-medium lg:inline", overHero ? "text-white" : "text-ink")}>
+            Financial services
+          </Link>
+          <Link to={profile ? "/vehicles" : "/signin?next=/vehicles"} className="btn-primary hidden px-5 py-2.5 md:inline-flex">
+            Models
+          </Link>
           <button
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
@@ -199,17 +187,11 @@ export function SiteHeader() {
                 </motion.div>
               ))}
               <div className="mt-6 grid gap-3">
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    setAssistantOpen(true);
-                  }}
-                  className="btn-primary"
-                >
-                  <Sparkles className="h-4 w-4" /> Ask Toyota NextMove AI
-                </button>
                 <Link to={profile ? "/financial-services" : "/signin?next=/financial-services"} className="btn-ghost border-line">
                   Financial services
+                </Link>
+                <Link to={profile ? "/vehicles" : "/signin?next=/vehicles"} className="btn-primary">
+                  Models
                 </Link>
                 {profile ? (
                   <button
@@ -253,9 +235,9 @@ export function SiteFooter() {
         <div>
           <h2 className="text-sm font-semibold">Explore</h2>
           <ul className="mt-4 space-y-2.5 text-sm text-white/60">
-            {[...NAV_ITEMS, { to: "/financial-services", label: "Financial services" }].map((item) => (
+            {NAV_ITEMS.map((item) => (
               <li key={item.to}>
-                <Link to={item.to} className="transition-colors duration-150 hover:text-white">
+                <Link to={item.to} className="transition-colors hover:text-white">
                   {item.label}
                 </Link>
               </li>

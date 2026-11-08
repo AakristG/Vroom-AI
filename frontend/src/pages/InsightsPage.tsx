@@ -16,11 +16,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { LoanSimulator } from "../components/insights/LoanSimulator";
 import { SignInGate } from "../components/SignInGate";
-import { AccountHero } from "../components/AccountHero";
-import { NewAccountView } from "../components/NewAccountView";
-import { isNewAccount } from "../lib/sessionProfile";
+import { PageIntro, SimulatedBadge } from "../components/ui/kit";
 import { CountUp, Reveal, Stagger, StaggerItem } from "../components/ui/motion";
 import type { Profile } from "../data/types";
 import { addMonths, byYear, nextDueDate, payment, schedule } from "../lib/finance";
@@ -41,7 +38,6 @@ export function InsightsPage() {
   const { profile } = useAuth();
   usePageContext("insights");
   if (!profile) return <SignInGate next="/insights" title="Sign in to see your financial insights." />;
-  if (isNewAccount(profile)) return <NewAccountView key={profile.customer.customer_id} p={profile} eyebrow="Financial insights" />;
   return <Dashboard key={profile.customer.customer_id} p={profile} />;
 }
 
@@ -55,19 +51,9 @@ function Dashboard({ p }: { p: Profile }) {
 
   return (
     <main className="pb-24">
-      <AccountHero
-        p={p}
-        eyebrow="Financial insights"
-        title={`Hello, ${c.first_name}.`}
-        stats={[
-          ["Vehicle", `${v.model_year} ${v.model} ${v.trim}`],
-          ["Contract", isLoan ? `Loan · ${a.apr}% APR` : "Lease"],
-          ["Term", `${a.term_months} months`],
-          ["Estimated value", money(v.est_market_value_now)],
-        ]}
-      >
-        {isLoan ? "Retail installment loan" : "Lease"} with Toyota Financial Services
-      </AccountHero>
+      <PageIntro eyebrow="Financial insights" title={`Hello, ${c.first_name}.`} aside={<SimulatedBadge className="bg-white/10 text-sodium" />}>
+        {v.model_year} Toyota {v.model} {v.trim} · {isLoan ? "Retail installment loan" : "Lease"} with Toyota Financial Services
+      </PageIntro>
 
       <div className="mx-auto max-w-7xl space-y-6 px-5 pt-8 md:px-8">
         <Reveal>
@@ -173,7 +159,6 @@ function LoanInsights({ p }: { p: Profile }) {
   const rows = useMemo(() => schedule(balance, apr, a.monthly_payment), [balance, apr, a.monthly_payment]);
   const interestLeft = rows.reduce((s, r) => s + r.interest, 0);
   const paidPrincipal = Math.max(a.amount_financed - balance, 0);
-  const interestPaid = Math.max(a.monthly_payment * a.months_elapsed - paidPrincipal, 0);
   const yearly = byYear(rows);
   const due = nextDueDate(a.payment_due_day);
   const payoff = a.payoff_quote ?? balance;
@@ -217,7 +202,6 @@ function LoanInsights({ p }: { p: Profile }) {
               <Line2 label="Amount financed" value={money(a.amount_financed)} />
               <Line2 label="Principal paid" value={money(paidPrincipal)} dot={RED} />
               <Line2 label="Principal remaining" value={money(balance)} dot="#d4d4d4" />
-              <Line2 label="Interest paid so far" value={`≈ ${money(interestPaid)}`} note="Estimate: scheduled payments minus principal paid" />
               <Line2 label="Interest still to pay" value={money(interestLeft)} note="If every payment is on time" />
               <div>
                 <div className="flex justify-between text-xs text-muted">
@@ -249,10 +233,6 @@ function LoanInsights({ p }: { p: Profile }) {
           </div>
         </Panel>
       </div>
-
-      <Reveal>
-        <LoanSimulator p={p} />
-      </Reveal>
 
       <Scenarios p={p} />
 
@@ -320,6 +300,7 @@ function Scenarios({ p }: { p: Profile }) {
   const balance = a.current_balance!;
   const apr = a.apr!;
   const [extend, setExtend] = useState(12);
+  const [extra, setExtra] = useState(100);
 
   const run = (monthly: number) => {
     const rows = schedule(balance, apr, monthly);
@@ -328,19 +309,22 @@ function Scenarios({ p }: { p: Profile }) {
   };
   const keep = run(a.monthly_payment);
   const longer = run(payment(balance, apr, a.months_remaining + extend));
+  const faster = run(a.monthly_payment + extra);
   const cols = [
     { key: "keep", title: "Keep as is", tag: "Current agreement", s: keep, color: INK },
-    { key: "extend", title: `Extend ${extend} months`, tag: "Hypothetical · subject to eligibility and review", s: longer, color: RED },
+    { key: "extend", title: `Extend ${extend} months`, tag: "Hypothetical · not an offer", s: longer, color: RED },
+    { key: "extra", title: `Pay $${extra} extra`, tag: "Your choice, any month", s: faster, color: "#8a8f98" },
   ];
   const humanHelp = p.customer.vulnerable_flag === "Y" || a.missed_payments_12m >= 1;
 
   return (
-    <Panel id="scenarios" title="Lower payment, longer term?" subtitle={`Illustrative comparison at your ${apr}% APR. A term change needs Toyota Financial Services review and is not approved here.`}>
-      <div className="max-w-md">
+    <Panel id="scenarios" title="Payment scenarios" subtitle={`Illustrative comparisons at your ${apr}% APR. A term change needs Toyota Financial Services review and is not approved here.`}>
+      <div className="grid gap-4 md:grid-cols-2">
         <Slider label="Hypothetical extension" value={extend} min={6} max={24} step={6} suffix=" months" onChange={setExtend} />
+        <Slider label="Extra toward principal" value={extra} min={25} max={500} step={25} prefix="$" suffix="/mo" onChange={setExtra} />
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
         {cols.map(({ key, title, tag, s, color }) => (
           <div key={key} className="rounded-2xl border border-line p-5">
             <div className="flex items-center gap-2">
@@ -380,11 +364,8 @@ function Scenarios({ p }: { p: Profile }) {
             interest and {longer.months - keep.months} more payments.
           </li>
           <li>
-            Want to pay it off sooner instead?{" "}
-            <a href="#simulator" className="font-semibold text-signal">
-              Try extra payments in the simulator
-            </a>
-            .
+            <strong>Paying ${extra} extra</strong> finishes {keep.months - faster.months} payments sooner and saves about {money(keep.interest - faster.interest)} in
+            interest, if your agreement applies extra payments to principal.
           </li>
           {humanHelp && (
             <li className="rounded-2xl bg-sodium/15 p-3">

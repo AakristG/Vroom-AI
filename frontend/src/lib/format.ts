@@ -19,10 +19,8 @@ export const delta = (n: number | null | undefined) => {
 
 export const miles = (n: number) => `${n.toLocaleString("en-US")} mi`;
 
-export const date = (iso: string) => {
-  const d = new Date(iso + "T12:00:00");
-  return iso && !Number.isNaN(d.getTime()) ? d.toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—";
-};
+export const date = (iso: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
 
 /** Guardrail flags derived from the data pack's responsible-AI rules (starter_system_prompt.txt). */
 export function guardrails(p: Profile) {

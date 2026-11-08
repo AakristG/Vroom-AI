@@ -48,45 +48,6 @@ export function scenario(balance: number, apr: number, months: number, extraPerM
   return { monthly: base + extraPerMonth, months: rows.length, totalInterest, totalPaid: balance + totalInterest };
 }
 
-export interface SimulationInput {
-  balance: number;
-  apr: number;
-  /** Contractual monthly payment on file. */
-  monthly: number;
-  extraMonthly?: number;
-  /** One-time principal payment applied before the next scheduled payment. */
-  lumpSum?: number;
-}
-
-export interface Simulation {
-  /** False when the payment does not cover the first month's interest, so the loan never pays off. */
-  valid: boolean;
-  monthly: number;
-  lumpSum: number;
-  months: number;
-  totalInterest: number;
-  rows: ScheduleRow[];
-}
-
-const finite = (n: number | undefined, fallback = 0) => (typeof n === "number" && Number.isFinite(n) ? n : fallback);
-
-/** Payoff of the current balance with optional extra monthly principal and a one-time principal payment. */
-export function simulate(input: SimulationInput): Simulation {
-  const balance = Math.max(finite(input.balance), 0);
-  const apr = Math.max(finite(input.apr), 0);
-  const extra = Math.max(finite(input.extraMonthly), 0);
-  const lumpSum = Math.min(Math.max(finite(input.lumpSum), 0), balance);
-  const monthly = Math.max(finite(input.monthly), 0) + extra;
-  const start = balance - lumpSum;
-
-  if (start <= 0.005) return { valid: true, monthly, lumpSum, months: 0, totalInterest: 0, rows: [] };
-  if (monthly <= start * rate(apr)) return { valid: false, monthly, lumpSum, months: 0, totalInterest: 0, rows: [] };
-
-  const rows = schedule(start, apr, monthly);
-  const paidOff = rows.length > 0 && rows[rows.length - 1].balance <= 0.005;
-  return { valid: paidOff, monthly, lumpSum, months: rows.length, totalInterest: rows.reduce((s, r) => s + r.interest, 0), rows };
-}
-
 /** Yearly principal/interest totals for charting. */
 export function byYear(rows: ScheduleRow[]) {
   const out: { label: string; principal: number; interest: number; balance: number }[] = [];

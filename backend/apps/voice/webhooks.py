@@ -83,13 +83,13 @@ def post_call_webhook(request):
         try:
             call_reducer(
                 "upsert_call_session",
-                {
-                    "callId": call_id,
-                    "agentId": log.agent_id or "",
-                    "status": log.status or "",
-                    "lastSpeaker": "agent",
-                    "updatedAt": timezone.now().isoformat(),
-                },
+                [
+                    call_id,
+                    log.agent_id or "",
+                    log.status or "",
+                    "agent",
+                    timezone.now().isoformat(),
+                ],
             )
         except (SpacetimeDBError, RequestException):
             return Response({"message": "SpacetimeDB write failed"}, status=503)

@@ -1,23 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import {
-  ArrowRight,
-  CalendarClock,
-  Car,
-  Check,
-  ChevronDown,
-  Compass,
-  Fuel,
-  PhoneCall,
-  RefreshCw,
-  Scale,
-  Send,
-  Sparkles,
-  Trash2,
-  TrendingDown,
-  Wallet,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, Check, ChevronDown, PhoneCall, Send, Sparkles, Trash2, Wrench } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { requestCallback, sendAssistantMessage, type AssistantAction, type AssistantTool } from "../../api/client";
@@ -52,77 +34,20 @@ const PAGE_LABEL: Record<string, string> = {
   signin: "Sign in",
 };
 
-interface Suggestion {
-  q: string;
-  icon: LucideIcon;
+function suggestions(page: string, vehicles: string[], signedIn: boolean, leasePrompt: string | null): string[] {
+  if (page === "compare" && vehicles.length > 1)
+    return ["Which Toyota makes more sense for my commute?", "How much could I spend on fuel each year?", "Which one seats my family best?"];
+  if (page === "vehicle-detail" && vehicles.length) return [`Tell me about the ${vehicleName(parseVehicleId(vehicles[0]))}.`, "How much could I spend on fuel each year?"];
+  if (!signedIn) return ["Which is better for a long commute, a Prius or a Corolla?", "Compare a Camry and a RAV4", "What can this assistant do?"];
+  return [
+    leasePrompt ?? "Can you help me understand my monthly payment?",
+    "What happens if I pay extra toward my loan?",
+    "What's the smartest next move for me right now?",
+  ];
 }
 
-function suggestions(page: string, vehicles: string[], signedIn: boolean, isLease: boolean, journeyPrompt: string | null): Suggestion[] {
-  const pageSpecific: Suggestion[] =
-    page === "compare" && vehicles.length > 1
-      ? [
-          { q: "Which of these makes more sense for my commute?", icon: Car },
-          { q: "How much could I spend on fuel each year?", icon: Fuel },
-        ]
-      : page === "vehicle-detail" && vehicles.length
-        ? [{ q: `Tell me about the ${vehicleName(parseVehicleId(vehicles[0]))}.`, icon: Car }]
-        : [];
-  if (!signedIn)
-    return [
-      ...pageSpecific,
-      { q: "Which is better for a long commute, a Prius or a Corolla?", icon: Car },
-      { q: "Compare a Camry and a RAV4", icon: Scale },
-      { q: "What can this assistant do?", icon: Sparkles },
-    ].slice(0, 4);
-  const account: Suggestion[] = isLease
-    ? [
-        { q: journeyPrompt ?? "My lease ends soon. What are my options?", icon: CalendarClock },
-        { q: "Should I buy my leased car?", icon: Wallet },
-        { q: "Which Toyota could fit my budget?", icon: Car },
-        { q: "What is my smartest next move?", icon: Compass },
-      ]
-    : [
-        { q: journeyPrompt ?? "Can I lower my monthly payment?", icon: Wallet },
-        { q: "What happens if I pay extra toward my loan?", icon: TrendingDown },
-        { q: "How much equity do I have?", icon: Scale },
-        { q: "Which Toyota could fit my budget?", icon: Car },
-        { q: "What is my smartest next move?", icon: Compass },
-      ];
-  return [...pageSpecific, ...account].slice(0, 5);
-}
-
-/** The model is told to answer in plain text; strip stray markdown emphasis and split into paragraphs and bullet lists. */
-function Prose({ text, muted }: { text: string; muted?: boolean }) {
-  const blocks = text
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/^#+\s*/gm, "")
-    .split(/\n{2,}/)
-    .map((b) => b.trim())
-    .filter(Boolean);
-  return (
-    <div className={cn("space-y-2.5 text-sm leading-relaxed", muted && "text-caution")}>
-      {blocks.map((block, i) => {
-        const lines = block.split("\n");
-        if (lines.every((l) => /^\s*([-•*]|\d+[.)])\s+/.test(l)))
-          return (
-            <ul key={i} className="space-y-1.5">
-              {lines.map((l, j) => (
-                <li key={j} className="flex gap-2">
-                  <span className="mt-[0.55em] h-1 w-1 shrink-0 rounded-full bg-signal" />
-                  <span>{l.replace(/^\s*([-•*]|\d+[.)])\s+/, "")}</span>
-                </li>
-              ))}
-            </ul>
-          );
-        return (
-          <p key={i} className="whitespace-pre-line">
-            {block}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
+/** Light cleanup: the model is told to answer in plain text, but strip stray markdown emphasis. */
+const plain = (text: string) => text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/gm, "");
 
 export function AssistantChat({ compact = false }: { compact?: boolean }) {
   const { profile } = useAuth();
@@ -135,7 +60,6 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
   const journey = profile ? journeyFor(profile) : null;
 
   useEffect(() => {
-    if (turns.length === 0 && !busy) return;
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [turns, busy]);
 
@@ -148,12 +72,12 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
     }
   }, [customerId, setTurns]);
 
-  async function send(text: string, { retry = false } = {}) {
+  async function send(text: string) {
     const content = text.trim();
     if (!content || busy) return;
-    const next: Turn[] = retry ? turns : [...turns, { id: `u-${Date.now()}`, role: "user", content }];
+    const next: Turn[] = [...turns, { id: `u-${Date.now()}`, role: "user", content }];
     setTurns(next);
-    if (!retry) setDraft("");
+    setDraft("");
     setBusy(true);
     setError(null);
     try {
@@ -200,10 +124,8 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
     void send(draft);
   }
 
-  const journeyPrompt = journey && (journey.kind === "lease" || journey.kind === "payment" || journey.kind === "safety") ? journey.prompt : null;
-  const isLease = profile?.account.contract_type === "lease";
-  const cards = suggestions(context.page, context.vehicles ?? [], Boolean(profile), isLease, journeyPrompt);
-  const lastUser = [...turns].reverse().find((t) => t.role === "user");
+  const leasePrompt = journey && (journey.kind === "lease" || journey.kind === "payment") ? journey.prompt : null;
+  const chips = suggestions(context.page, context.vehicles ?? [], Boolean(profile), leasePrompt);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -224,65 +146,42 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
 
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5" aria-live="polite">
         {turns.length === 0 && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-signal text-white">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <p className={cn("mt-4 font-semibold tracking-tight", compact ? "text-xl" : "text-3xl")}>
-              {profile ? `Hi ${profile.customer.first_name}, what would you like to figure out today?` : "How can I help with your Toyota?"}
+          <div>
+            <p className={cn("font-semibold tracking-tight", compact ? "text-lg" : "text-2xl")}>
+              {profile ? `Hi ${profile.customer.first_name}, what would you like to figure out?` : "How can I help with your Toyota?"}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              {profile
-                ? "I answer from your simulated account and the vehicle catalog, checked by backend tools. I can't change your contract, and anything that needs a decision waits for your confirmation."
-                : "Ask about models, fuel costs, or how financing works. Sign in as a demo customer to ask about a specific account."}
+              Answers come from your simulated account and the vehicle catalog, checked by backend tools. I can't change your contract; any request needs your
+              confirmation.
             </p>
-            <div className={cn("mt-5 grid gap-2", !compact && "sm:grid-cols-2")}>
-              {cards.map(({ q, icon: Icon }) => (
-                <button
-                  key={q}
-                  onClick={() => void send(q)}
-                  className="group flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3 text-left text-sm transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-px hover:border-ink/40 hover:shadow-[var(--shadow-soft)]"
-                >
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-mist text-ink/70 transition-colors duration-200 group-hover:bg-signal group-hover:text-white">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="flex-1">{q}</span>
-                  <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity duration-150 group-hover:opacity-60" />
-                </button>
-              ))}
-            </div>
-          </motion.div>
+          </div>
         )}
         {turns.map((t) => (
           <Message key={t.id} turn={t} customerId={customerId} name={profile?.customer.first_name ?? ""} />
         ))}
         {busy && (
-          <div className="flex gap-3" role="status">
-            <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
-              <Sparkles className="h-3.5 w-3.5 motion-safe:animate-pulse" />
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <span className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="h-1.5 w-1.5 animate-pulse rounded-full bg-signal" style={{ animationDelay: `${i * 150}ms` }} />
+              ))}
             </span>
-            <div className="flex-1">
-              <p className="text-xs font-medium text-muted">{profile ? "Checking your account and running the numbers…" : "Checking the vehicle catalog…"}</p>
-              <div className="mt-2 space-y-1.5" aria-hidden>
-                <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-black/[0.06]" />
-                <div className="h-2.5 w-3/5 animate-pulse rounded-full bg-black/[0.06]" />
-              </div>
-            </div>
+            Checking the data…
           </div>
         )}
-        {error && (
-          <div role="alert" className="flex flex-wrap items-center gap-3 rounded-2xl border border-signal/30 bg-signal/5 px-4 py-3 text-sm">
-            <span className="flex-1">{error}</span>
-            {lastUser && (
-              <button onClick={() => void send(lastUser.content, { retry: true })} className="inline-flex items-center gap-1.5 text-xs font-semibold text-signal hover:underline">
-                <RefreshCw className="h-3.5 w-3.5" /> Try again
-              </button>
-            )}
-          </div>
-        )}
+        {error && <p className="text-sm text-signal">{error}</p>}
       </div>
 
       <div className="border-t border-line px-5 pb-5 pt-3">
+        {turns.length < 2 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {chips.map((q) => (
+              <button key={q} onClick={() => void send(q)} className="rounded-full border border-line bg-paper px-3 py-1.5 text-left text-xs transition-colors hover:border-ink">
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
         <form onSubmit={submit} className="flex gap-2">
           <label htmlFor={compact ? "assistant-input-dock" : "assistant-input"} className="sr-only">
             Ask Toyota NextMove AI
@@ -292,8 +191,6 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Ask about payments, models, or costs"
-            autoFocus={compact}
-            autoComplete="off"
             className="field min-w-0 flex-1 rounded-full"
           />
           <button type="submit" disabled={busy || !draft.trim()} aria-label="Send" className="btn-primary px-4 disabled:opacity-40">
@@ -319,17 +216,12 @@ function Message({ turn, customerId, name }: { turn: Turn; customerId: string | 
       </div>
     );
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="flex gap-3">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
       <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
         <Sparkles className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <Prose text={turn.content} muted={turn.offline} />
-        {!turn.offline && (
-          <p className="mt-2 text-[11px] text-muted">
-            AI-generated explanation{turn.tools && turn.tools.length > 0 ? " · figures from the tools below" : ""}. Estimates are not approvals or offers.
-          </p>
-        )}
+        <div className={cn("whitespace-pre-line text-sm leading-relaxed", turn.offline && "text-caution")}>{plain(turn.content)}</div>
         {turn.tools && turn.tools.length > 0 && <ToolTrace tools={turn.tools} openByDefault={turn.offline} />}
         {turn.actions && turn.actions.length > 0 && (
           <div className="mt-3 flex flex-col gap-2">
@@ -347,31 +239,17 @@ function ToolTrace({ tools, openByDefault = false }: { tools: AssistantTool[]; o
   const [open, setOpen] = useState(openByDefault);
   return (
     <div className="mt-2">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-xs font-medium text-ink/75 transition-colors duration-150 hover:border-ink/40 hover:text-ink"
-      >
-        <Wrench className="h-3 w-3" /> {open ? "Hide calculation" : "Show how this was calculated"}
-        <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", open && "rotate-180")} />
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-ink">
+        <Wrench className="h-3 w-3" /> Checked: {tools.map((t) => TOOL_LABEL[t.name] ?? t.name).join(", ")}
+        <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <p className="mt-2 text-[11px] text-muted">
-              Sources: {tools.map((t) => TOOL_LABEL[t.name] ?? t.name.replace(/_/g, " ")).join(", ")}. Figures come from deterministic backend calculations on the
-              simulated account and vehicle catalog, not from the language model.
-            </p>
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="mt-2 space-y-2">
               {tools.map((t, i) => (
                 <div key={`${t.name}-${i}`} className="rounded-xl bg-mist p-3">
-                  <div className="text-xs font-semibold">{TOOL_LABEL[t.name] ?? t.name.replace(/_/g, " ")}</div>
+                  <div className="text-xs font-semibold">{TOOL_LABEL[t.name] ?? t.name}</div>
                   <dl className="mt-1 grid gap-x-3 gap-y-0.5 text-[11px] text-ink/80 sm:grid-cols-2">
                     {flatten(t.result)
                       .slice(0, 12)

@@ -19,8 +19,6 @@ class CustomerAccount(models.Model):
     current_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     vehicle_model = models.CharField(max_length=80, blank=True)
     vehicle_year = models.PositiveIntegerField(null=True, blank=True)
-    # Loan or lease terms the customer typed in. Self-reported and never treated as a verified agreement.
-    agreement = models.JSONField(default=dict, blank=True)
     recommendation_key = models.CharField(max_length=64, blank=True)
     recommendation = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -20,13 +20,14 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { requestCallback, sendAssistantMessage, type AssistantAction, type AssistantTool } from "../../api/client";
+import { requestCallback, sendAssistantMessage, type AssistantAction, type AssistantTool, type PendingActionCard } from "../../api/client";
 import { parseVehicleId } from "../../api/vehicles";
 import { cn } from "../../lib/format";
 import { journeyFor } from "../../lib/journey";
 import { vehicleName } from "../../lib/spec";
 import { useAssistant, type Turn } from "../../state/assistant";
 import { useAuth } from "../../state/auth";
+import { ConfirmActionCard } from "../ConfirmActionCard";
 import { VoiceWidget } from "../VoiceWidget";
 
 const TOOL_LABEL: Record<string, string> = {
@@ -400,12 +401,18 @@ function flatten(obj: unknown, prefix = ""): [string, string][] {
   return [[prefix, typeof obj === "number" ? obj.toLocaleString("en-US") : String(obj)]];
 }
 
+function isPendingAction(action: AssistantAction): action is PendingActionCard {
+  return action.type === "pending_action";
+}
+
 function ActionButton({ action, customerId, name }: { action: AssistantAction; customerId: string | null; name: string }) {
   const { setOpen } = useAssistant();
   const [confirming, setConfirming] = useState(false);
   const [phone, setPhone] = useState("");
   const [when, setWhen] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
+
+  if (isPendingAction(action)) return <ConfirmActionCard action={action} />;
 
   if (action.type === "navigate")
     return (

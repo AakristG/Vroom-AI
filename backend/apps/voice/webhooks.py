@@ -11,12 +11,11 @@ import time
 from django.conf import settings
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from requests.exceptions import RequestException
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from apps.spacetime.client import SpacetimeDBError, call_reducer
+from apps.spacetime.client import try_reducer
 
 from .models import CallLog
 
@@ -80,18 +79,15 @@ def post_call_webhook(request):
     log.save()
 
     if event in _CALL_EVENTS:
-        try:
-            call_reducer(
-                "upsert_call_session",
-                {
-                    "callId": call_id,
-                    "agentId": log.agent_id or "",
-                    "status": log.status or "",
-                    "lastSpeaker": "agent",
-                    "updatedAt": timezone.now().isoformat(),
-                },
-            )
-        except (SpacetimeDBError, RequestException):
-            return Response({"message": "SpacetimeDB write failed"}, status=503)
+        try_reducer(
+            "upsert_call_session",
+            {
+                "callId": call_id,
+                "agentId": log.agent_id or "",
+                "status": log.status or "",
+                "lastSpeaker": "agent",
+                "updatedAt": timezone.now().isoformat(),
+            },
+        )
 
     return Response(status=204)

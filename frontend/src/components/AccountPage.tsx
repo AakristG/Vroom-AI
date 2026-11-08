@@ -8,6 +8,7 @@ import { CustomerTalk } from "./CustomerTalk";
 import { LifeShift } from "./LifeShift";
 import { NextMove } from "./NextMove";
 import { OptionsCompare } from "./OptionsCompare";
+import { AppointmentsPanel } from "./AppointmentsPanel";
 import { PhoneDesk } from "./PhoneDesk";
 
 const yesNo = (v: YN) => (v === "Y" ? "Yes" : "No");
@@ -193,6 +194,7 @@ function AgreementAccount({ p }: { p: Profile }) {
         <OptionsCompare p={p} />
       </div>
       <PhoneDesk p={p} />
+      <AppointmentsPanel />
       <CustomerTalk p={p} />
     </main>
     </>

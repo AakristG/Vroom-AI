@@ -1,14 +1,16 @@
+"""Simple chat endpoint — same shared orchestrator as the assistant dock and Retell voice."""
+
+from __future__ import annotations
+
 import logging
 
-from openai import AuthenticationError, PermissionDeniedError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from . import nim_client
 from apps.accounts.authz import login_required_api
 
-from .account_context import account_context, bind_signed_in
-from .retrieve import relevant_account_context
+from .account_context import bind_signed_in
+from .orchestrator import run_turn
 from .serializers import ChatRequestSerializer
 
 logger = logging.getLogger(__name__)
@@ -17,9 +19,10 @@ logger = logging.getLogger(__name__)
 @api_view(["POST"])
 @login_required_api
 def chat(request):
-    """Nemotron chat for the signed-in customer. POST
-    {"customer_id": "C002", "messages": [{"role": "user", "content": "..."}]}.
-    customer_id is optional; when present, the reply is grounded in that account.
+    """Nemotron chat for the signed-in customer via the shared orchestrator.
+
+    POST {"messages": [{"role": "user", "content": "..."}], "customer_id": "C002"?}
+    customer_id in the body is ignored for authorization — the session account wins.
     """
     serializer = ChatRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -27,32 +30,14 @@ def chat(request):
     account = request.account
     bind_signed_in(account)
     customer_id = account.customer_id
-    question = next(
-        (m.get("content", "") for m in reversed(serializer.validated_data["messages"]) if m.get("role") == "user"),
-        "",
+    result = run_turn(
+        messages=serializer.validated_data["messages"],
+        customer_id=customer_id,
+        context={"page": "chat"},
+        channel="web",
+        conversation_id=f"web-chat:{customer_id}",
+        verified=True,
     )
-    extra = ""
-    if customer_id:
-        extra = relevant_account_context(customer_id, question) or (
-            f"No Toyota Financial Services record was found for {customer_id}. "
-            "Say so. Do not invent an account."
-        )
-
-    try:
-        reply = nim_client.generate_reply(serializer.validated_data["messages"], extra_system=extra)
-    except (AuthenticationError, PermissionDeniedError):
-        logger.warning("NVIDIA refused Nemotron inference for %s", customer_id or "anonymous")
-        return Response(
-            {
-                "detail": (
-                    "NVIDIA accepted the API key but refused Nemotron inference (403). "
-                    "Enable this model for the key at build.nvidia.com."
-                )
-            },
-            status=503,
-        )
-    except Exception:
-        logger.exception("Nemotron chat failed for %s", customer_id or "anonymous")
-        return Response({"detail": "Nemotron is not available right now."}, status=503)
-
-    return Response({"reply": reply})
+    if result.get("error") and not result.get("response"):
+        return Response({"detail": result["error"], "tools": result.get("tool_results") or []}, status=503)
+    return Response({"reply": result["response"], "tools": result.get("tool_results") or [], "actions": result.get("proposed_actions") or []})

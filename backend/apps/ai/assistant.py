@@ -10,8 +10,10 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from apps.accounts.views import account_from_request
+
 from . import nim_client, tools
-from .account_context import account_context
+from .account_context import account_context, bind_signed_in
 from .prompts import ASSISTANT_PROMPT
 from .serializers import ChatRequestSerializer
 
@@ -94,6 +96,7 @@ def assistant(request):
     messages = serializer.validated_data["messages"]
     customer_id = str(request.data.get("customer_id") or "").strip() or None
     context = request.data.get("context") if isinstance(request.data.get("context"), dict) else {}
+    bind_signed_in(account_from_request(request))
 
     try:
         run = _native if settings.NIM_TOOL_CALLING else _grounded

@@ -105,6 +105,32 @@ export function CountUp({ value, format = (n) => Math.round(n).toLocaleString("e
   );
 }
 
+/** Eases from the previous value to the new one whenever `value` changes (e.g. while a slider moves). */
+export function AnimatedNumber({ value, format, className }: { value: number; format: (n: number) => string; className?: string }) {
+  const reduce = useReducedMotion();
+  const mv = useMotionValue(value);
+  const fmt = useRef(format);
+  fmt.current = format;
+  const [text, setText] = useState(() => format(value));
+
+  useEffect(() => {
+    if (reduce) {
+      mv.set(value);
+      setText(fmt.current(value));
+      return;
+    }
+    const controls = animate(mv, value, { duration: 0.35, ease: EASE, onUpdate: (n) => setText(fmt.current(n)) });
+    return () => controls.stop();
+  }, [value, reduce, mv]);
+
+  return (
+    <span className={className ? `tabular-nums ${className}` : "tabular-nums"}>
+      <span aria-hidden>{text}</span>
+      <span className="sr-only">{format(value)}</span>
+    </span>
+  );
+}
+
 /** Decorative layer that drifts against the scroll. */
 export function Parallax({ children, className, distance = 80 }: { children?: ReactNode; className?: string; distance?: number }) {
   const ref = useRef<HTMLDivElement>(null);

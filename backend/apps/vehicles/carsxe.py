@@ -89,7 +89,7 @@ class CarsXEClient:
             response = self._session.get(
                 f"{settings.CARSXE_BASE_URL}{path}",
                 params={**params, "key": settings.CARSXE_API_KEY},
-                timeout=12,
+                timeout=30,
             )
         except requests.RequestException as exc:
             # The exception text contains the request URL, which includes the key.

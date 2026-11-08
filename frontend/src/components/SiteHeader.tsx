@@ -56,7 +56,7 @@ export function SiteHeader() {
     };
   }, [open]);
 
-  const nextMove = profile ? "/insights" : "/signin?next=/insights";
+  useEffect(() => setOpen(false), [pathname]);
 
   return (
     <header
@@ -145,8 +145,11 @@ export function SiteHeader() {
               <UserRound className="h-4 w-4" /> Sign in
             </Link>
           )}
-          <Link to={nextMove} className="btn-primary hidden px-5 py-2.5 md:inline-flex">
-            Find My Next Move
+          <Link to={profile ? "/financial-services" : "/signin?next=/financial-services"} className={cn("hidden text-sm font-medium lg:inline", overHero ? "text-white" : "text-ink")}>
+            Financial services
+          </Link>
+          <Link to={profile ? "/vehicles" : "/signin?next=/vehicles"} className="btn-primary hidden px-5 py-2.5 md:inline-flex">
+            Models
           </Link>
           <button
             onClick={() => setOpen((o) => !o)}
@@ -184,8 +187,11 @@ export function SiteHeader() {
                 </motion.div>
               ))}
               <div className="mt-6 grid gap-3">
-                <Link to={nextMove} className="btn-primary">
-                  Find My Next Move
+                <Link to={profile ? "/financial-services" : "/signin?next=/financial-services"} className="btn-ghost border-line">
+                  Financial services
+                </Link>
+                <Link to={profile ? "/vehicles" : "/signin?next=/vehicles"} className="btn-primary">
+                  Models
                 </Link>
                 {profile ? (
                   <button

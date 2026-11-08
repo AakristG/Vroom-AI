@@ -12,6 +12,8 @@ const MyToyotaPage = lazy(() => import("./pages/MyToyotaPage").then((m) => ({ de
 const InsightsPage = lazy(() => import("./pages/InsightsPage").then((m) => ({ default: m.InsightsPage })));
 const AssistantPage = lazy(() => import("./pages/AssistantPage").then((m) => ({ default: m.AssistantPage })));
 const SignInRoute = lazy(() => import("./pages/SignInRoute").then((m) => ({ default: m.SignInRoute })));
+const SignUpPage = lazy(() => import("./components/SignUpPage").then((m) => ({ default: m.SignUpPage })));
+const FinancialServicesPage = lazy(() => import("./pages/FinancialServicesPage").then((m) => ({ default: m.FinancialServicesPage })));
 
 function RouteFallback() {
   return (
@@ -67,9 +69,11 @@ function App() {
             <Route path="/vehicles/:year/:model/:trim?" element={<Page><VehicleDetailPage /></Page>} />
             <Route path="/compare" element={<Page><ComparePage /></Page>} />
             <Route path="/my-toyota" element={<Page><MyToyotaPage /></Page>} />
+            <Route path="/financial-services" element={<Page><FinancialServicesPage /></Page>} />
             <Route path="/insights" element={<Page><InsightsPage /></Page>} />
             <Route path="/assistant" element={<Page><AssistantPage /></Page>} />
             <Route path="/signin" element={<Page><SignInRoute /></Page>} />
+            <Route path="/signup" element={<Page><div className="pt-16 md:pt-[72px]"><SignUpPage /></div></Page>} />
             <Route path="*" element={<Page><NotFound /></Page>} />
           </Routes>
         </AnimatePresence>

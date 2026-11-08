@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "channels",
     # local apps
     "apps.core",
+    "apps.accounts",
     "apps.ai",
     "apps.voice",
     "apps.spacetime",

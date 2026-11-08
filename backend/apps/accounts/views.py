@@ -1,0 +1,182 @@
+"""Sign-up, sign-in, and the signed-in Toyota catalog. Passwords stay hashed in SQLite."""
+
+from __future__ import annotations
+
+import secrets
+from decimal import Decimal
+
+from django.contrib.auth.hashers import check_password, make_password
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+from .catalog import catalog_page, model_detail
+from .models import CustomerAccount
+from .seed import seed_demo_accounts
+
+_EXAMPLE = (
+    "I'm starting a new job, but my monthly expenses are increasing by $400. "
+    "What should I do about my $580 Toyota payment?"
+)
+
+
+def account_from_request(request) -> CustomerAccount | None:
+    header = request.headers.get("Authorization", "")
+    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+    if not token:
+        return None
+    return CustomerAccount.objects.filter(token=token).first()
+
+
+def public_account(account: CustomerAccount) -> dict:
+    payment = account.current_payment
+    return {
+        "token": account.token,
+        "username": account.username,
+        "first_name": account.first_name,
+        "last_name": account.last_name,
+        "email": account.email,
+        "phone": account.phone,
+        "city": account.city,
+        "state": account.state,
+        "life_change": account.life_change,
+        "preferences": account.preferences,
+        "customer_id": account.customer_id,
+        "current_payment": float(payment) if payment is not None else None,
+        "vehicle_model": account.vehicle_model,
+        "vehicle_year": account.vehicle_year,
+        "example_life_change": _EXAMPLE,
+    }
+
+
+def _password_ok(account: CustomerAccount, raw: str) -> bool:
+    candidate = raw.strip()
+    return check_password(candidate, account.password) or check_password(candidate.lower(), account.password)
+
+
+def _issue_token(account: CustomerAccount) -> None:
+    account.token = secrets.token_urlsafe(32)
+    account.save(update_fields=["token"])
+
+
+@api_view(["POST"])
+def signup(request):
+    seed_demo_accounts()
+    first = str(request.data.get("first_name") or "").strip()
+    last = str(request.data.get("last_name") or "").strip()
+    username = str(request.data.get("username") or "").strip().lower()
+    password = str(request.data.get("password") or "")
+    life = str(request.data.get("life_change") or "").strip()
+    city = str(request.data.get("city") or "").strip()
+    if not first or not username or not password.strip() or not city or not life:
+        return Response(
+            {"detail": "Add your name, a username, a password, your city, and what changed in your life."},
+            status=400,
+        )
+    if CustomerAccount.objects.filter(username=username).exists():
+        return Response({"detail": "That username is already in use. Sign in instead."}, status=400)
+
+    payment = _decimal(request.data.get("current_payment"))
+    year = _year(request.data.get("vehicle_year"))
+    account = CustomerAccount.objects.create(
+        username=username,
+        password=make_password(password.strip()),
+        first_name=first,
+        last_name=last,
+        email=str(request.data.get("email") or "").strip(),
+        phone=str(request.data.get("phone") or "").strip(),
+        city=city,
+        state=str(request.data.get("state") or "TX").strip() or "TX",
+        life_change=life,
+        customer_id=f"pending-{secrets.token_hex(4)}",
+        current_payment=payment,
+        vehicle_model=str(request.data.get("vehicle_model") or "").strip(),
+        vehicle_year=year,
+    )
+    account.customer_id = f"N{account.id:03d}"
+    account.save(update_fields=["customer_id"])
+    _issue_token(account)
+    return Response(public_account(account))
+
+
+@api_view(["POST"])
+def login(request):
+    seed_demo_accounts()
+    username = str(request.data.get("username") or "").strip().lower()
+    password = str(request.data.get("password") or "")
+    account = CustomerAccount.objects.filter(username=username).first()
+    if not account or not _password_ok(account, password):
+        return Response({"detail": "That sign-in doesn't match an account."}, status=400)
+    _issue_token(account)
+    return Response(public_account(account))
+
+
+@api_view(["GET", "PATCH"])
+def me(request):
+    account = account_from_request(request)
+    if not account:
+        return Response({"detail": "Sign in to continue."}, status=401)
+    if request.method == "PATCH":
+        if "life_change" in request.data:
+            account.life_change = str(request.data.get("life_change") or "").strip()
+        if "preferences" in request.data:
+            account.preferences = str(request.data.get("preferences") or "").strip()
+        if "city" in request.data:
+            account.city = str(request.data.get("city") or "").strip()
+        if "phone" in request.data:
+            account.phone = str(request.data.get("phone") or "").strip()
+        if "current_payment" in request.data:
+            account.current_payment = _decimal(request.data.get("current_payment"))
+        account.save()
+    return Response(public_account(account))
+
+
+@api_view(["GET"])
+def models(request):
+    account = account_from_request(request)
+    if not account:
+        return Response({"detail": "Sign in to see Toyota models."}, status=401)
+    try:
+        page = max(1, int(request.query_params.get("page") or 1))
+    except ValueError:
+        page = 1
+    payload = catalog_page(
+        account,
+        page=page,
+        body=str(request.query_params.get("body") or "").strip(),
+        seats=str(request.query_params.get("seats") or "").strip(),
+        sort=str(request.query_params.get("sort") or "price_asc").strip(),
+    )
+    status = 200 if payload.get("source") != "error" else 502
+    return Response(payload, status=status)
+
+
+@api_view(["GET"])
+def model_detail_view(request):
+    account = account_from_request(request)
+    if not account:
+        return Response({"detail": "Sign in to see this Toyota."}, status=401)
+    name = str(request.query_params.get("model") or "").strip()
+    if not name:
+        return Response({"detail": "Choose a model."}, status=400)
+    payload = model_detail(name)
+    if payload is None:
+        return Response({"detail": "That model is not in the CarsXE catalog yet."}, status=404)
+    return Response(payload)
+
+
+def _decimal(value) -> Decimal | None:
+    text = str(value or "").replace("$", "").replace(",", "").strip()
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except Exception:
+        return None
+
+
+def _year(value) -> int | None:
+    try:
+        year = int(value)
+    except (TypeError, ValueError):
+        return None
+    return year if 1980 <= year <= 2030 else None

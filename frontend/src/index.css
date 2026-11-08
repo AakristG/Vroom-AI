@@ -24,6 +24,17 @@
   --color-go: #1f8a70;
   --color-caution: #b26a00;
 
+  /* Premium automotive surfaces */
+  --color-charcoal: #16171a;
+  --color-charcoal-2: #222428;
+  --color-charcoal-3: #34373d;
+  --color-mist: #f7f7f5;
+  --color-steel: #8a8f98;
+
+  --shadow-soft: 0 1px 2px rgba(16, 17, 20, 0.04), 0 12px 32px -16px rgba(16, 17, 20, 0.18);
+  --shadow-lift: 0 2px 4px rgba(16, 17, 20, 0.05), 0 28px 60px -24px rgba(16, 17, 20, 0.35);
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+
   --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
   --font-sans: "Inter Tight Variable", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
@@ -53,6 +64,59 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-signal;
+  }
+  .section-title {
+    @apply text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-[-0.02em] text-balance;
+  }
+  .card {
+    @apply rounded-3xl border border-black/[0.06] bg-paper;
+    box-shadow: var(--shadow-soft);
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-signal px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-300 hover:bg-signal-deep active:scale-[0.98];
+    box-shadow: 0 10px 30px -12px rgba(235, 10, 30, 0.6);
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 text-sm font-semibold transition-colors duration-300;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors duration-200;
+  }
+  .field {
+    @apply w-full rounded-2xl border border-line bg-paper px-4 py-3 text-sm outline-none transition-colors focus:border-ink;
+  }
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  }
+}
+
+/* Slow drift for the hero fallback scene. */
+@keyframes drift {
+  from {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.12) translate3d(-2%, -1%, 0);
+  }
+}
+.drift {
+  animation: drift 24s ease-in-out infinite alternate;
+}
+.trail-loop {
+  animation: trail 5.5s cubic-bezier(0.55, 0, 0.2, 1) 0.6s infinite both;
+}
+.trail-loop-late {
+  animation: trail 7s cubic-bezier(0.55, 0, 0.2, 1) 2.4s infinite both;
+}
+.paused .drift,
+.paused .trail-loop,
+.paused .trail-loop-late {
+  animation-play-state: paused;
 }
 
 /* Tail-light streak that runs once along the hero road on load. */

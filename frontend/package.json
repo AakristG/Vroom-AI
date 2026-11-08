@@ -21,6 +21,8 @@
     "motion": "^14.10.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5",
+    "recharts": "^2.15.4",
     "retell-client-js-sdk": "^3.0.4",
     "spacetimedb": "^2.14.1",
     "tailwind-merge": "^3.7.0",

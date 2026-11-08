@@ -22,6 +22,54 @@ export async function sendChatMessage(messages: ChatMessage[], customerId?: stri
   return data.reply;
 }
 
+export interface AssistantTool {
+  name: string;
+  args: Record<string, unknown>;
+  result: Record<string, unknown>;
+}
+
+export type AssistantAction =
+  | { type: "navigate"; label: string; to: string }
+  | { type: "confirm"; action: "request_callback"; topic: string; label: string };
+
+export interface AssistantContext {
+  page: string;
+  vehicles?: string[];
+  year?: number;
+}
+
+export interface AssistantResponse {
+  reply: string | null;
+  detail?: string;
+  tools: AssistantTool[];
+  actions: AssistantAction[];
+}
+
+/** POST /api/ai/assistant/ — Nemotron grounded in backend tool results for this page. */
+export async function sendAssistantMessage(
+  messages: ChatMessage[],
+  context: AssistantContext,
+  customerId?: string | null
+): Promise<AssistantResponse> {
+  try {
+    const { data } = await apiClient.post<AssistantResponse>(
+      "/api/ai/assistant/",
+      { messages, context, customer_id: customerId ?? undefined },
+      { timeout: 60000 }
+    );
+    return data;
+  } catch (err) {
+    const body = (err as { response?: { status?: number; data?: AssistantResponse } }).response;
+    if (body?.status === 503 && body.data) return { ...body.data, reply: null };
+    throw err;
+  }
+}
+
+export async function requestCallback(payload: { customer_id: string; name: string; topic: string; when: string; phone: string }) {
+  const { data } = await apiClient.post("/api/voice/appointments/", payload, { timeout: 20000 });
+  return data as { appointment: Record<string, string>; call: { status: string } };
+}
+
 export async function checkBackendHealth(): Promise<boolean> {
   try {
     const { data } = await apiClient.get<{ status: string }>("/api/health/");

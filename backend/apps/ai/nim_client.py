@@ -38,12 +38,12 @@ def _extra_body() -> dict:
     return {"chat_template_kwargs": {"enable_thinking": settings.NIM_ENABLE_THINKING}}
 
 
-def with_system_prompt(messages: Iterable[dict], extra_system: str = "") -> list[dict]:
+def with_system_prompt(messages: Iterable[dict], extra_system: str = "", base: str = SYSTEM_PROMPT) -> list[dict]:
     messages = [m for m in messages if m.get("role") != "system"]
-    content = SYSTEM_PROMPT
+    content = base
     if extra_system:
         content = (
-            f"{SYSTEM_PROMPT}\n\n"
+            f"{base}\n\n"
             "VERIFIED ACCOUNT. These figures come from the customer's Toyota Financial Services record. "
             "Do not replace them with estimates of your own.\n"
             f"{extra_system}"
@@ -51,16 +51,29 @@ def with_system_prompt(messages: Iterable[dict], extra_system: str = "") -> list
     return [{"role": "system", "content": content}, *messages]
 
 
-def generate_reply(messages: Iterable[dict], *, model: str | None = None, extra_system: str = "") -> str:
+def clean(content: str | None) -> str:
+    return _THINK_BLOCK_RE.sub("", content or "").strip()
+
+
+def generate_reply(
+    messages: Iterable[dict], *, model: str | None = None, extra_system: str = "", base: str = SYSTEM_PROMPT
+) -> str:
     """Non-streaming completion. `messages` is OpenAI chat-format: [{"role": "user", "content": "..."}, ...]."""
     client = get_client()
     completion = client.chat.completions.create(
         model=model or settings.NIM_MODEL,
-        messages=with_system_prompt(messages, extra_system),
+        messages=with_system_prompt(messages, extra_system, base),
         extra_body=_extra_body(),
     )
-    content = completion.choices[0].message.content or ""
-    return _THINK_BLOCK_RE.sub("", content).strip()
+    return clean(completion.choices[0].message.content)
+
+
+def complete(messages: list[dict], *, tools: list[dict] | None = None):
+    """Raw completion for the tool-calling loop. Caller supplies the system message."""
+    kwargs = {"tools": tools, "tool_choice": "auto"} if tools else {}
+    return get_client().chat.completions.create(
+        model=settings.NIM_MODEL, messages=messages, extra_body=_extra_body(), **kwargs
+    )
 
 
 def stream_reply(messages: Iterable[dict], *, model: str | None = None) -> Iterator[str]:

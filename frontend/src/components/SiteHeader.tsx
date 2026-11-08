@@ -1,104 +1,255 @@
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowRight, LogOut, Menu, UserRound, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { cn } from "../lib/format";
+import { useAuth } from "../state/auth";
 import { ToyotaMark } from "./ToyotaMark";
 
-export function SiteHeader({
-  signedInName,
-  onHome,
-  onSignIn,
-  onAccount,
-  onSignOut,
-}: {
-  signedInName: string | null;
-  onHome: (section?: string) => void;
-  onSignIn: () => void;
-  onAccount: () => void;
-  onSignOut: () => void;
-}) {
+export const NAV_ITEMS = [
+  { to: "/vehicles", label: "Explore Vehicles" },
+  { to: "/compare", label: "Compare Models" },
+  { to: "/my-toyota", label: "My Toyota" },
+  { to: "/insights", label: "Financial Insights" },
+  { to: "/assistant", label: "AI Assistant" },
+];
+
+export function SiteHeader() {
+  const { profile, signOut } = useAuth();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [darkTop, setDarkTop] = useState(false);
+  const overHero = darkTop && !scrolled && !open;
+
+  useEffect(() => {
+    const root = document.getElementById("content");
+    if (!root) return;
+    const check = () => {
+      const first = root.querySelector("[data-dark-top]");
+      setDarkTop(!!first && first.getBoundingClientRect().top + window.scrollY < 16);
+    };
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => setOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  const nextMove = profile ? "/insights" : "/signin?next=/insights";
+
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3 md:px-8">
-        <button onClick={() => onHome()} className="flex items-center gap-2 text-ink">
-          <ToyotaMark className="h-9 w-auto" />
-          <span className="text-left leading-tight">
-            <span className="block text-[11px] font-semibold tracking-[0.22em]">TOYOTA</span>
-            <span className="block text-xs text-muted">Financial Services</span>
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,backdrop-filter,color] duration-500 ease-[var(--ease-premium)]",
+        overHero
+          ? "bg-transparent text-white"
+          : "border-b border-black/[0.06] bg-white/75 text-ink shadow-[0_8px_30px_-20px_rgba(0,0,0,0.35)] backdrop-blur-xl backdrop-saturate-150",
+        open && "bg-white"
+      )}
+    >
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 md:h-[72px] md:px-8">
+        <Link to="/" className="flex shrink-0 items-center gap-2.5" aria-label="Toyota Financial Services home">
+          <span className={cn("grid h-9 w-11 place-items-center rounded-lg transition-colors", overHero && "bg-white/95")}>
+            <ToyotaMark className="h-7 w-auto" />
           </span>
-        </button>
-        <nav className="hidden items-center gap-6 text-sm text-ink/80 md:flex">
-          <button onClick={() => onHome("how")} className="hover:text-ink">
-            How it helps
-          </button>
-          <button onClick={() => onHome("numbers")} className="hover:text-ink">
-            Your numbers
-          </button>
-          <button onClick={() => onHome("promise")} className="hover:text-ink">
-            What we won't do
-          </button>
-          {signedInName && (
-            <button onClick={onAccount} className="hover:text-ink">
-              Your account
-            </button>
-          )}
+          <span className="leading-tight">
+            <span className="block text-[11px] font-semibold tracking-[0.24em]">TOYOTA</span>
+            <span className={cn("block text-xs", overHero ? "text-white/70" : "text-muted")}>Financial Services</span>
+          </span>
+        </Link>
+
+        <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                cn(
+                  "relative rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                  overHero ? "text-white/85 hover:text-white" : "text-ink/70 hover:text-ink",
+                  isActive && (overHero ? "text-white" : "text-ink")
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {item.label}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-underline"
+                      className="absolute inset-x-3.5 -bottom-0.5 h-[2px] rounded-full bg-signal"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    />
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
         </nav>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          {signedInName ? (
-            <>
-              <button onClick={onAccount} className="hidden text-sm font-medium sm:inline">
-                {signedInName}
+
+        <div className="flex items-center gap-2">
+          {profile ? (
+            <div className="hidden items-center gap-1 sm:flex">
+              <Link
+                to="/my-toyota"
+                className={cn(
+                  "flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                  overHero ? "hover:bg-white/10" : "hover:bg-black/[0.04]"
+                )}
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-signal text-xs font-semibold text-white">
+                  {profile.customer.first_name[0]}
+                </span>
+                {profile.customer.first_name}
+              </Link>
+              <button
+                onClick={() => {
+                  signOut();
+                  navigate("/");
+                }}
+                aria-label="Sign out"
+                className={cn("grid h-9 w-9 place-items-center rounded-full transition-colors", overHero ? "hover:bg-white/10" : "hover:bg-black/[0.04]")}
+              >
+                <LogOut className="h-4 w-4" />
               </button>
-              <button onClick={onSignOut} className="whitespace-nowrap rounded-full px-3 py-2 text-sm hover:bg-daylight">
-                Sign out
-              </button>
-            </>
+            </div>
           ) : (
-            <button onClick={onSignIn} className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium hover:bg-daylight">
-              Sign in
-            </button>
+            <Link
+              to="/signin"
+              className={cn(
+                "hidden items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-colors sm:flex",
+                overHero ? "hover:bg-white/10" : "hover:bg-black/[0.04]"
+              )}
+            >
+              <UserRound className="h-4 w-4" /> Sign in
+            </Link>
           )}
+          <Link to={nextMove} className="btn-primary hidden px-5 py-2.5 md:inline-flex">
+            Find My Next Move
+          </Link>
           <button
-            onClick={signedInName ? onAccount : onSignIn}
-            className="whitespace-nowrap rounded-full bg-signal px-4 py-2 text-sm font-medium text-white hover:bg-signal-deep"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls="mobile-nav"
+            aria-label={open ? "Close menu" : "Open menu"}
+            className={cn("grid h-10 w-10 place-items-center rounded-full lg:hidden", overHero ? "hover:bg-white/10" : "hover:bg-black/[0.04]")}
           >
-            {signedInName ? "Account" : "Your options"}
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            id="mobile-nav"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "calc(100svh - 64px)" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-y-auto border-t border-black/[0.06] bg-white/95 text-ink backdrop-blur-xl lg:hidden"
+          >
+            <nav aria-label="Mobile" className="mx-auto flex max-w-7xl flex-col px-5 py-6">
+              {NAV_ITEMS.map((item, i) => (
+                <motion.div key={item.to} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }}>
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn("flex items-center justify-between border-b border-line py-4 text-xl font-semibold tracking-tight", isActive && "text-signal")
+                    }
+                  >
+                    {item.label} <ArrowRight className="h-5 w-5 opacity-40" />
+                  </NavLink>
+                </motion.div>
+              ))}
+              <div className="mt-6 grid gap-3">
+                <Link to={nextMove} className="btn-primary">
+                  Find My Next Move
+                </Link>
+                {profile ? (
+                  <button
+                    onClick={() => {
+                      signOut();
+                      navigate("/");
+                    }}
+                    className="btn-ghost border-line"
+                  >
+                    Sign out {profile.customer.first_name}
+                  </button>
+                ) : (
+                  <Link to="/signin" className="btn-ghost border-line">
+                    Sign in
+                  </Link>
+                )}
+              </div>
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line bg-paper">
-      <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 md:grid-cols-4 md:px-8">
+    <footer className="border-t border-white/10 bg-charcoal text-white">
+      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-4 md:px-8">
         <div className="md:col-span-2">
-          <div className="flex items-center gap-2">
-            <ToyotaMark className="h-8 w-auto" />
-            <span className="text-sm font-semibold tracking-[0.18em]">TOYOTA</span>
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-11 place-items-center rounded-lg bg-white">
+              <ToyotaMark className="h-7 w-auto" />
+            </span>
+            <span className="text-sm font-semibold tracking-[0.22em]">TOYOTA</span>
           </div>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/60">
             A HackUTD concept for Toyota Financial Services customers. Your contract stays put until you authorize a next step.
           </p>
         </div>
         <div>
-          <h2 className="text-sm font-semibold">For you</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
-            <li>Your loan or lease</li>
-            <li>Payment help</li>
-            <li>Lease-end choices</li>
-            <li>Talk with a person</li>
+          <h2 className="text-sm font-semibold">Explore</h2>
+          <ul className="mt-4 space-y-2.5 text-sm text-white/60">
+            {NAV_ITEMS.map((item) => (
+              <li key={item.to}>
+                <Link to={item.to} className="transition-colors hover:text-white">
+                  {item.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>
           <h2 className="text-sm font-semibold">This prototype</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-4 space-y-2.5 text-sm text-white/60">
             <li>Synthetic customers only</li>
             <li>Not an official Toyota site</li>
             <li>No credit report is pulled</li>
+            <li>Vehicle data: CarsXE or labeled demo data</li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-line px-5 py-4 text-xs text-muted md:px-8">
-        <div className="mx-auto max-w-6xl">© 2026 HackUTD concept. Account figures are fictional.</div>
+      <div className="border-t border-white/10 px-5 py-5 text-xs text-white/45 md:px-8">
+        <div className="mx-auto max-w-7xl">© 2026 HackUTD concept. Account figures are fictional.</div>
       </div>
     </footer>
   );

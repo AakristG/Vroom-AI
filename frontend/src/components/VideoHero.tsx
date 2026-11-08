@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Pause, Play } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode, type RefObject, type SyntheticEvent } from "react";
+import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from "react";
 import { heroPoster, type HeroClip } from "../media/heroClips";
 import { cn } from "../lib/format";
 
@@ -64,7 +64,7 @@ function useImageAvailable(src: string) {
 }
 
 /** True while the element is on screen and the tab is visible. */
-function useActiveOnScreen(ref: RefObject<HTMLElement | null>) {
+function useActiveOnScreen(ref: React.RefObject<HTMLElement | null>) {
   const [inView, setInView] = useState(true);
   const [visible, setVisible] = useState(() => typeof document === "undefined" || document.visibilityState === "visible");
   useEffect(() => {
@@ -101,8 +101,15 @@ export function VideoHero({ clips, children }: { clips: HeroClip[]; children: Re
   const { scrollYProgress } = useScroll({ target: section, offset: ["start start", "end start"] });
   const mediaY = useTransform(scrollYProgress, [0, 1], ["0%", reduce ? "0%" : "8%"]);
 
+  // Explicit configuration pointing directly to your Tundra off-road background loop
+  const customClip = {
+    label: "Toyota Tundra Off-Road Capability",
+    src: "/media/tundra-bg.mp4",
+    type: "video/mp4",
+  };
+
   const hasVideo = Boolean(playable && playable.length > 0);
-  const clip = hasVideo ? playable![pass % playable!.length] : null;
+  const clip = hasVideo ? playable![pass % playable!.length] : customClip;
   const active = playing && onScreen;
 
   useEffect(() => {
@@ -112,7 +119,7 @@ export function VideoHero({ clips, children }: { clips: HeroClip[]; children: Re
     });
   }, [active, pass, clip?.src]);
 
-  // Start the next pass slightly before this one ends and crossfade, so a loop never shows a black frame.
+  // Start the next pass slightly before this one ends and crossfade
   function onTimeUpdate(e: SyntheticEvent<HTMLVideoElement>) {
     const v = e.currentTarget;
     if (!v.duration || advancedAt.current === pass) return;
@@ -137,30 +144,28 @@ export function VideoHero({ clips, children }: { clips: HeroClip[]; children: Re
         ) : (
           posterOk === false && !hasVideo && <DuskRoad animated={!reduce} />
         )}
-        {hasVideo && clip && (
-          <AnimatePresence initial={false}>
-            <motion.video
-              key={`${clip.src}#${pass}`}
-              className="absolute inset-0 h-full w-full object-cover object-[62%_center] md:object-center"
-              autoPlay={active}
-              muted
-              playsInline
-              preload="auto"
-              poster={posterOk ? heroPoster : undefined}
-              onTimeUpdate={onTimeUpdate}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: CROSSFADE, ease: "easeInOut" }}
-              aria-hidden
-            >
-              <source src={clip.src} type={clip.type} />
-            </motion.video>
-          </AnimatePresence>
-        )}
+        <AnimatePresence initial={false}>
+          <motion.video
+            key={`${clip.src}#${pass}`}
+            className="absolute inset-0 h-full w-full object-cover object-[62%_center] md:object-center opacity-50"
+            autoPlay={active}
+            muted
+            playsInline
+            preload="auto"
+            poster={posterOk ? heroPoster : undefined}
+            onTimeUpdate={onTimeUpdate}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: CROSSFADE, ease: "easeInOut" }}
+            aria-hidden
+          >
+            <source src={clip.src} type={clip.type} />
+          </motion.video>
+        </AnimatePresence>
       </motion.div>
 
-      {/* Readability: darker at the bottom-left where the copy sits, clear on the right where the truck drives in. */}
+      {/* Readability overlays */}
       <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-charcoal via-charcoal/30 to-charcoal/40" />
       <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-charcoal/85 via-charcoal/30 to-transparent" />
       <div aria-hidden className="grain absolute inset-0 -z-10 opacity-[0.06] mix-blend-overlay" />
@@ -168,8 +173,8 @@ export function VideoHero({ clips, children }: { clips: HeroClip[]; children: Re
       <div className="relative w-full">{children}</div>
 
       <div className="absolute bottom-6 right-5 z-10 flex items-center gap-3 md:right-8">
-        {clip && <span className="hidden text-xs text-white/60 sm:block">{clip.label}</span>}
-        {!reduce && (hasVideo || posterOk !== null) && (
+        <span className="hidden text-xs text-white/60 sm:block">{clip.label}</span>
+        {!reduce && (
           <button
             type="button"
             onClick={() => setPlaying((p) => !p)}
@@ -185,7 +190,7 @@ export function VideoHero({ clips, children }: { clips: HeroClip[]; children: Re
   );
 }
 
-/** Built-in scene used when neither the video nor its poster has been added: dusk sky, hills, and a road. */
+/** Built-in scene used as backup */
 function DuskRoad({ animated }: { animated: boolean }) {
   return (
     <div className="absolute inset-0 overflow-hidden">
@@ -193,18 +198,6 @@ function DuskRoad({ animated }: { animated: boolean }) {
         <div className="absolute inset-0 bg-[radial-gradient(110%_75%_at_70%_62%,#8a3a32_0%,#4a2430_26%,#221a24_52%,#121317_80%)]" />
         <div className="absolute left-[70%] top-[44%] h-[52vmin] w-[52vmin] -translate-x-1/2 rounded-full bg-[#ff6a4a] opacity-45 blur-[100px]" />
         <div className="absolute left-[70%] top-[54%] h-[10vmin] w-[10vmin] -translate-x-1/2 rounded-full bg-[#ffd9b0] opacity-90 blur-[1px] shadow-[0_0_80px_30px_rgba(255,170,120,0.35)]" />
-        <svg viewBox="0 0 1440 400" preserveAspectRatio="none" className="absolute inset-x-0 bottom-[30%] h-[28%] w-full">
-          <path fill="#1e1a22" d="M0 400V250C160 180 300 150 460 190s300 90 470 40 330-140 510-90V400z" />
-          <path fill="#17161b" d="M0 400V300c200-60 380-80 560-40s340 70 520 20 260-60 360-40V400z" />
-        </svg>
-      </div>
-      <div className="absolute inset-x-0 bottom-0 h-[32%] bg-[#0f1013] [perspective:600px]">
-        <div className="absolute inset-0 origin-top [transform:rotateX(62deg)]">
-          <div className="absolute left-1/2 top-0 h-[260%] w-[3px] -translate-x-1/2 bg-[repeating-linear-gradient(180deg,rgba(255,255,255,.55)_0_40px,transparent_40px_100px)] opacity-70" />
-        </div>
-        <div className="absolute inset-x-0 top-0 h-px bg-white/15" />
-        <div className={cn("absolute top-[22%] h-[3px] w-1/2 rounded-full bg-gradient-to-r from-transparent via-signal to-transparent blur-[1px]", animated ? "trail-loop" : "opacity-60")} />
-        <div className={cn("absolute top-[48%] h-[2px] w-1/3 rounded-full bg-gradient-to-r from-transparent via-[#ffd2a6] to-transparent blur-[1px]", animated ? "trail-loop-late" : "hidden")} />
       </div>
     </div>
   );

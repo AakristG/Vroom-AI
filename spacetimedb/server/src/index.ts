@@ -63,13 +63,106 @@ const appointment = table(
   }
 );
 
+/** Which signed-in customer a call belongs to, so each browser only shows its own transcript. */
+const callOwner = table(
+  {
+    name: 'call_owner',
+    public: true,
+    indexes: [{ accessor: 'byCustomer', algorithm: 'btree', columns: ['customerId'] }],
+  },
+  {
+    callId: t.string().primaryKey(),
+    customerId: t.string(),
+    channel: t.string(), // "web" | "phone"
+    fromNumber: t.string(),
+    startedAt: t.string(), // ISO-8601
+  }
+);
+
+/** One step of a customer's AI-automated "next moves" plan. The backend writes progress as the
+ * assistant works through the steps; every open browser for that customer sees it live. */
+const nextMove = table(
+  {
+    name: 'next_move',
+    public: true,
+    indexes: [{ accessor: 'byCustomer', algorithm: 'btree', columns: ['customerId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    customerId: t.string(),
+    stepKey: t.string(),
+    position: t.u32(),
+    title: t.string(),
+    detail: t.string(),
+    status: t.string(), // "working" | "done" | "needs_you" | "blocked"
+    actionLabel: t.string(),
+    actionJson: t.string(), // the suggested action, as JSON; "" when there is none
+    updatedAt: t.string(), // ISO-8601
+  }
+);
+
 const spacetimedb = schema({
   call_session: callSession,
   call_message: callMessage,
   appointment,
   customer_event: customerEvent,
+  call_owner: callOwner,
+  next_move: nextMove,
 });
 export default spacetimedb;
+
+/** Record which customer (if any) a call belongs to. */
+export const setCallOwner = spacetimedb.reducer(
+  {
+    callId: t.string(),
+    customerId: t.string(),
+    channel: t.string(),
+    fromNumber: t.string(),
+    startedAt: t.string(),
+  },
+  (ctx, { callId, customerId, channel, fromNumber, startedAt }) => {
+    const existing = ctx.db.call_owner.callId.find(callId);
+    if (existing) {
+      existing.customerId = customerId || existing.customerId;
+      existing.channel = channel || existing.channel;
+      existing.fromNumber = fromNumber || existing.fromNumber;
+      ctx.db.call_owner.callId.update(existing);
+    } else {
+      ctx.db.call_owner.insert({ callId, customerId, channel, fromNumber, startedAt });
+    }
+  }
+);
+
+/** Create or update one next-move step, keyed by (customerId, stepKey). */
+export const upsertNextMove = spacetimedb.reducer(
+  {
+    customerId: t.string(),
+    stepKey: t.string(),
+    position: t.u32(),
+    title: t.string(),
+    detail: t.string(),
+    status: t.string(),
+    actionLabel: t.string(),
+    actionJson: t.string(),
+    updatedAt: t.string(),
+  },
+  (ctx, args) => {
+    for (const row of ctx.db.next_move.byCustomer.filter(args.customerId)) {
+      if (row.stepKey === args.stepKey) {
+        ctx.db.next_move.id.update({ ...row, ...args });
+        return;
+      }
+    }
+    ctx.db.next_move.insert({ id: 0n, ...args });
+  }
+);
+
+/** Drop a customer's plan before the assistant writes a fresh one. */
+export const clearNextMoves = spacetimedb.reducer({ customerId: t.string() }, (ctx, { customerId }) => {
+  for (const row of [...ctx.db.next_move.byCustomer.filter(customerId)]) {
+    ctx.db.next_move.id.delete(row.id);
+  }
+});
 
 /** Create or update the row for a call. Called from the backend on webhook events, and from
  * the Retell WS consumer as the call progresses. */

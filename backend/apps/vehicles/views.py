@@ -74,7 +74,7 @@ def trims(request):
             "trims": catalog_service.trims(year, model),
             "source": "nhtsa",
             "fallback_reason": None,
-            "note": "NHTSA vPIC does not publish trim lines for this listing.",
+            "note": "Trim lines are not published for this listing.",
         }
     )
 
@@ -200,7 +200,7 @@ def market_value(request):
     return Response(
         {
             "available": False,
-            "detail": "Verified pricing is not currently connected. NHTSA does not provide market values.",
+            "detail": "Verified pricing is not currently connected.",
         }
     )
 
@@ -214,7 +214,7 @@ def lookup(year: int, model: str, trim: str | None) -> tuple[dict | None, dict |
     except ProviderError as exc:
         return None, {"status": exc.status, "detail": str(exc)}
     if not record:
-        return None, {"status": 404, "detail": f"No {year} Toyota {model} in NHTSA data."}
+        return None, {"status": 404, "detail": f"No {year} Toyota {model} in the catalog."}
     return record, None
 
 

@@ -19,7 +19,7 @@ export const CATEGORY_IMAGE: Record<CategoryKey, string> = {
   "sports-cars": "/media/categories/sports-cars.jpg",
 };
 
-export const IMAGE_NOTE = "Representative AI-generated image, not the exact vehicle.";
+export const IMAGE_NOTE = "";
 
 /** Pick the closest representative photo for a catalog record. */
 export function categoryKey(category: string | null | undefined, fuel?: string | null): CategoryKey {
@@ -85,6 +85,6 @@ export function modelImage(model: string) {
 export function modelImageNote(model: string) {
   const photo = modelPhoto(model);
   return photo
-    ? `Representative photo of a Toyota ${photo.names[0]}, not the customer's vehicle. Photo: ${photo.author}, ${photo.license}, via Wikimedia Commons.`
+    ? `Photo: ${photo.author}, ${photo.license}, via Wikimedia Commons.`
     : IMAGE_NOTE;
 }

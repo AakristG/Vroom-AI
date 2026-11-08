@@ -51,6 +51,9 @@ if _PUBLIC_WEBHOOK_BASE_URL:
         ALLOWED_HOSTS.append(_public_host)
 
 INSTALLED_APPS = [
+    # Must be first: makes `manage.py runserver` an ASGI server, so the Retell voice WebSocket
+    # (/ws/llm/<call_id>) works in development, not only under `daphne config.asgi:application`.
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -218,5 +221,5 @@ CACHES = {
 }
 
 SPACETIMEDB_URL = os.environ.get("SPACETIMEDB_URL", "http://127.0.0.1:3000")
-SPACETIMEDB_MODULE_NAME = os.environ.get("SPACETIMEDB_MODULE_NAME", "toyota-fs-dev")
+SPACETIMEDB_MODULE_NAME = os.environ.get("SPACETIMEDB_MODULE_NAME", "toyota-nextmove")
 SPACETIMEDB_TOKEN = os.environ.get("SPACETIMEDB_TOKEN", "")

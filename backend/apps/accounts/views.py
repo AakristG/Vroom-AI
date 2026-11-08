@@ -218,7 +218,7 @@ def model_detail_view(request):
         return Response({"detail": "Choose a model."}, status=400)
     payload = model_detail(name)
     if payload is None:
-        return Response({"detail": "That model is not in the NHTSA catalog for the current year."}, status=404)
+        return Response({"detail": "That model is not in the catalog for the current year."}, status=404)
     return Response(payload)
 
 

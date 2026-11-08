@@ -17,8 +17,10 @@ export function TundraOffroadSection() {
             Built to leave the pavement.
           </h2>
           <p className="mt-5 max-w-md text-lg leading-relaxed text-white/70">
-            This is a representative image of the Toyota Tundra TRD Pro, not a verified trim photo. Sign in to browse
-            the current lineup with NHTSA model data.
+            This is not a not a verified trim image of the Toyota Tundra TRD Pro. 
+            <br /> <br />
+            Sign in to browse
+            the current lineup with live model data.
           </p>
           <ul className="mt-8 flex flex-wrap gap-2">
             {["Full-size truck", "TRD Pro", "Off-road ready"].map((item) => (
@@ -41,7 +43,7 @@ export function TundraOffroadSection() {
           <div className="relative aspect-[16/10] overflow-hidden rounded-[2rem] border border-white/10 bg-charcoal-2 shadow-[var(--shadow-lift)]">
             <img
               src={heroPoster}
-              alt="Toyota Tundra TRD Pro, representative image"
+              alt="Toyota Tundra TRD Pro"
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover"
             />

@@ -2,11 +2,11 @@ import { CheckCircle2, MousePointerClick, PhoneForwarded, Tag } from "lucide-rea
 import { useState } from "react";
 import type { NextStepType, Profile } from "../data/types";
 
-const stepMeta: Record<NextStepType, { icon: typeof Tag; cta: string; done: string; blurb: string }> = {
+const stepMeta: Record<NextStepType, { icon: typeof Tag; cta: string | null; done: string; blurb: string }> = {
   "Self-service": {
     icon: MousePointerClick,
-    cta: "Do it now in the app",
-    done: "Sent to the customer's app",
+    cta: null,
+    done: "",
     blurb: "The customer can finish this alone in a minute or two.",
   },
   "Follow-up": {
@@ -54,7 +54,7 @@ export function NextMove({ p }: { p: Profile }) {
 
       <p className="mt-4 text-sm text-muted">This is not an approval. Toyota Financial Services still has to confirm eligibility, and nothing on your contract changes until you authorize it.</p>
 
-      <div className="mt-6">
+      {meta.cta && <div className="mt-6">
         {sent ? (
           <span className="inline-flex items-center gap-2 rounded-full bg-go px-5 py-3 font-medium text-white" role="status">
             <CheckCircle2 className="h-5 w-5" /> {meta.done}
@@ -67,7 +67,7 @@ export function NextMove({ p }: { p: Profile }) {
             {meta.cta}
           </button>
         )}
-      </div>
+      </div>}
     </section>
   );
 }

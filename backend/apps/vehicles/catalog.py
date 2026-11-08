@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 MAKE = "Toyota"
 SOURCE_NOTE = (
-    "Model list from NHTSA vPIC. Photos are freely licensed Wikimedia Commons images of each nameplate "
+    "Model list from federal vehicle records. Photos are freely licensed Wikimedia Commons images of each nameplate "
     "and may show a different generation than the selected year. "
     "Fuel economy and tested configurations from EPA FuelEconomy.gov when published. "
     "None of these sources provide horsepower, seating, exterior dimensions, or retail pricing."

@@ -1,8 +1,10 @@
+from unittest import mock
+
 from django.test import TestCase
 from django.utils import timezone
 
-from . import actions
-from .models import PendingAction
+from . import actions, live
+from .models import CallLog, PendingAction
 from .verified_calls import register_verified_web_call, resolve_verified_customer
 
 
@@ -89,3 +91,33 @@ class VerifiedWebCallTests(TestCase):
     def test_retell_metadata_alone_does_not_create_binding(self):
         # Spoofed Retell metadata must not unlock account tools without a server mint row.
         self.assertIsNone(resolve_verified_customer("call_spoofed_meta"))
+
+
+class LiveTranscriptTests(TestCase):
+    def setUp(self):
+        self.calls = []
+        patcher = mock.patch.object(live, "try_reducer", side_effect=lambda name, args: self.calls.append((name, args)) or True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _messages(self):
+        return [(a["role"], a["content"]) for n, a in self.calls if n == "append_call_message"]
+
+    def test_turns_are_published_once_in_order_and_saved(self):
+        t = [{"role": "agent", "content": "Hi Maya"}, {"role": "user", "content": "What is my payoff?"},
+             {"role": "agent", "content": "About $23,000."}]
+        live.set_owner("c1", "C001", channel="web")
+        live.sync_transcript("C001", "c1", t[:2])  # caller still talking: last turn not final
+        self.assertEqual(self._messages(), [("agent", "Hi Maya")])
+        live.sync_transcript("C001", "c1", t[:2], settled=True)
+        live.append_agent("C001", "c1", t[2]["content"], 1)
+        live.sync_transcript("C001", "c1", t)
+        live.finish("C001", "c1", t)
+        self.assertEqual(self._messages(), [(x["role"], x["content"]) for x in t])
+        log = CallLog.objects.get(call_id="c1")
+        self.assertEqual((log.customer_id, log.channel, log.status, len(log.transcript)), ("C001", "web", "ended", 3))
+
+    def test_owner_is_published(self):
+        live.set_owner("c2", "C002", channel="phone", from_number="+15551234567")
+        owner = next(a for n, a in self.calls if n == "set_call_owner")
+        self.assertEqual((owner["callId"], owner["customerId"], owner["channel"]), ("c2", "C002", "phone"))

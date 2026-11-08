@@ -8,6 +8,7 @@ urlpatterns = [
     path("twilio/sms/", twilio_webhooks.inbound_sms, name="twilio-inbound-sms"),
     path("live/", desk.live_call, name="live-call"),
     path("activity/", desk.activity, name="customer-activity"),
+    path("calls/", desk.saved_calls, name="saved-calls"),
     path("appointments/", desk.book_appointment, name="book-appointment"),
     path("actions/confirm/", desk.confirm_action, name="confirm-action"),
     path("web-call/", desk.create_web_call, name="create-web-call"),

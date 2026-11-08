@@ -1,0 +1,41 @@
+{
+  "model_year": 2025,
+  "note": "Approximate US starting MSRP for the base trim, rounded to the nearest $500, before the destination fee (about $1,100 to $1,900), taxes, and dealer fees. Check toyota.com or a dealer for current pricing.",
+  "models": {
+    "Corolla": 22000,
+    "Corolla Hatchback": 23500,
+    "Corolla Hybrid": 23500,
+    "Corolla Cross": 24000,
+    "Corolla Cross Hybrid": 29000,
+    "GR Corolla": 39000,
+    "Prius": 28500,
+    "Prius Plug-in Hybrid": 33500,
+    "Camry": 28500,
+    "Crown": 41000,
+    "Crown Signia": 43500,
+    "GR86": 30000,
+    "GR Supra": 46500,
+    "RAV4": 29000,
+    "RAV4 Hybrid": 32000,
+    "RAV4 Plug-in Hybrid": 43500,
+    "bZ4X": 37000,
+    "Highlander": 40000,
+    "Highlander Hybrid": 44500,
+    "Grand Highlander": 41000,
+    "4Runner": 41000,
+    "Land Cruiser": 57000,
+    "Sequoia": 62500,
+    "Sienna": 39000,
+    "Tacoma": 31500,
+    "Tundra": 41000,
+    "Mirai": 51500
+  },
+  "aliases": {
+    "86": "GR86",
+    "Supra": "GR Supra",
+    "RAV4 Prime": "RAV4 Plug-in Hybrid",
+    "RAV4 Prime (PHEV)": "RAV4 Plug-in Hybrid",
+    "Prius Prime": "Prius Plug-in Hybrid",
+    "Prius Prime (PHEV)": "Prius Plug-in Hybrid"
+  }
+}

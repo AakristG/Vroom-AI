@@ -21,6 +21,7 @@ from . import actions, representatives
 from .live import snapshot
 from .models import ContinuationToken
 from .verified_calls import register_verified_web_call
+from .live import set_owner
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,20 @@ def activity(request):
             ),
         }
     )
+
+
+@api_view(["GET"])
+@login_required_api
+def saved_calls(request):
+    """The signed-in customer's saved voice conversations, newest first."""
+    from .models import CallLog
+
+    logs = CallLog.objects.filter(customer_id=request.account.customer_id).order_by("-created_at")[:20]
+    return Response({"calls": [
+        {"call_id": log.call_id, "channel": log.channel, "status": log.status, "summary": log.summary,
+         "started_at": log.created_at.isoformat(), "transcript": log.transcript}
+        for log in logs
+    ]})
 
 
 @api_view(["POST"])
@@ -156,6 +171,7 @@ def create_web_call(request):
         return Response({"detail": "Retell did not return a usable web-call token.", "configured": True}, status=502)
     # Authorize later Custom LLM turns from this server binding, not from Retell metadata alone.
     register_verified_web_call(call_id=call_id, customer_id=request.account.customer_id)
+    set_owner(call_id, request.account.customer_id, channel="web")  # live transcript in this customer's browser
     return Response(
         {
             "access_token": body.get("access_token"),
@@ -210,7 +226,7 @@ def vehicle_lookup(request):
             "category": record.get("category"),
             "fuel_type": record.get("fuel_type"),
         },
-        "trade_in_note": "Verified pricing is not currently connected. NHTSA does not provide trade-in values.",
+        "trade_in_note": "Verified pricing is not currently connected.",
     }
     if VIN_RE.match(vin):
         try:

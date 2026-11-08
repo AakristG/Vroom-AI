@@ -3,7 +3,6 @@ import { ArrowRight, LogOut, Menu, Sparkles, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../lib/format";
-import { isNewAccount } from "../lib/sessionProfile";
 import { useAssistant } from "../state/assistant";
 import { useAuth } from "../state/auth";
 import { ToyotaMark } from "./ToyotaMark";
@@ -71,7 +70,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 md:h-[72px] md:px-8">
         <Link to="/" className="flex shrink-0 items-center gap-2.5" aria-label="Toyota Financial Services home">
-          <span className={cn("grid h-9 w-11 place-items-center rounded-lg transition-colors", overHero ? "bg-transparent" : "bg-charcoal")}>
+          <span className="grid h-9 w-11 place-items-center">
             <ToyotaMark className="h-7 w-auto" />
           </span>
           <span className="leading-tight">
@@ -134,7 +133,7 @@ export function SiteHeader() {
                 <span className="leading-tight">
                   <span className="block">{profile.customer.first_name}</span>
                   <span className={cn("block text-[10px] font-normal", overHero ? "text-white/60" : "text-muted")}>
-                    {isNewAccount(profile) ? "Your account" : "Demo account"}
+                    Your account
                   </span>
                 </span>
               </Link>
@@ -245,7 +244,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-4 md:px-8">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-11 place-items-center rounded-lg">
+            <span className="grid h-9 w-11 place-items-center">
               <ToyotaMark className="h-7 w-auto" />
             </span>
             <span className="text-sm font-semibold tracking-[0.22em]">TOYOTA</span>
@@ -272,7 +271,7 @@ export function SiteFooter() {
             <li>Synthetic customers only</li>
             <li>Not an official Toyota site</li>
             <li>No credit report is pulled</li>
-            <li>Vehicle data: NHTSA and EPA. Photos: Wikimedia Commons</li>
+            <li>Vehicle data: U.S. government safety, recall, and fuel economy records. Photos: Wikimedia Commons</li>
           </ul>
         </div>
       </div>

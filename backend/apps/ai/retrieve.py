@@ -10,8 +10,8 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from . import nim_client
-from .account_context import _profiles, account_context
+from . import nim_client, policy
+from .account_context import CLOSING_RULE, _profiles, account_context
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +39,6 @@ def _passages(profile: dict) -> list[str]:
             f"Missed payments in 12 months: {account.get('missed_payments_12m')}."
         ),
     ]
-    for option in profile.get("options") or []:
-        rows.append(
-            f"{option.get('option_id')} {option.get('option_name')}: eligibility {option.get('eligibility')}. "
-            f"{option.get('plain_language_summary')} Trade-off: {option.get('tradeoff')} "
-            f"Assumption: {option.get('key_assumption')}"
-        )
     return [row.strip() for row in rows if row.strip()]
 
 
@@ -67,10 +61,14 @@ def _indexed(customer_id: str) -> tuple[tuple[str, ...], tuple[tuple[float, ...]
     return tuple(texts), tuple(tuple(vector) for vector in vectors)
 
 
-def relevant_account_context(customer_id: str, question: str, *, limit: int = 4) -> str | None:
-    """Account text for the model, with the closest passages first. Falls back to the full record."""
-    full = account_context(customer_id)
-    if not full or not question.strip():
+def relevant_account_context(customer_id: str, question: str, *, limit: int = 4, conversation_text: str = "") -> str | None:
+    """Account text for the model, with the closest passages first. Falls back to the full record.
+
+    Allowed options and guardrails are always included, whatever the ranking returns.
+    """
+    full = account_context(customer_id, conversation_text)
+    profile = _profiles().get(customer_id)
+    if not full or not profile or not question.strip():
         return full
     try:
         texts, vectors = _indexed(customer_id)
@@ -86,16 +84,13 @@ def relevant_account_context(customer_id: str, question: str, *, limit: int = 4)
         reverse=True,
     )
     chosen = [text for _score, text in ranked[:limit]]
-    guardrails = []
-    if "Hardship on this account" in full:
-        guardrails.append("Hardship on this account must be reviewed by a person. Do not promise approval and do not upsell.")
-    if "has not given marketing consent" in full:
-        guardrails.append("This customer has not given marketing consent. Do not pitch a new vehicle.")
+    decision = policy.decide(profile, conversation_text)
     return "\n".join(
         [
             "Retrieved from the verified account with nvidia/nemotron-3-embed-1b. Explain only these figures.",
             *chosen,
-            *guardrails,
-            "You cannot change the contract from this conversation.",
+            *policy.option_lines(decision),
+            *policy.rule_lines(decision),
+            CLOSING_RULE,
         ]
     )

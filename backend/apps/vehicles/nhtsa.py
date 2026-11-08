@@ -159,6 +159,13 @@ class NhtsaService:
             payload = _empty_recalls(model, year)
             self.cache.set(key, payload, TTL_RECALLS)
             return payload
+        except ProviderError as exc:
+            # The recalls API answers HTTP 400 with an empty result list when a model has no campaigns.
+            if exc.status != 400:
+                raise
+            payload = _empty_recalls(model, year)
+            self.cache.set(key, payload, TTL_RECALLS)
+            return payload
         results = body.get("results") or body.get("Results") or []
         campaigns = []
         for item in results:
@@ -180,10 +187,10 @@ class NhtsaService:
             "count": len(campaigns),
             "campaigns": campaigns,
             "note": (
-                "These are published NHTSA campaigns for this make, model, and year. "
+                "These are published federal recall campaigns for this make, model, and year. "
                 "They do not prove that a specific VIN has an open recall."
                 if campaigns
-                else "NHTSA returned no matching recall campaigns for this make, model, and year. That is not a guarantee the vehicle is recall-free."
+                else "No recall campaigns are published for this make, model, and year. That is not a guarantee the vehicle is recall-free."
             ),
             "source": "NHTSA",
         }
@@ -200,12 +207,12 @@ class NhtsaService:
         try:
             body = request_json("GET", variants_url, provider="NHTSA safety")
         except ProviderNotFound:
-            payload = _unavailable_safety(model, year, "NHTSA has no crash-test variants for this model year.")
+            payload = _unavailable_safety(model, year, "No crash-test results are published for this model year.")
             self.cache.set(key, payload, TTL_SAFETY)
             return payload
         variants = body.get("Results") or body.get("results") or []
         if not variants:
-            payload = _unavailable_safety(model, year, "NHTSA has no crash-test variants for this model year.")
+            payload = _unavailable_safety(model, year, "No crash-test results are published for this model year.")
             self.cache.set(key, payload, TTL_SAFETY)
             return payload
         listed = [
@@ -220,7 +227,7 @@ class NhtsaService:
             payload = {
                 "available": False,
                 "overall_rating": None,
-                "reason": "NHTSA lists more than one crash-tested variant. A rating is not shown until a specific variant is selected.",
+                "reason": "More than one crash-tested variant is listed. A rating is not shown until a specific variant is selected.",
                 "variants": listed,
                 "source": "NHTSA",
                 "model": model,
@@ -252,7 +259,7 @@ class NhtsaService:
 
 def _validate_year(year: int) -> None:
     if not isinstance(year, int) or year < 1995 or year > 2100:
-        raise ProviderError("Choose a model year NHTSA supports (1995 or later).", status=400, code="invalid")
+        raise ProviderError("Choose a model year from 1995 or later.", status=400, code="invalid")
 
 
 def _skip_model(name: str) -> bool:
@@ -289,7 +296,7 @@ def _empty_recalls(model: str, year: int) -> dict:
         "year": year,
         "count": 0,
         "campaigns": [],
-        "note": "NHTSA returned no matching recall campaigns for this make, model, and year. That is not a guarantee the vehicle is recall-free.",
+        "note": "No recall campaigns are published for this make, model, and year. That is not a guarantee the vehicle is recall-free.",
         "source": "NHTSA",
     }
 

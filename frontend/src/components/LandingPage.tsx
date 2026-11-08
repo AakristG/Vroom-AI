@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { profiles } from "../data/types";
 import { cn, money } from "../lib/format";
 import { heroClips } from "../media/heroClips";
-import { CATEGORY_IMAGE, IMAGE_NOTE, modelImage, modelImageNote, type CategoryKey } from "../media/vehicleImages";
+import { CATEGORY_IMAGE, modelImage, modelImageNote, type CategoryKey } from "../media/vehicleImages";
 import { getCatalog, getCatalogStatus } from "../api/vehicles";
 import { useAuth } from "../state/auth";
 import { useAssistant, usePageContext } from "../state/assistant";
@@ -92,7 +92,7 @@ export function LandingPage() {
       <VideoHero clips={heroClips}>
         <div className="mx-auto max-w-7xl px-5 pb-10 pt-[max(7rem,16svh)] md:px-8">
           <motion.p {...rise(0.05)} className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/85">
-            <span className="h-px w-8 bg-signal" /> Toyota Financial Services
+            <span className="h-px w-8 bg-signal" /> Toyota Financial Services - Vroom AI
           </motion.p>
           <h1 className="mt-5 max-w-[14ch] text-[clamp(2.5rem,min(6.6vw,10svh),5.5rem)] font-semibold leading-[0.98] tracking-[-0.035em] [text-shadow:0_2px_30px_rgba(0,0,0,0.35)]">
             {lines.map((line, i) => (
@@ -418,8 +418,7 @@ function CategoryExplorer() {
               <motion.img
                 key={c.key}
                 src={CATEGORY_IMAGE[c.key]}
-                alt={`Representative Toyota ${c.label.toLowerCase()} image`}
-                title={IMAGE_NOTE}
+                alt={`Toyota ${c.label.toLowerCase()}`}
                 initial={{ opacity: 0, scale: 1.04, x: 24 }}
                 animate={{ opacity: 1, scale: 1, x: 0 }}
                 exit={{ opacity: 0 }}
@@ -536,7 +535,7 @@ function PersonaSelector() {
                 <div className="p-6 md:p-10">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.2em] text-signal">{tag}</span>
-                    <span className="rounded-full bg-sodium/20 px-2.5 py-1 text-[11px] font-semibold text-sodium">{current ? "Signed in · simulated" : "Simulated account"}</span>
+                    {current && <span className="rounded-full bg-sodium/20 px-2.5 py-1 text-[11px] font-semibold text-sodium">Signed in</span>}
                   </div>
                   <p className="mt-4 text-3xl font-semibold leading-tight tracking-tight md:text-4xl">“{line}”</p>
                   <p className="mt-3 text-white/60">
@@ -560,9 +559,12 @@ function PersonaSelector() {
                   </p>
                 </div>
                 <div className="flex items-center justify-center p-6 md:p-10 lg:pl-0">
-                  <div className="relative aspect-[4/3] w-full max-w-sm overflow-hidden rounded-2xl bg-gradient-to-b from-[#efeeec] to-[#d9d8d4]">
-                    <img src={modelImage(p.vehicle.model)} alt={`Representative image of a Toyota ${p.vehicle.model}`} title={modelImageNote(p.vehicle.model)} className="absolute inset-0 h-full w-full object-cover" />
-                  </div>
+                  <img
+                    src={modelImage(p.vehicle.model)}
+                    alt={`Toyota ${p.vehicle.model}`}
+                    title={modelImageNote(p.vehicle.model)}
+                    className="h-auto w-full max-w-sm rounded-2xl shadow-2xl shadow-black/40"
+                  />
                 </div>
               </motion.div>
             </AnimatePresence>

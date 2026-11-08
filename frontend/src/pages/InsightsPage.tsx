@@ -16,6 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { AutoNextMoves } from "../components/insights/AutoNextMoves";
 import { LoanSimulator } from "../components/insights/LoanSimulator";
 import { AccountHero } from "../components/AccountHero";
 import { NewAccountView } from "../components/NewAccountView";
@@ -499,34 +500,14 @@ function LeaseInsights({ p }: { p: Profile }) {
 
 function Recommendations({ p }: { p: Profile }) {
   const { ask } = useAssistant();
-  const g = p.golden;
   const isLease = p.account.contract_type === "lease";
   const prompts = isLease
     ? ["My lease ends soon. What are my options?", "Should I buy my leased car?", "Which Toyota could replace my current one?"]
     : ["Can you help me understand my monthly payment?", "What happens if I pay extra toward my loan?", "Could a longer term lower my payment, and what would it cost?"];
-  const eligible = p.options.filter((o) => o.eligibility === "Y").slice(0, 3);
-
   return (
-    <Panel title="Your next moves" subtitle="Suggested from your simulated account. You decide; nothing changes until you authorize it.">
+    <Panel title="Your next moves" subtitle="NextMove AI works through these for you. Nothing on your agreement changes until you confirm it.">
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div>
-          <span className="rounded-full bg-signal/10 px-3 py-1 text-xs font-semibold text-signal">{g.next_step_type === "Offer" ? "An option you can review" : g.next_step_type}</span>
-          <h3 className="mt-3 text-2xl font-semibold tracking-tight">{g.best_next_move}</h3>
-          <p className="mt-2 leading-relaxed text-ink/80">{g.plain_language_message}</p>
-          <p className="mt-3 rounded-2xl border border-sodium/40 bg-sodium/10 p-3 text-sm">{g.guardrail_notes}</p>
-          {eligible.length > 0 && (
-            <ul className="mt-4 space-y-2 text-sm">
-              {eligible.map((o) => (
-                <li key={o.option_id} className="flex gap-2">
-                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-signal" />
-                  <span>
-                    <strong>{o.option_name}.</strong> {o.plain_language_summary}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <AutoNextMoves p={p} />
         <div className="rounded-2xl bg-mist p-5">
           <p className="flex items-center gap-2 text-sm font-semibold">
             <Sparkles className="h-4 w-4 text-signal" /> Ask Toyota NextMove AI

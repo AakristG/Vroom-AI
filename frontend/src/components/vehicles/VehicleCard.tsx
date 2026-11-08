@@ -6,7 +6,6 @@ import { getVehicleImage, vehiclePath, type VehicleImage, type VehicleRecord } f
 import { cn } from "../../lib/format";
 import { efficiency, NA, num } from "../../lib/spec";
 import { COMPARE_LIMIT, useCompare } from "../../state/compare";
-import { SourceBadge } from "../ui/kit";
 
 export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord; className?: string; eager?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -78,13 +77,12 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
               </Link>
             </h3>
           </div>
-          <SourceBadge source={v.source} />
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
           {v.category ? <Spec label="Category" value={v.category} /> : null}
           {v.fuel_type ? <Spec label="Fuel" value={v.fuel_type} /> : null}
-          {v.vehicle_type ? <Spec label="NHTSA type" value={v.vehicle_type} wide /> : null}
+          {v.vehicle_type ? <Spec label="Vehicle type" value={v.vehicle_type} wide /> : null}
           {v.engine ? <Spec label="Engine" value={v.engine} wide /> : null}
           {v.horsepower != null ? <Spec label="Horsepower" value={num(v.horsepower, " hp")} /> : null}
           {efficiency(v) !== NA ? <Spec label="Efficiency" value={efficiency(v)} /> : null}

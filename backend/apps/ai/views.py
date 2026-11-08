@@ -9,6 +9,7 @@ from rest_framework.response import Response
 
 from apps.accounts.authz import login_required_api
 
+from . import policy
 from .account_context import bind_signed_in
 from .orchestrator import run_turn
 from .serializers import ChatRequestSerializer
@@ -29,6 +30,7 @@ def chat(request):
 
     account = request.account
     bind_signed_in(account)
+    policy.bind_conversation(serializer.validated_data["messages"])
     customer_id = account.customer_id
     result = run_turn(
         messages=serializer.validated_data["messages"],
@@ -41,3 +43,18 @@ def chat(request):
     if result.get("error") and not result.get("response"):
         return Response({"detail": result["error"], "tools": result.get("tool_results") or []}, status=503)
     return Response({"reply": result["response"], "tools": result.get("tool_results") or [], "actions": result.get("proposed_actions") or []})
+
+
+@api_view(["POST"])
+@login_required_api
+def next_moves(request):
+    """Run the signed-in customer's AI-automated next-moves plan. Steps stream to SpacetimeDB
+    (`next_move`) as they finish; the full plan is also returned for browsers without it."""
+    from . import next_moves as plan
+
+    bind_signed_in(request.account)
+    policy.bind_conversation([])
+    customer_id = request.account.customer_id
+    if not customer_id:
+        return Response({"detail": "Sign in to see your next moves."}, status=400)
+    return Response(plan.run(customer_id))

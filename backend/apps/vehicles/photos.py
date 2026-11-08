@@ -54,7 +54,7 @@ def photo_for(model: str) -> dict | None:
         "license_url": entry.get("license_url"),
         "license_filter": None,
         "license_note": (
-            f"{credit(entry)} Representative photo of the {entry['names'][0]}; "
+            f"{credit(entry)} Photo of the {entry['names'][0]}; "
             "the generation or trim shown may differ from the selected model year. "
             "Not an official Toyota photograph."
         ),

@@ -8,6 +8,8 @@ export interface Turn {
   tools?: AssistantTool[];
   actions?: AssistantAction[];
   offline?: boolean;
+  /** Spoken in a voice call (browser or phone), shown as a transcript line. */
+  voice?: boolean;
 }
 
 interface Assistant {

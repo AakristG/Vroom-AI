@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiErrorMessage, decodeVin, getTrims, getVehicle, vehiclePath, type VehicleRecord } from "../api/vehicles";
 import { CompareTray } from "../components/vehicles/CompareTray";
 import { VehicleMedia } from "../components/vehicles/VehicleCard";
-import { ErrorState, Skeleton, SourceBadge } from "../components/ui/kit";
+import { ErrorState, Skeleton } from "../components/ui/kit";
 import { Reveal } from "../components/ui/motion";
 import { cn } from "../lib/format";
 import { NA, mpgRange, num, vehicleName } from "../lib/spec";
@@ -70,7 +70,6 @@ export function VehicleDetailPage() {
             </Reveal>
             <Reveal delay={0.08}>
               <div className="flex flex-wrap items-center gap-2">
-                <SourceBadge source={v.source} />
                 <span className="text-sm text-muted">
                   {v.category}
                   {v.fuel_type ? ` · ${v.fuel_type}` : ""}
@@ -291,12 +290,12 @@ function SafetyAndRecalls({ v }: { v: VehicleRecord }) {
   return (
     <section className="mx-auto mt-5 grid max-w-7xl gap-5 px-5 md:grid-cols-2 md:px-8">
       <div className="card p-6">
-        <h2 className="font-semibold">NHTSA safety rating</h2>
+        <h2 className="font-semibold">Safety rating</h2>
         <p className="mt-3 text-3xl font-semibold">{rating != null ? `${rating} / 5` : "Safety rating unavailable"}</p>
         <p className="mt-2 text-sm text-muted">
           {rating != null
-            ? "Overall NHTSA rating for the only published crash-tested variant of this model year."
-            : reason || "NHTSA has not published a crash-test result we can show for this model year."}
+            ? "Overall 5-star crash-test rating for the only published crash-tested variant of this model year."
+            : reason || "No crash-test result has been published that we can show for this model year."}
         </p>
         {variants.length > 0 && (
           <ul className="mt-3 space-y-1 text-sm text-muted">
@@ -307,10 +306,10 @@ function SafetyAndRecalls({ v }: { v: VehicleRecord }) {
         )}
       </div>
       <div className="card p-6">
-        <h2 className="font-semibold">NHTSA recalls</h2>
+        <h2 className="font-semibold">Recalls</h2>
         <p className="mt-3 text-3xl font-semibold">{recallCount == null ? NA : recallCount}</p>
         <p className="mt-2 text-sm text-muted">
-          {recallNote || "Model-year campaigns from NHTSA. This is not proof that a specific VIN has an open recall."}
+          {recallNote || "Published model-year recall campaigns. This is not proof that a specific VIN has an open recall."}
         </p>
       </div>
     </section>
@@ -326,10 +325,10 @@ function VinDecode({ year }: { year: number }) {
     setResult({ busy: true });
     try {
       const data = await decodeVin(vin.trim(), year);
-      if (!data.decode_ok) setResult({ error: data.error_text || "NHTSA could not decode that VIN." });
+      if (!data.decode_ok) setResult({ error: data.error_text || "We could not decode that VIN." });
       else
         setResult({
-          text: `NHTSA decoded ending ${data.vin_last4} as ${data.model_year ?? ""} ${data.make ?? ""} ${data.model ?? ""}. ${data.body_class ?? ""} ${data.fuel ? `Fuel: ${data.fuel}.` : ""}`.replace(/\s+/g, " ").trim(),
+          text: `Decoded VIN ending ${data.vin_last4} as ${data.model_year ?? ""} ${data.make ?? ""} ${data.model ?? ""}. ${data.body_class ?? ""} ${data.fuel ? `Fuel: ${data.fuel}.` : ""}`.replace(/\s+/g, " ").trim(),
         });
     } catch (err) {
       setResult({ error: apiErrorMessage(err, "VIN decode is unavailable right now.") });
@@ -339,7 +338,7 @@ function VinDecode({ year }: { year: number }) {
   return (
     <form onSubmit={submit} className="card p-6">
       <h2 className="font-semibold">Decode a VIN</h2>
-      <p className="mt-1 text-sm text-muted">Uses NHTSA vPIC. The full VIN is sent only to our backend, then to NHTSA. It is not a market-value estimate.</p>
+      <p className="mt-1 text-sm text-muted">The full VIN is sent only to our backend and the federal VIN decoder. It is not a market-value estimate.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
         <label>
           <span className="sr-only">VIN</span>

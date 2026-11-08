@@ -11,7 +11,7 @@ export function AccountHero({
   title,
   children,
   stats,
-  badge = "Simulated account",
+  badge = "",
 }: {
   p: Profile;
   eyebrow: string;
@@ -54,7 +54,6 @@ export function AccountHero({
             </div>
           ))}
         </motion.dl>
-        <p className="mt-3 text-right text-[10px] text-white/40">Vehicle photo: representative AI-generated image</p>
       </div>
     </section>
   );

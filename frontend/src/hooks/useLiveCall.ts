@@ -13,8 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Profile } from "../data/types";
 import { money } from "../lib/format";
-import { connectToSpacetimeDB } from "../spacetime/client";
-import { DbConnection } from "../spacetime/module_bindings";
+import { useLatestCustomerCall } from "../spacetime/client";
 
 export type Turn = { id: string; role: "agent" | "user"; content: string };
 export type Step = { id: string; tool: string; detail: string };
@@ -59,7 +58,9 @@ export function useLiveCall(p: Profile) {
   const [state, setState] = useState<CallState>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
-  const [mode, setMode] = useState<"live" | "demo">(DbConnection ? "live" : "demo");
+  const live = useLatestCustomerCall(p.customer.customer_id);
+  const [demoing, setDemoing] = useState(false);
+  const mode: "live" | "demo" = live.status === "live" && !demoing ? "live" : "demo";
   const timers = useRef<number[]>([]);
 
   const clear = () => {
@@ -75,24 +76,9 @@ export function useLiveCall(p: Profile) {
     setSteps([]);
   }, [p.customer.customer_id]);
 
-  // Live: subscribe to SpacetimeDB rows once real bindings exist.
-  useEffect(() => {
-    if (!DbConnection) return;
-    try {
-      const conn: any = connectToSpacetimeDB();
-      conn?.db?.call_message?.onInsert?.((_ctx: unknown, row: any) => {
-        setTurns((t) => [...t, { id: String(row.id), role: row.role === "user" ? "user" : "agent", content: row.content }]);
-      });
-      conn?.db?.call_session?.onUpdate?.((_ctx: unknown, _old: any, row: any) => {
-        setState(row.status === "ended" || row.status === "analyzed" ? "ended" : "live");
-      });
-    } catch {
-      setMode("demo");
-    }
-  }, []);
-
   const startDemo = useCallback(() => {
     clear();
+    setDemoing(true);
     const { turns: T, steps: S } = script(p);
     setTurns([]);
     setSteps([]);
@@ -128,5 +114,12 @@ export function useLiveCall(p: Profile) {
 
   useEffect(() => clear, []);
 
+  // A real call for this customer (browser or phone) replaces the scripted demo.
+  if (live.call && !demoing) {
+    const status = live.session?.status ?? "ongoing";
+    const liveState: CallState = status === "ended" || status === "analyzed" ? "ended" : "live";
+    const liveTurns: Turn[] = live.rows.map((r) => ({ id: String(r.id), role: r.role === "user" ? "user" : "agent", content: r.content }));
+    return { state: liveState, turns: liveTurns, steps: [] as Step[], mode, startDemo, end };
+  }
   return { state, turns, steps, mode, startDemo, end };
 }

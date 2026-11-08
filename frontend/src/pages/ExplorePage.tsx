@@ -16,7 +16,7 @@ import {
 } from "../api/vehicles";
 import { CompareTray } from "../components/vehicles/CompareTray";
 import { VehicleCard } from "../components/vehicles/VehicleCard";
-import { EmptyState, ErrorState, Skeleton, SourceBanner } from "../components/ui/kit";
+import { EmptyState, ErrorState, Skeleton } from "../components/ui/kit";
 import { EASE, Stagger, StaggerItem } from "../components/ui/motion";
 import { CATEGORY_IMAGE, categoryKey } from "../media/vehicleImages";
 import { cn } from "../lib/format";
@@ -44,7 +44,8 @@ export function ExplorePage() {
   const [reload, setReload] = useState(0);
 
   const preferredYear = (status?.default_year && years.includes(status.default_year) ? status.default_year : years[0]) || 0;
-  const year = Number(params.get("year")) || preferredYear;
+  const allYears = !params.get("year") || params.get("year") === "all";
+  const year = allYears ? 0 : Number(params.get("year")) || preferredYear;
   const model = params.get("model") ?? "";
   const category = params.get("category") ?? "";
   const seats = params.get("seats") ?? "";
@@ -79,16 +80,23 @@ export function ExplorePage() {
   }, [reload]);
 
   useEffect(() => {
-    if (!year) return;
+    if (!year && !(allYears && years.length)) return;
     let live = true;
     setCatalog({ state: "loading" });
-    getCatalog(year)
+    const load = allYears
+      ? Promise.allSettled(years.map((y) => getCatalog(y))).then((results) => {
+          const ok = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+          if (!ok.length) throw (results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason;
+          return { ...ok[0], data: ok.flatMap((r) => r.data) };
+        })
+      : getCatalog(year);
+    load
       .then((r) => live && setCatalog({ state: "ready", data: r.data, source: r.source, fallback: r.fallback_reason }))
       .catch((err) => live && setCatalog({ state: "error", message: apiErrorMessage(err, "We couldn't load the catalog.") }));
     return () => {
       live = false;
     };
-  }, [year, reload]);
+  }, [allYears, year, years, reload]);
 
   // A specific model shows one card per trim.
   useEffect(() => {
@@ -118,12 +126,13 @@ export function ExplorePage() {
     if (active.state !== "ready") return [];
     const needle = q.trim().toLowerCase();
     return active.data
+      .filter((v) => !allYears || !model || v.model === model)
       .filter((v) => !category || v.category === category)
       .filter((v) => !seats || String(v.seating ?? "") === seats)
       .filter((v) => !fuel || v.fuel_type === fuel)
       .filter((v) => !needle || `${v.model} ${v.trim ?? ""} ${v.category ?? ""}`.toLowerCase().includes(needle))
-      .sort(SORTS[sort].fn);
-  }, [active, category, fuel, q, seats, sort]);
+      .sort((a, b) => SORTS[sort].fn(a, b) || b.year - a.year);
+  }, [active, allYears, category, fuel, model, q, seats, sort]);
 
   const pageCount = Math.max(1, Math.ceil(shown.length / 9));
   const safePage = Math.min(page, pageCount);
@@ -169,7 +178,6 @@ export function ExplorePage() {
             </p>
           </motion.div>
         </div>
-        <span className="absolute bottom-4 right-5 rounded-full bg-black/40 px-2.5 py-1 text-[10px] text-white/70 backdrop-blur md:right-8">Representative AI image</span>
       </section>
 
       <div className="sticky top-16 z-30 border-b border-black/[0.06] bg-white/80 backdrop-blur-xl md:top-[72px]">
@@ -179,7 +187,7 @@ export function ExplorePage() {
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <input value={q} onChange={(e) => set("q", e.target.value)} placeholder="Search models" className="field rounded-full py-2.5 pl-10" />
           </label>
-          <Select label="Model year" value={String(year || "")} onChange={(v) => set("year", v)} options={years.map((y) => [String(y), String(y)])} />
+          <Select label="Model year" value={allYears ? "all" : String(year || "")} onChange={(v) => set("year", v)} options={[["all", "All years"], ...years.map((y) => [String(y), String(y)] as [string, string])]} />
           <Select label="Model" value={model} onChange={(v) => set("model", v)} options={[["", "All models"], ...models.map((m) => [m, m] as [string, string])]} />
           <Select label="Fuel type" value={fuel} onChange={(v) => set("fuel", v)} options={[["", "Any fuel"], ...fuels.map((f) => [f, f] as [string, string])]} />
           {seatOptions.length > 0 && (
@@ -221,11 +229,10 @@ export function ExplorePage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-5 pt-8 md:px-8">
-        {active.state === "ready" && <SourceBanner source={active.source} fallbackReason={active.fallback} />}
         {active.state === "ready" && (
           <p className="mt-4 text-sm text-muted" aria-live="polite">
             {shown.length} {shown.length === 1 ? "vehicle" : "vehicles"}
-            {model ? ` · ${model} trims` : ""} · {year} model year
+            {model ? ` · ${model}${allYears ? "" : " trims"}` : ""} · {allYears ? "all model years" : `${year} model year`}
           </p>
         )}
 

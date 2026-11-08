@@ -37,19 +37,26 @@ spacetime start
 
 # From spacetimedb/server, publish/update the module
 cd spacetimedb/server
-spacetime publish toyota-fs-dev
+spacetime publish toyota-nextmove
 
 # Watch logs
-spacetime logs toyota-fs-dev
+spacetime logs toyota-nextmove
 
 # Ad-hoc SQL against it
-spacetime sql toyota-fs-dev "SELECT * FROM call_session"
+spacetime sql toyota-nextmove "SELECT * FROM call_session"
 ```
 
-Set `SPACETIMEDB_URL=http://127.0.0.1:3000` and `SPACETIMEDB_MODULE_NAME=toyota-fs-dev` in both
+Set `SPACETIMEDB_URL=http://127.0.0.1:3000` and `SPACETIMEDB_MODULE_NAME=toyota-nextmove` in both
 `backend/.env` and `frontend/.env` to point at this local instance.
 
 ## Schema (`server/src/index.ts`)
+
+- **`call_owner`** — which customer a call belongs to (`call_id`, `customer_id`, `channel` web/phone,
+  `from_number`). Written by the backend when a browser call starts or a phone caller is matched by
+  number, so each signed-in browser only shows its own transcript.
+- **`next_move`** — one row per step of a customer's AI-automated "Your next moves" plan (`status`
+  working / done / needs_you, plus the suggested action as JSON). The backend writes progress as it
+  runs each check; the Insights page fills in live.
 
 - **`call_session`** — one row per Retell call: `call_id` (primary key), `agent_id`, `status`,
   `last_speaker`, `updated_at`. Upserted by `upsertCallSession`.

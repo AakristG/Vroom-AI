@@ -33,6 +33,9 @@ class SpacetimeDBError(RuntimeError):
     pass
 
 
+_token_rejected = False
+
+
 def _base_url() -> str:
     return settings.SPACETIMEDB_URL.rstrip("/")
 
@@ -54,7 +57,18 @@ def call_reducer(reducer_name: str, args: list[Any] | dict[str, Any], *, module_
     url = f"{_base_url()}/v1/database/{module}/call/{reducer_name}"
     body = list(args.values()) if isinstance(args, dict) else args
 
-    response = requests.post(url, json=body, headers=_headers(), timeout=10)
+    global _token_rejected
+    headers = _headers()
+    if _token_rejected:
+        headers.pop("Authorization", None)
+    response = requests.post(url, json=body, headers=headers, timeout=10)
+    if response.status_code == 401 and "Authorization" in headers:
+        # A token issued by a different SpacetimeDB server is rejected outright. These reducers are
+        # public, so fall back to an anonymous identity instead of losing the write.
+        logger.warning("SpacetimeDB rejected SPACETIMEDB_TOKEN (%s); calling reducers anonymously.", response.text[:80])
+        _token_rejected = True
+        headers.pop("Authorization")
+        response = requests.post(url, json=body, headers=headers, timeout=10)
     if not response.ok:
         raise SpacetimeDBError(
             f"SpacetimeDB reducer '{reducer_name}' failed ({response.status_code}): {response.text}"

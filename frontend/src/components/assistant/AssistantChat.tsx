@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Compass,
   Fuel,
+  Mic,
   PhoneCall,
   RefreshCw,
   Scale,
@@ -28,7 +29,8 @@ import { vehicleName } from "../../lib/spec";
 import { useAssistant, type Turn } from "../../state/assistant";
 import { useAuth } from "../../state/auth";
 import { ConfirmActionCard } from "../ConfirmActionCard";
-import { VoiceWidget } from "../VoiceWidget";
+import { useLatestCustomerCall } from "../../spacetime/client";
+import { VoiceWidget, type VoiceStatus, type VoiceTurn } from "../VoiceWidget";
 
 const TOOL_LABEL: Record<string, string> = {
   customer_profile: "Your account",
@@ -40,6 +42,7 @@ const TOOL_LABEL: Record<string, string> = {
   vehicle_lookup: "Vehicle specs",
   compare_vehicles: "Vehicle comparison",
   ownership_cost: "Fuel cost estimate",
+  shop_vehicles: "Vehicle suggestions",
 };
 
 const PAGE_LABEL: Record<string, string> = {
@@ -109,7 +112,11 @@ function Prose({ text, muted }: { text: string; muted?: boolean }) {
             <ul key={i} className="space-y-1.5">
               {lines.map((l, j) => (
                 <li key={j} className="flex gap-2">
-                  <span className="mt-[0.55em] h-1 w-1 shrink-0 rounded-full bg-signal" />
+                  {/^\s*\d+[.)]/.test(l) ? (
+                    <span className="shrink-0 font-semibold text-signal">{l.match(/\d+/)?.[0]}.</span>
+                  ) : (
+                    <span className="mt-[0.55em] h-1 w-1 shrink-0 rounded-full bg-signal" />
+                  )}
                   <span>{l.replace(/^\s*([-•*]|\d+[.)])\s+/, "")}</span>
                 </li>
               ))}
@@ -134,11 +141,46 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
   const scroller = useRef<HTMLDivElement>(null);
   const customerId = profile?.customer.customer_id ?? null;
   const journey = profile ? journeyFor(profile) : null;
+  const [voice, setVoice] = useState<{ status: VoiceStatus; callId: string | null; turns: VoiceTurn[] }>({ status: "idle", callId: null, turns: [] });
+  // Phone calls (and browser calls, as a fallback) arrive live through SpacetimeDB.
+  const liveCall = useLatestCustomerCall(customerId);
+  const phoneLive = liveCall.call?.channel === "phone" && liveCall.session?.status !== "ended" && liveCall.session?.status !== "analyzed";
+  const voiceActive = voice.status === "connecting" || voice.status === "live";
+  const spokenFromDb: VoiceTurn[] = liveCall.rows.map((r) => ({ role: r.role === "user" ? "user" : "agent", content: r.content }));
+  const liveTurns: VoiceTurn[] = voiceActive
+    ? voice.turns.length
+      ? voice.turns
+      : liveCall.call?.callId === voice.callId
+        ? spokenFromDb
+        : []
+    : phoneLive
+      ? spokenFromDb
+      : [];
+
+  function onVoiceTranscript(spoken: VoiceTurn[], callId: string | null) {
+    setVoice((v) => ({ ...v, callId, turns: spoken }));
+  }
+
+  function onVoiceStatus(status: VoiceStatus, callId: string | null) {
+    setVoice((v) => {
+      if ((status === "ended" || status === "error") && (v.status === "live" || v.status === "connecting")) {
+        const spoken = v.turns.length ? v.turns : liveCall.call?.callId === callId ? spokenFromDb : [];
+        // Keep the spoken conversation in the chat so typed follow-ups have its context.
+        if (spoken.length)
+          setTurns((cur) => [
+            ...cur,
+            ...spoken.map((t, i) => ({ id: `v-${callId}-${i}`, role: t.role === "user" ? ("user" as const) : ("assistant" as const), content: t.content, voice: true })),
+          ]);
+        return { status, callId, turns: [] };
+      }
+      return { ...v, status, callId };
+    });
+  }
 
   useEffect(() => {
-    if (turns.length === 0 && !busy) return;
+    if (turns.length === 0 && !busy && liveTurns.length === 0) return;
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
-  }, [turns, busy]);
+  }, [turns, busy, liveTurns.length]);
 
   // A different signed-in customer must not see the previous customer's conversation.
   const owner = useRef(customerId);
@@ -224,7 +266,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
       </div>
 
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5" aria-live="polite">
-        {turns.length === 0 && (
+        {turns.length === 0 && liveTurns.length === 0 && !voiceActive && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-signal text-white">
               <Sparkles className="h-4 w-4" />
@@ -235,7 +277,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
             <p className="mt-2 text-sm leading-relaxed text-muted">
               {profile
                 ? "I answer from your simulated account and the vehicle catalog, checked by backend tools. I can't change your contract, and anything that needs a decision waits for your confirmation."
-                : "Ask about models, fuel costs, or how financing works. Sign in as a demo customer to ask about a specific account."}
+                : "Ask about models, fuel costs, or how financing works. Sign in to ask about your own account."}
             </p>
             <div className={cn("mt-5 grid gap-2", !compact && "sm:grid-cols-2")}>
               {cards.map(({ q, icon: Icon }) => (
@@ -257,6 +299,18 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         {turns.map((t) => (
           <Message key={t.id} turn={t} customerId={customerId} name={profile?.customer.first_name ?? ""} />
         ))}
+        {(voiceActive || phoneLive) && (
+          <div className="space-y-3 rounded-2xl border border-signal/20 bg-signal/[0.03] p-3" aria-live="polite">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-signal">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-signal" />
+              {phoneLive && !voiceActive ? "Phone call in progress" : voice.status === "connecting" ? "Connecting voice call…" : "Voice call · live transcript"}
+            </p>
+            {liveTurns.length === 0 && <p className="text-xs text-muted">Start talking. What you and the agent say appears here.</p>}
+            {liveTurns.map((t, i) => (
+              <Message key={`live-${i}`} turn={{ id: `live-${i}`, role: t.role === "user" ? "user" : "assistant", content: t.content, voice: true }} customerId={customerId} name={profile?.customer.first_name ?? ""} />
+            ))}
+          </div>
+        )}
         {busy && (
           <div className="flex gap-3" role="status">
             <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
@@ -303,8 +357,8 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         </form>
         {profile && (
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
-            <span>Prefer to talk? The phone agent uses the same Nemotron model.</span>
-            <VoiceWidget variant="light" customerId={profile.customer.customer_id} />
+            <span>Prefer to talk? Your words and the agent's replies show up here.</span>
+            <VoiceWidget variant="light" customerId={profile.customer.customer_id} onTranscript={onVoiceTranscript} onStatus={onVoiceStatus} />
           </div>
         )}
       </div>
@@ -316,7 +370,19 @@ function Message({ turn, customerId, name }: { turn: Turn; customerId: string | 
   if (turn.role === "user")
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-sm leading-relaxed text-white">{turn.content}</div>
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-sm leading-relaxed text-white">
+          {turn.voice && <Mic className="mr-1.5 inline h-3 w-3 opacity-70" aria-label="Spoken" />}
+          {turn.content}
+        </div>
+      </div>
+    );
+  if (turn.voice)
+    return (
+      <div className="flex gap-3">
+        <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
+          <Mic className="h-3.5 w-3.5" />
+        </span>
+        <p className="min-w-0 flex-1 text-sm leading-relaxed">{turn.content}</p>
       </div>
     );
   return (
@@ -405,7 +471,7 @@ function isPendingAction(action: AssistantAction): action is PendingActionCard {
   return action.type === "pending_action";
 }
 
-function ActionButton({ action, customerId, name }: { action: AssistantAction; customerId: string | null; name: string }) {
+export function ActionButton({ action, customerId, name }: { action: AssistantAction; customerId: string | null; name: string }) {
   const { setOpen } = useAssistant();
   const [confirming, setConfirming] = useState(false);
   const [phone, setPhone] = useState("");

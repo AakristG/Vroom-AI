@@ -14,8 +14,8 @@ from django.conf import settings
 
 from apps.voice import actions, representatives
 
-from . import nim_client, tools
-from .prompts import ASSISTANT_PROMPT, SYSTEM_PROMPT
+from . import nim_client, policy, shopping, tools
+from .prompts import ASSISTANT_PROMPT, SHOPPING_PROMPT, SYSTEM_PROMPT
 from .retrieve import relevant_account_context
 
 logger = logging.getLogger(__name__)
@@ -40,8 +40,16 @@ _CONFIRM_RULES = (
 )
 
 
-def plain(reply: str) -> str:
+_NUMBERED_RE = re.compile(r"^\s*(\d+)[.)]\s+", re.MULTILINE)
+
+
+def plain(reply: str, keep_numbers: bool = False) -> str:
+    """The chat UI renders plain text; strip markdown the model sometimes adds anyway."""
+    if keep_numbers:  # Numbered lists stay numbered; shield "1. " from the bullet strip.
+        reply = _NUMBERED_RE.sub(lambda m: f"{m.group(1)}\u2063", reply)
     text = _EMPHASIS_RE.sub("", _HEADING_RE.sub("", _BULLET_RE.sub("", reply)))
+    if keep_numbers:
+        text = text.replace("\u2063", ". ")
     text = _DASH_RE.sub(", ", text)
     text = _SEMICOLON_RE.sub(lambda m: ". " + m.group(1).upper(), text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
@@ -70,11 +78,7 @@ def _grounded(messages: list[dict], customer_id: str | None, context: dict, extr
     if results:
         extra += "\nTOOL RESULTS (computed by the backend; quote these figures, do not change them):\n"
         extra += "\n".join(f"- {r['name']}: {json.dumps(r['result'], default=str)}" for r in results)
-        if '"source": "nhtsa"' in extra:
-            extra += (
-                "\nVehicle figures come from NHTSA (photos are representative Wikimedia Commons images). "
-                "Do not invent MSRP, horsepower, MPG, or payments. If a field is null, say it is unavailable."
-            )
+        extra += "\nDo not invent MSRP, horsepower, MPG, or payments. If a field is null, say it is unavailable."
     reply = nim_client.generate_reply(messages, extra_system=extra, base=base)
     return reply, results
 
@@ -100,6 +104,25 @@ def _native(messages: list[dict], customer_id: str | None, extra_note: str, base
             results.append({"name": call.function.name, "args": args, "result": result})
             convo.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result, default=str)})
     return nim_client.clean(nim_client.complete(convo).choices[0].message.content), results
+
+
+def _shopping_reply(question: str, customer_id: str | None, context: dict, decision: policy.Decision) -> tuple[str, list[dict]]:
+    """Car-shopping answer. Prices, payments, and structure come from the shop_vehicles tool;
+    Nemotron only writes one short reason per vehicle."""
+    results = [{"name": n, "args": a, "result": tools.run_tool(n, a, customer_id)}
+               for n, a in tools.plan(question, context, customer_id, "shopping")]
+    result = next((r["result"] for r in results if r["name"] == "shop_vehicles"), {"error": "No suggestions."})
+    picks = result.get("suggestions") or []
+    reasons: dict[int, str] = {}
+    if picks:
+        try:
+            text = nim_client.generate_reply(
+                [{"role": "user", "content": shopping.reason_brief(result, question)}], base=SHOPPING_PROMPT
+            )
+            reasons = shopping.parse_reasons(plain(text, keep_numbers=True), len(picks), [p["vehicle"] for p in picks])
+        except Exception:
+            logger.warning("Nemotron reasons failed; using data-only reasons", exc_info=True)
+    return shopping.compose(result, reasons, careful=decision.protected), results
 
 
 def _maybe_propose(question: str, customer_id: str | None, channel: str, conversation_id: str, call_id: str) -> dict | None:
@@ -180,6 +203,20 @@ def run_turn(
             extra += "\nPENDING ACTION: " + json.dumps(proposed_tool["result"], default=str)
             extra += "\nAsk only whether those details are correct. Do not record anything yet."
 
+    policy.bind_conversation(messages)
+    decision = policy.decide(tools._profile(customer_id))
+    if not pending and not proposed_tool and not decision.distressed and shopping.is_shopping(user_text):
+        reply, results = _shopping_reply(user_text, customer_id, context, decision)
+        picks = [s["id"] for r in results for s in (r["result"].get("suggestions") or [])][:3]
+        return {
+            "response": reply if channel == "web" else " ".join(reply.split()),
+            "conversation_id": conversation_id,
+            "tool_results": results,
+            "proposed_actions": tools.suggested_actions([r["name"] for r in results], customer_id, {**context, "vehicles": picks}),
+            "requires_confirmation": False,
+            "error": None,
+        }
+
     base = SYSTEM_PROMPT if channel in {"voice", "phone"} else ASSISTANT_PROMPT
     try:
         if settings.NIM_TOOL_CALLING:
@@ -214,6 +251,9 @@ def run_turn(
     text = plain(reply)
     if channel in {"voice", "phone"}:
         text = " ".join(text.split())
+    elif customer_id and not pending and not proposed_tool:
+        # Website account answers end with exactly one labeled next step, decided by policy, not the model.
+        text = policy.finalize(text, decision)
     return {
         "response": text,
         "conversation_id": conversation_id,

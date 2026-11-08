@@ -1,4 +1,4 @@
-import { Plus, Search, Sparkles, X } from "lucide-react";
+import { Car, Plus, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -7,13 +7,14 @@ import {
   compareVehicles,
   getCatalog,
   getTrims,
+  getVehicle,
   getYears,
   vehicleId,
   vehiclePath,
   type VehicleRecord,
 } from "../api/vehicles";
 import { VehicleMedia } from "../components/vehicles/VehicleCard";
-import { EmptyState, ErrorState, PageIntro, Skeleton, SourceBadge } from "../components/ui/kit";
+import { EmptyState, ErrorState, PageIntro, Skeleton } from "../components/ui/kit";
 import { Reveal } from "../components/ui/motion";
 import { cn, money } from "../lib/format";
 import { NA, mpgRange, num, vehicleName } from "../lib/spec";
@@ -21,7 +22,8 @@ import { useAssistant, usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
 import { COMPARE_LIMIT, useCompare } from "../state/compare";
 
-const COLORS = ["#eb0a1e", "#16171a", "#8a8f98"];
+const COLORS = ["#eb0a1e", "#16171a", "#8a8f98", "#2f6fd6"];
+const MINE_PREFIX = "mine|";
 const KWH_PER_GALLON_EQUIVALENT = 33.7;
 
 type Better = "high" | "low";
@@ -38,7 +40,6 @@ const ROWS: { group: string; rows: Row[] }[] = [
     rows: [
       { label: "Vehicle type", value: (v) => v.category },
       { label: "Fuel type", value: (v) => v.fuel_type },
-      { label: "Data source", value: (v) => "NHTSA" },
       { label: "Safety rating", value: (v) => (v.safety_rating_available ? v.safety_rating ?? null : null), format: (v) => (v.safety_rating_available && v.safety_rating != null ? `${v.safety_rating} / 5` : "Safety rating unavailable") },
     ],
   },
@@ -135,7 +136,28 @@ export function ComparePage() {
   }, [params]);
 
   const ids = compare.ids;
-  usePageContext("compare", ids);
+
+  // The signed-in customer's own car is always available as a pinned comparison column.
+  const myYear = profile?.vehicle.model_year;
+  const myModel = profile?.vehicle.model;
+  const [mine, setMine] = useState<{ v: VehicleRecord | null; note?: string }>({ v: null });
+  const [includeMine, setIncludeMine] = useState(true);
+  useEffect(() => {
+    if (!myYear || !myModel) {
+      setMine({ v: null });
+      return;
+    }
+    let live = true;
+    getVehicle(myYear, myModel)
+      .then((r) => live && setMine({ v: { ...r, id: `${MINE_PREFIX}${r.id}` } }))
+      .catch(() => live && setMine({ v: null, note: `We couldn't load data for your ${myYear} ${myModel}.` }));
+    return () => {
+      live = false;
+    };
+  }, [myYear, myModel]);
+  const showMine = includeMine && Boolean(mine.v);
+  const myId = mine.v ? mine.v.id.slice(MINE_PREFIX.length) : null;
+  usePageContext("compare", showMine && myId ? [myId, ...ids.filter((i) => i !== myId)] : ids);
 
   useEffect(() => {
     const next = new URLSearchParams(ids.map((id) => ["v", id]));
@@ -157,8 +179,10 @@ export function ComparePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids.join()]);
 
-  const vs = data.vehicles;
-  const names = vs.map((v) => vehicleName(v));
+  const picked = data.vehicles;
+  const vs = showMine && mine.v ? [mine.v, ...picked] : picked;
+  const offset = showMine ? 1 : 0;
+  const names = vs.map((v) => (v.id.startsWith(MINE_PREFIX) ? `your ${vehicleName(v)}` : vehicleName(v)));
 
   return (
     <main className="pb-24">
@@ -167,11 +191,28 @@ export function ComparePage() {
       </PageIntro>
 
       <div className="mx-auto max-w-7xl px-5 pt-10 md:px-8">
+        {profile && (mine.v || mine.note) && (
+          <div className="mb-4 flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-paper p-4">
+            <span className="grid h-10 w-10 place-items-center rounded-full text-white" style={{ background: showMine ? COLORS[0] : "#8a8f98" }}>
+              <Car className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">Your car</p>
+              <p className="font-semibold">{mine.v ? `${vehicleName(mine.v)}${profile.vehicle.trim ? ` ${profile.vehicle.trim}` : ""}` : `${myYear} ${myModel}`}</p>
+              {mine.note && <p className="text-xs text-signal">{mine.note}</p>}
+            </div>
+            {mine.v && (
+              <button onClick={() => setIncludeMine(!includeMine)} className="rounded-full border border-line px-4 py-2 text-sm font-medium hover:border-ink">
+                {showMine ? "Hide from comparison" : "Compare with my car"}
+              </button>
+            )}
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-3">
           {Array.from({ length: COMPARE_LIMIT }).map((_, i) => {
-            const v = vs.find((x) => x.id === ids[i]);
+            const v = picked.find((x) => x.id === ids[i]);
             return ids[i] ? (
-              <SlotFilled key={ids[i]} id={ids[i]} v={v} color={COLORS[i]} loading={data.loading && !v} onRemove={() => compare.remove(ids[i])} />
+              <SlotFilled key={ids[i]} id={ids[i]} v={v} color={COLORS[i + offset]} loading={data.loading && !v} onRemove={() => compare.remove(ids[i])} />
             ) : (
               <VehiclePicker key={`empty-${i}`} onPick={(id) => compare.replace([...ids, id])} exclude={ids} />
             );
@@ -201,7 +242,7 @@ export function ComparePage() {
           <>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
-                onClick={() => ask(vs.length > 1 ? `Which of these makes more sense for my commute?` : `Is the ${names[0]} a good fit for me?`)}
+                onClick={() => ask(showMine && vs.length > 1 ? `How do these compare with my current car for my commute?` : vs.length > 1 ? `Which of these makes more sense for my commute?` : `Is the ${names[0]} a good fit for me?`)}
                 className="btn-primary"
               >
                 <Sparkles className="h-4 w-4" /> Ask which fits my commute
@@ -265,7 +306,6 @@ function SlotFilled({ id, v, color, loading, onRemove }: { id: string; v?: Vehic
                 {v.fuel_type ? ` · ${v.fuel_type}` : ""}
               </p>
             </div>
-            <SourceBadge source={v.source} />
           </div>
         </>
       )}
@@ -412,7 +452,7 @@ function SpecTable({ vs }: { vs: VehicleRecord[] }) {
               {vs.map((v, i) => (
                 <th key={v.id} scope="col" className="px-5 py-4 text-left font-semibold">
                   <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: COLORS[i] }} />
-                  {vehicleName(v)}
+                  {v.id.startsWith(MINE_PREFIX) ? `Your ${vehicleName(v)}` : vehicleName(v)}
                 </th>
               ))}
             </tr>
@@ -465,7 +505,7 @@ function ChartCard({ title, note, missing, children }: { title: string; note: st
 }
 
 const axis = { fontSize: 12, fill: "#5e5e5e" };
-const shortName = (v: VehicleRecord) => `${v.model} ${v.trim ?? ""}`.trim();
+const shortName = (v: VehicleRecord) => `${v.id.startsWith(MINE_PREFIX) ? "Your " : ""}${v.model} ${v.trim ?? ""}`.trim();
 
 function SingleBar({ rows, unit, format }: { rows: { name: string; value: number; color: string }[]; unit: string; format?: (n: number) => string }) {
   if (!rows.length) return <NoData />;
@@ -494,15 +534,12 @@ function NoData() {
 function years(vs: VehicleRecord[]) {
   return [...new Set(vs.map((v) => v.year))].join(", ");
 }
-function sources(vs: VehicleRecord[]) {
-  return [...new Set(vs.map(() => "NHTSA"))].join(" and ");
-}
 
 function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {
   const pick = (get: (v: VehicleRecord) => number | null) =>
     vs.flatMap((v, i) => (get(v) == null ? [] : [{ name: shortName(v), value: get(v)!, color: COLORS[i] }]));
   const missing = (get: (v: VehicleRecord) => number | null, field: string) => vs.filter((v) => get(v) == null).map((v) => `${shortName(v)} (no ${field})`);
-  const base = `Source: ${sources(vs)}. Model year ${years(vs)}.`;
+  const base = `Model year ${years(vs)}.`;
 
   const mpgRows = vs.filter((v) => v.mpg.city || v.mpg.highway || v.mpg.combined);
   const dimRows = vs.filter((v) => v.dimensions.length_in || v.dimensions.width_in || v.dimensions.height_in);
@@ -597,7 +634,7 @@ function CostCharts({ vs, assume }: { vs: VehicleRecord[]; assume: Assumptions }
       }),
     [vs, assume]
   );
-  const base = `Source: ${sources(vs)}, model year ${years(vs)}. ${assume.miles.toLocaleString("en-US")} mi/yr, $${assume.gas}/gal, $${assume.kwh}/kWh, 33.7 kWh per gallon-equivalent.`;
+  const base = `Model year ${years(vs)}. ${assume.miles.toLocaleString("en-US")} mi/yr, $${assume.gas}/gal, $${assume.kwh}/kWh, 33.7 kWh per gallon-equivalent.`;
   const usd = (n: number) => money(Math.round(n));
 
   return (
@@ -611,7 +648,7 @@ function CostCharts({ vs, assume }: { vs: VehicleRecord[]; assume: Assumptions }
       </ChartCard>
       <ChartCard
         title="Estimated five-year fuel and other costs"
-        note={`Five years of fuel${assume.other ? ` + $${assume.other.toLocaleString("en-US")}/yr other costs` : ""}. Vehicle purchase price is not included — NHTSA and EPA do not publish MSRP.`}
+        note={`Five years of fuel${assume.other ? ` + $${assume.other.toLocaleString("en-US")}/yr other costs` : ""}. Vehicle purchase price is not included because verified pricing is not connected.`}
         missing={rows.filter((r) => r.fiveYear == null).map((r) => `${shortName(r.v)} (needs ${r.fuel.missing})`)}
       >
         <SingleBar rows={rows.flatMap((r) => (r.fiveYear == null ? [] : [{ name: shortName(r.v), value: Math.round(r.fiveYear), color: r.color }]))} unit="" format={usd} />

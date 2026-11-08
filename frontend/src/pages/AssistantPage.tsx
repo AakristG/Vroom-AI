@@ -47,12 +47,10 @@ export function AssistantPage() {
                 <img src={modelImage(p.vehicle.model)} alt="" aria-hidden title={modelImageNote(p.vehicle.model)} className="h-full w-full object-cover" />
                 <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                 <div className="absolute inset-x-4 bottom-3 text-white">
-                  <p className="text-[11px] uppercase tracking-wider text-white/70">The AI is reading</p>
                   <p className="font-semibold">
                     {p.vehicle.model ? `${p.vehicle.model_year} Toyota ${p.vehicle.model} ${p.vehicle.trim}` : "Your Toyota"}
                   </p>
                 </div>
-                <span className="absolute right-3 top-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/80 backdrop-blur">Representative image</span>
               </div>
               <dl className="grid grid-cols-2 gap-px bg-line">
                 <div className="bg-paper p-4">
@@ -68,8 +66,8 @@ export function AssistantPage() {
           ) : (
             <div className="card p-5">
               <h2 className="font-semibold">Answers get specific when you sign in.</h2>
-              <p className="mt-1 text-sm text-muted">Pick a demo customer and the assistant reads their simulated loan or lease.</p>
-              <Link to="/signin?next=/assistant" className="btn-primary mt-4 inline-flex">Choose a demo account</Link>
+              <p className="mt-1 text-sm text-muted">Sign in and the assistant reads your loan or lease.</p>
+              <Link to="/signin?next=/assistant" className="btn-primary mt-4 inline-flex">Sign in</Link>
             </div>
           )}
           <div className="card divide-y divide-line p-0">

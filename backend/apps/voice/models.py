@@ -10,6 +10,9 @@ class CallLog(models.Model):
     """
 
     call_id = models.CharField(max_length=128, unique=True)
+    customer_id = models.CharField(max_length=16, blank=True, db_index=True)
+    channel = models.CharField(max_length=16, blank=True)  # "web" | "phone"
+    from_number = models.CharField(max_length=40, blank=True)
     agent_id = models.CharField(max_length=128, blank=True)
     status = models.CharField(max_length=32, default="registered")
     transcript = models.JSONField(default=list, blank=True)

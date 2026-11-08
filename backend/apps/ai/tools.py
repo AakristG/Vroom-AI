@@ -17,7 +17,7 @@ from typing import Any
 from apps.vehicles.catalog import provider
 from apps.vehicles.views import lookup
 
-from . import finance
+from . import finance, policy, shopping
 from .account_context import _profiles, self_reported_profile
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ def lease_end_options(customer_id: str) -> dict:
         "mileage_allowance_total": a.get("mileage_allowance_total"),
         "odometer_now": v.get("odometer_now"),
         "note": "Vehicle value is an estimate, not a guaranteed offer. Buyout price is set by the lease agreement.",
-        "options_on_file": [o["option_name"] for o in p.get("options") or []],
+        "options_on_file": [o["option_name"] for o in policy.decide(p).options],
     }
 
 
@@ -126,24 +126,33 @@ def _golden_answers() -> dict[str, dict]:
 
 def next_actions(customer_id: str) -> dict:
     p = _profile(customer_id)
-    g = _golden_answers().get(customer_id)
-    if not p or not g:
+    if not p:
         return {"error": "No recommended next step on file."}
-    return {
-        "best_next_move": g["best_next_move"],
-        "next_step_type": g["next_step_type"],
-        "why": g["plain_language_message"],
-        "guardrails": g["guardrail_notes"],
+    d = policy.decide(p)
+    g = _golden_answers().get(customer_id)
+    out = {
+        "best_next_move": d.best_move,
+        "next_step_type": d.label,
         "options_on_file": [
-            {"name": o["option_name"], "eligibility": o["eligibility"], "summary": o["plain_language_summary"]}
-            for o in p.get("options") or []
+            {"name": o["option_name"], "eligibility": o["eligibility"], "summary": o["plain_language_summary"],
+             "new_monthly_payment": o.get("new_monthly_payment"), "upfront_cost": o.get("upfront_cost"),
+             "total_cost_vs_keep_as_is": o.get("total_cost_vs_keep_as_is"), "assumption": o.get("key_assumption")}
+            for o in d.options
         ],
     }
+    if d.protected:
+        out["guardrails"] = "Protected customer: no upsell or marketing. A specialist reviews any change."
+    elif g:
+        out["why"] = g["plain_language_message"]
+        out["guardrails"] = g["guardrail_notes"]
+    if d.no_offer_eligible:
+        out["no_offer_eligible"] = f"No option is eligible right now. Re-check {d.recheck}."
+    return out
 
 
 def _vehicle_brief(record: dict) -> dict:
     keys = ("id", "year", "model", "trim", "category", "fuel_type", "engine", "horsepower", "drivetrain",
-            "mpg", "mpge", "ev_range_mi", "seating", "cargo_cu_ft", "source")
+            "mpg", "mpge", "ev_range_mi", "seating", "cargo_cu_ft")
     brief = {k: record.get(k) for k in keys}
     brief["historical_base_msrp"] = None
     brief["msrp_note"] = "Verified pricing is not currently connected."
@@ -194,7 +203,6 @@ def ownership_cost(ids: list[str], annual_miles: float = 12000, gas_price: float
             "basis": basis,
             "five_year_fuel_cost": round(annual * 5),
             "five_year_msrp_plus_fuel": round(msrp + annual * 5) if msrp else None,
-            "source": v.get("source"),
         })
     return {"annual_miles": annual_miles, "estimates": rows,
             "note": "Fuel only. Excludes insurance, maintenance, taxes, and financing."}
@@ -210,6 +218,7 @@ TOOL_FUNCTIONS = {
     "vehicle_lookup": vehicle_lookup,
     "compare_vehicles": compare_vehicles,
     "ownership_cost": ownership_cost,
+    "shop_vehicles": shopping.shop_vehicles,
 }
 
 _CUSTOMER_TOOLS = {"customer_profile", "payment_breakdown", "extra_payment_scenario",
@@ -233,6 +242,12 @@ TOOL_SCHEMAS = [
     _fn("vehicle_lookup", "Specs for one Toyota by year, model, optional trim.",
         {"year": {"type": "integer"}, "model": {"type": "string"}, "trim": {"type": "string"}}, ["year", "model"]),
     _fn("compare_vehicles", "Side-by-side specs for up to three Toyotas.", {"ids": _IDS}, ["ids"]),
+    _fn("shop_vehicles", "Ranked Toyota suggestions for a shopping question: budget (total price) or monthly "
+        "budget, how many suggestions, and the use (new driver, family, commute, towing, off-road, electric, sporty). "
+        "Returns approximate starting MSRP, estimated monthly payment, MPG, and safety rating.",
+        {"question": {"type": "string", "description": "The customer's question, verbatim"},
+         "budget": {"type": "number"}, "monthly_budget": {"type": "number"}, "count": {"type": "integer"}},
+        ["question"]),
     _fn("ownership_cost", "Annual and five-year fuel cost estimates.",
         {"ids": _IDS, "annual_miles": {"type": "number"}, "gas_price": {"type": "number"}}, ["ids"]),
 ]
@@ -276,7 +291,9 @@ def _mentioned_vehicles(text: str, year: int) -> list[str]:
     return [f"{year}|{m}|" for m in chosen[:3]]
 
 
-def plan(question: str, context: dict, customer_id: str | None) -> list[tuple[str, dict]]:
+def plan(question: str, context: dict, customer_id: str | None, intent: str = "account") -> list[tuple[str, dict]]:
+    if intent == "shopping":
+        return [("shop_vehicles", {"question": question})]
     q = question.lower()
     calls: list[tuple[str, dict]] = []
     profile = _profile(customer_id)
@@ -298,7 +315,7 @@ def plan(question: str, context: dict, customer_id: str | None) -> list[tuple[st
                 calls.append(("payment_breakdown", {}))
         if contract == "lease" and any(k in q for k in ("lease", "end", "buy", "return", "options")):
             calls.append(("lease_end_options", {}))
-        if any(k in q for k in ("next", "should i", "what do", "option", "recommend", "help", "smartest")):
+        if profile.get("options"):
             calls.append(("next_actions", {}))
 
     if vehicles:
@@ -320,15 +337,24 @@ def plan(question: str, context: dict, customer_id: str | None) -> list[tuple[st
 def suggested_actions(tool_names: list[str], customer_id: str | None, context: dict) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     names = set(tool_names)
+    p = _profile(customer_id)
+    protected = bool(p) and policy.decide(p).protected
     if names & {"term_extension_scenario", "extra_payment_scenario", "payment_breakdown"}:
         actions.append({"type": "navigate", "label": "Open payment scenarios", "to": "/insights#scenarios"})
     if "lease_end_options" in names:
         actions.append({"type": "navigate", "label": "Compare lease-end choices", "to": "/my-toyota#options"})
+    if "shop_vehicles" in names:
+        ids = "&".join(f"v={i}" for i in (context.get("vehicles") or []))
+        actions.append({"type": "navigate", "label": "Compare these side by side", "to": f"/compare?{ids}" if ids else "/compare"})
+        actions.append({"type": "navigate", "label": "Browse all Toyotas", "to": "/explore"})
+        if protected:
+            actions.append({"type": "confirm", "action": "request_callback", "topic": "Payment help",
+                            "label": "Ask a specialist to call me"})
+        return actions[:3]
     if names & {"compare_vehicles", "ownership_cost"} and context.get("page") != "compare":
         ids = "&".join(f"v={i}" for i in (context.get("vehicles") or []))
         actions.append({"type": "navigate", "label": "Open the comparison", "to": f"/compare?{ids}" if ids else "/compare"})
-    p = _profile(customer_id)
-    if p and (p["customer"]["vulnerable_flag"] == "Y" or p["account"]["missed_payments_12m"] >= 1):
+    if protected or (p and p["account"]["missed_payments_12m"] >= 1):
         actions.append({"type": "confirm", "action": "request_callback", "topic": "Payment help",
                         "label": "Ask a specialist to call me about payment help"})
     elif "lease_end_options" in names:

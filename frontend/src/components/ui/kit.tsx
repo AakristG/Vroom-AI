@@ -1,7 +1,6 @@
-import { AlertTriangle, Database, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
-import type { DataSource } from "../../api/vehicles";
 import { cn } from "../../lib/format";
 import { EASE } from "./motion";
 
@@ -23,14 +22,6 @@ export function PageIntro({ eyebrow, title, children, aside }: { eyebrow: string
   );
 }
 
-export function SourceBadge({ source, className }: { source: DataSource; className?: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full bg-go/10 px-2.5 py-1 text-[11px] font-semibold text-go", className)}>
-      <Database className="h-3 w-3" /> NHTSA
-    </span>
-  );
-}
-
 export function SimulatedBadge({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full bg-sodium/20 px-2.5 py-1 text-[11px] font-semibold text-caution", className)}>
@@ -39,14 +30,6 @@ export function SimulatedBadge({ className }: { className?: string }) {
   );
 }
 
-export function SourceBanner({ source, fallbackReason }: { source: DataSource; fallbackReason?: string | null }) {
-  return (
-    <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
-      <SourceBadge source={source} /> Model list from NHTSA vPIC. Photos from Wikimedia Commons (representative; generation may differ). Fuel economy on vehicle pages from EPA FuelEconomy.gov.
-      {fallbackReason ? ` ${fallbackReason}` : ""}
-    </p>
-  );
-}
 
 export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded-2xl bg-black/[0.06]", className)} />;

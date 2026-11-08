@@ -289,3 +289,25 @@ export async function checkBackendHealth(): Promise<boolean> {
     return false;
   }
 }
+
+export interface NextMoveStep {
+  key: string;
+  title: string;
+  detail: string;
+  status: "working" | "done" | "needs_you" | "blocked";
+  action?: AssistantAction | null;
+}
+
+export interface NextMovePlan {
+  summary: string;
+  steps: NextMoveStep[];
+  label?: string;
+  protected?: boolean;
+  error?: string;
+}
+
+/** Runs the AI-automated plan. Steps also stream live through SpacetimeDB while this is in flight. */
+export async function runNextMoves() {
+  const { data } = await apiClient.post<NextMovePlan>("/api/ai/next-moves/", {}, { timeout: 120000 });
+  return data;
+}

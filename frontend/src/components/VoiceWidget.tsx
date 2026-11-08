@@ -10,6 +10,7 @@
  */
 import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useVoiceCaptionRow } from "../spacetime/client";
 import { RetellWebClient } from "retell-client-js-sdk";
 import { TOKEN_KEY, createVerifiedWebCall, fetchVoiceLiveSnapshot } from "../api/client";
 import { useVoiceSession, type VoiceStatus } from "../state/voiceSession";
@@ -61,6 +62,20 @@ export function VoiceWidget({
   const sawProviderTranscript = useRef(false);
   const handlers = useRef({ onTranscript, onStatus, voice });
   handlers.current = { onTranscript, onStatus, voice };
+
+  // Live captions arrive from SpacetimeDB first; the caption WebSocket and polling stay as fallbacks.
+  const { row: captionRow } = useVoiceCaptionRow(voice.callId);
+  const captionSeq = captionRow ? Number(captionRow.sequence) : 0;
+  useEffect(() => {
+    if (!captionRow || callIdRef.current !== captionRow.callId) return;
+    try {
+      const turns = turnsFromPayload(JSON.parse(captionRow.turnsJson || "[]"));
+      if (turns.length) applyTurns(captionRow.callId, turns, { eventSeq: captionSeq });
+    } catch {
+      /* ignore malformed rows */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [captionRow?.callId, captionSeq]);
 
   const setStatus = (next: VoiceStatus) => {
     handlers.current.voice.setCallMeta(next, callIdRef.current);

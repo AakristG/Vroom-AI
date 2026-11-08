@@ -23,6 +23,7 @@ import { NA, mpgRange, num, vehicleName } from "../lib/spec";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
 import { COMPARE_LIMIT, useCompare } from "../state/compare";
+import { useCompareSuggestionRow } from "../spacetime/client";
 
 // One color per column: the page compares up to COMPARE_LIMIT models plus your own car.
 const COLORS = ["#eb0a1e", "#16171a", "#8a8f98", "#2f6fd6", "#1f8a70", "#f4b23e", "#7b4fd6", "#d65f9e", "#3fb6c8"];
@@ -691,10 +692,19 @@ function NumberField({ label, value, step, onChange }: { label: string; value: n
 
 /** Three models Nemotron suggests adding, chosen from the real catalog by the backend. */
 function AiSuggestions({ ids, full, onAdd }: { ids: string[]; full: boolean; onAdd: (id: string) => void }) {
-  const [state, setState] = useState<{ loading: boolean; items: CompareSuggestion[]; source?: string; error?: string }>({ loading: true, items: [] });
+  const [httpState, setState] = useState<{ loading: boolean; items: CompareSuggestion[]; source?: string; error?: string }>({ loading: true, items: [] });
   const key = ids.map((i) => i.split("|").slice(0, 2).join("|")).join(",");
+  const { profile } = useAuth();
+  const { row } = useCompareSuggestionRow(profile?.customer.customer_id);
+  // SpacetimeDB keeps the latest suggestions for this selection; use them (and skip the request) when they match.
+  const cached = row && row.selectionKey === key ? row : null;
+  const state = cached
+    ? { loading: false, items: JSON.parse(cached.suggestionsJson || "[]") as CompareSuggestion[], source: cached.source, error: undefined }
+    : httpState;
+  const haveCached = Boolean(cached);
 
   useEffect(() => {
+    if (haveCached) return;
     let live = true;
     setState((s) => ({ ...s, loading: true, error: undefined }));
     const t = window.setTimeout(() => {
@@ -707,7 +717,7 @@ function AiSuggestions({ ids, full, onAdd }: { ids: string[]; full: boolean; onA
       window.clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, haveCached]);
 
   return (
     <section aria-labelledby="ai-suggest" className="relative overflow-hidden rounded-md bg-gradient-to-br from-charcoal-2 to-charcoal p-6 text-white md:p-7">

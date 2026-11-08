@@ -292,6 +292,26 @@ def run_turn(
     call_id: str = "",
     verified: bool = False,
 ) -> dict[str, Any]:
+    result = _run_turn(messages=messages, customer_id=customer_id, context=context, channel=channel,
+                       conversation_id=conversation_id, call_id=call_id, verified=verified)
+    if verified and customer_id:
+        from apps.spacetime import sync as live_sync
+
+        for action in result.get("proposed_actions") or []:
+            live_sync.dashboard(customer_id, action, channel)
+    return result
+
+
+def _run_turn(
+    *,
+    messages: list[dict],
+    customer_id: str | None,
+    context: dict | None = None,
+    channel: str = "web",
+    conversation_id: str = "",
+    call_id: str = "",
+    verified: bool = False,
+) -> dict[str, Any]:
     context = context or {}
     if not verified:
         customer_id = None

@@ -22,6 +22,7 @@ import { Link } from "react-router-dom";
 import { requestCallback, sendAssistantMessage, type AssistantAction, type AssistantTool, type PendingActionCard } from "../../api/client";
 import { parseVehicleId } from "../../api/vehicles";
 import { applyDashboard } from "../../lib/dashboardBus";
+import { useSpacetimeStatus } from "../../spacetime/client";
 import { cn } from "../../lib/format";
 import { journeyFor } from "../../lib/journey";
 import { sanitizeAssistantText } from "../../lib/sanitizeAssistantText";
@@ -135,7 +136,8 @@ function Prose({ text, muted }: { text: string; muted?: boolean }) {
 
 export function AssistantChat({ compact = false }: { compact?: boolean }) {
   const { profile } = useAuth();
-  const { context, pending, clearPending, turns, setTurns } = useAssistant();
+  const { context, pending, clearPending, turns, setTurns, clearConversation } = useAssistant();
+  const liveStatus = useSpacetimeStatus();
   const voice = useVoiceSession();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -205,7 +207,8 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
   async function send(text: string, { retry = false } = {}) {
     const content = text.trim();
     if (!content || busy) return;
-    const next: Turn[] = retry ? turns : [...turns, { id: `u-${Date.now()}`, role: "user", content }];
+    const userTurnId = `u-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const next: Turn[] = retry ? turns : [...turns, { id: userTurnId, role: "user", content }];
     setTurns(next);
     if (!retry) setDraft("");
     setBusy(true);
@@ -214,18 +217,22 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
       const res = await sendAssistantMessage(
         next.filter((t) => !t.offline).map(({ role, content }) => ({ role, content })),
         context,
-        customerId
+        customerId,
+        retry ? undefined : userTurnId
       );
       // The agent can drive the What-if dashboards: apply its settings as soon as the reply lands.
-      for (const a of res.actions ?? []) {
-        if (a.type === "set_dashboard") applyDashboard({ simulator: a.simulator, scenario: a.scenario });
+      // With SpacetimeDB live, the backend's dashboard_state row drives this (on every device).
+      if (liveStatus !== "live") {
+        for (const a of res.actions ?? []) {
+          if (a.type === "set_dashboard") applyDashboard({ simulator: a.simulator, scenario: a.scenario });
+        }
       }
       setTurns((cur) => [
         ...cur,
         res.reply
-          ? { id: `a-${Date.now()}`, role: "assistant", content: res.reply, tools: res.tools, actions: res.actions }
+          ? { id: res.turn_id ?? `a-${Date.now()}`, role: "assistant", content: res.reply, tools: res.tools, actions: res.actions }
           : {
-              id: `a-${Date.now()}`,
+              id: res.turn_id ?? `a-${Date.now()}`,
               role: "assistant",
               offline: true,
               content: "Nemotron is offline right now, so there's no written answer. Here is what the backend tools found:",
@@ -274,7 +281,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         ))}
         <span className="rounded-full bg-mist px-2 py-0.5">{profile ? `Account: ${profile.customer.first_name}` : "Not signed in"}</span>
         {turns.length > 0 && (
-          <button onClick={() => setTurns([])} className="ml-auto flex items-center gap-1 hover:text-ink" aria-label="Clear conversation">
+          <button onClick={clearConversation} className="ml-auto flex items-center gap-1 hover:text-ink" aria-label="Clear conversation">
             <Trash2 className="h-3 w-3" /> Clear
           </button>
         )}

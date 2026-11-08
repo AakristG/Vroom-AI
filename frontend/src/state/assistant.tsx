@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { AssistantAction, AssistantContext, AssistantTool } from "../api/client";
+import { clearAssistantHistory, useAssistantTurnRows, type AssistantTurnRow } from "../spacetime/client";
+import { useAuth } from "./auth";
 
 export interface Turn {
   id: string;
@@ -23,8 +25,32 @@ interface Assistant {
   clearPending: () => void;
   context: AssistantContext;
   setContext: (ctx: AssistantContext) => void;
+  /** The conversation: SpacetimeDB history for this customer plus any local turns not synced yet. */
   turns: Turn[];
+  /** Local (optimistic and voice) turns. */
   setTurns: Dispatch<SetStateAction<Turn[]>>;
+  /** "Clear": empties the conversation here and on every other tab and device. */
+  clearConversation: () => void;
+}
+
+function parseJson<T>(raw: string): T | undefined {
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+function rowToTurn(r: AssistantTurnRow): Turn {
+  return {
+    id: r.turnId,
+    role: r.role === "user" ? "user" : "assistant",
+    content: r.offline && !r.content ? "Nemotron is offline right now, so there's no written answer. Here is what the backend tools found:" : r.content,
+    tools: parseJson<AssistantTool[]>(r.toolsJson),
+    actions: parseJson<AssistantAction[]>(r.actionsJson),
+    offline: r.offline || undefined,
+  };
 }
 
 const Ctx = createContext<Assistant | null>(null);
@@ -33,7 +59,17 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [context, setContext] = useState<AssistantContext>({ page: "home" });
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [localTurns, setTurns] = useState<Turn[]>([]);
+  const { profile } = useAuth();
+  const customerId = profile?.customer.customer_id ?? null;
+  const { rows } = useAssistantTurnRows(customerId);
+  // History lives in SpacetimeDB, so every tab and device shows the same conversation. Local turns
+  // that have not landed there yet (the message being sent, voice transcript lines) follow it.
+  const turns = useMemo(() => {
+    const remote = rows.map(rowToTurn);
+    const seen = new Set(remote.map((t) => t.id));
+    return [...remote, ...localTurns.filter((t) => !seen.has(t.id))];
+  }, [rows, localTurns]);
 
   const value = useMemo<Assistant>(
     () => ({
@@ -49,8 +85,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       setContext,
       turns,
       setTurns,
+      clearConversation: () => {
+        setTurns([]);
+        if (customerId) clearAssistantHistory(customerId);
+      },
     }),
-    [open, pending, context, turns]
+    [open, pending, context, turns, customerId]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

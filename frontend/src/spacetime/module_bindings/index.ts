@@ -34,23 +34,34 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AppendAssistantTurnReducer from "./append_assistant_turn_reducer";
 import AppendCallMessageReducer from "./append_call_message_reducer";
 import AppendCustomerEventReducer from "./append_customer_event_reducer";
 import BookAppointmentReducer from "./book_appointment_reducer";
+import ClearAssistantTurnsReducer from "./clear_assistant_turns_reducer";
 import ClearNextMovesReducer from "./clear_next_moves_reducer";
 import SetCallOwnerReducer from "./set_call_owner_reducer";
+import SetCompareSelectionReducer from "./set_compare_selection_reducer";
+import SetCompareSuggestionsReducer from "./set_compare_suggestions_reducer";
+import SetDashboardReducer from "./set_dashboard_reducer";
 import UpsertCallSessionReducer from "./upsert_call_session_reducer";
 import UpsertNextMoveReducer from "./upsert_next_move_reducer";
+import UpsertVoiceCaptionReducer from "./upsert_voice_caption_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
 import AppointmentRow from "./appointment_table";
+import AssistantTurnRow from "./assistant_turn_table";
 import CallMessageRow from "./call_message_table";
 import CallOwnerRow from "./call_owner_table";
 import CallSessionRow from "./call_session_table";
+import CompareSelectionRow from "./compare_selection_table";
+import CompareSuggestionRow from "./compare_suggestion_table";
 import CustomerEventRow from "./customer_event_table";
+import DashboardStateRow from "./dashboard_state_table";
 import NextMoveRow from "./next_move_table";
+import VoiceCaptionRow from "./voice_caption_table";
 
 /** Type-only namespace exports for generated type groups. */
 
@@ -67,6 +78,20 @@ const tablesSchema = __schema({
       { name: 'appointment_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AppointmentRow),
+  assistantTurn: __table({
+    name: 'assistant_turn',
+    indexes: [
+      { accessor: 'byCustomer', name: 'assistant_turn_customer_id_idx_btree', algorithm: 'btree', columns: [
+        'customerId',
+      ] },
+      { accessor: 'id', name: 'assistant_turn_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'assistant_turn_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AssistantTurnRow),
   callMessage: __table({
     name: 'call_message',
     indexes: [
@@ -106,6 +131,28 @@ const tablesSchema = __schema({
       { name: 'call_session_call_id_key', constraint: 'unique', columns: ['callId'] },
     ],
   }, CallSessionRow),
+  compareSelection: __table({
+    name: 'compare_selection',
+    indexes: [
+      { accessor: 'customerId', name: 'compare_selection_customer_id_idx_btree', algorithm: 'btree', columns: [
+        'customerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'compare_selection_customer_id_key', constraint: 'unique', columns: ['customerId'] },
+    ],
+  }, CompareSelectionRow),
+  compareSuggestion: __table({
+    name: 'compare_suggestion',
+    indexes: [
+      { accessor: 'customerId', name: 'compare_suggestion_customer_id_idx_btree', algorithm: 'btree', columns: [
+        'customerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'compare_suggestion_customer_id_key', constraint: 'unique', columns: ['customerId'] },
+    ],
+  }, CompareSuggestionRow),
   customerEvent: __table({
     name: 'customer_event',
     indexes: [
@@ -120,6 +167,17 @@ const tablesSchema = __schema({
       { name: 'customer_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CustomerEventRow),
+  dashboardState: __table({
+    name: 'dashboard_state',
+    indexes: [
+      { accessor: 'customerId', name: 'dashboard_state_customer_id_idx_btree', algorithm: 'btree', columns: [
+        'customerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'dashboard_state_customer_id_key', constraint: 'unique', columns: ['customerId'] },
+    ],
+  }, DashboardStateRow),
   nextMove: __table({
     name: 'next_move',
     indexes: [
@@ -134,17 +192,37 @@ const tablesSchema = __schema({
       { name: 'next_move_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, NextMoveRow),
+  voiceCaption: __table({
+    name: 'voice_caption',
+    indexes: [
+      { accessor: 'callId', name: 'voice_caption_call_id_idx_btree', algorithm: 'btree', columns: [
+        'callId',
+      ] },
+      { accessor: 'byCustomer', name: 'voice_caption_customer_id_idx_btree', algorithm: 'btree', columns: [
+        'customerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'voice_caption_call_id_key', constraint: 'unique', columns: ['callId'] },
+    ],
+  }, VoiceCaptionRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("append_assistant_turn", AppendAssistantTurnReducer),
   __reducerSchema("append_call_message", AppendCallMessageReducer),
   __reducerSchema("append_customer_event", AppendCustomerEventReducer),
   __reducerSchema("book_appointment", BookAppointmentReducer),
+  __reducerSchema("clear_assistant_turns", ClearAssistantTurnsReducer),
   __reducerSchema("clear_next_moves", ClearNextMovesReducer),
   __reducerSchema("set_call_owner", SetCallOwnerReducer),
+  __reducerSchema("set_compare_selection", SetCompareSelectionReducer),
+  __reducerSchema("set_compare_suggestions", SetCompareSuggestionsReducer),
+  __reducerSchema("set_dashboard", SetDashboardReducer),
   __reducerSchema("upsert_call_session", UpsertCallSessionReducer),
   __reducerSchema("upsert_next_move", UpsertNextMoveReducer),
+  __reducerSchema("upsert_voice_caption", UpsertVoiceCaptionReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -153,16 +231,26 @@ const proceduresSchema = __procedures(
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
   tables: typeof tablesSchema.schemaType.tables & {
+    /** @deprecated Use `assistantTurn` instead. This alias will be removed in the next major version. */
+    readonly "assistant_turn": Omit<typeof tablesSchema.schemaType.tables["assistantTurn"], "accessorName"> & { readonly accessorName: "assistant_turn" };
     /** @deprecated Use `callMessage` instead. This alias will be removed in the next major version. */
     readonly "call_message": Omit<typeof tablesSchema.schemaType.tables["callMessage"], "accessorName"> & { readonly accessorName: "call_message" };
     /** @deprecated Use `callOwner` instead. This alias will be removed in the next major version. */
     readonly "call_owner": Omit<typeof tablesSchema.schemaType.tables["callOwner"], "accessorName"> & { readonly accessorName: "call_owner" };
     /** @deprecated Use `callSession` instead. This alias will be removed in the next major version. */
     readonly "call_session": Omit<typeof tablesSchema.schemaType.tables["callSession"], "accessorName"> & { readonly accessorName: "call_session" };
+    /** @deprecated Use `compareSelection` instead. This alias will be removed in the next major version. */
+    readonly "compare_selection": Omit<typeof tablesSchema.schemaType.tables["compareSelection"], "accessorName"> & { readonly accessorName: "compare_selection" };
+    /** @deprecated Use `compareSuggestion` instead. This alias will be removed in the next major version. */
+    readonly "compare_suggestion": Omit<typeof tablesSchema.schemaType.tables["compareSuggestion"], "accessorName"> & { readonly accessorName: "compare_suggestion" };
     /** @deprecated Use `customerEvent` instead. This alias will be removed in the next major version. */
     readonly "customer_event": Omit<typeof tablesSchema.schemaType.tables["customerEvent"], "accessorName"> & { readonly accessorName: "customer_event" };
+    /** @deprecated Use `dashboardState` instead. This alias will be removed in the next major version. */
+    readonly "dashboard_state": Omit<typeof tablesSchema.schemaType.tables["dashboardState"], "accessorName"> & { readonly accessorName: "dashboard_state" };
     /** @deprecated Use `nextMove` instead. This alias will be removed in the next major version. */
     readonly "next_move": Omit<typeof tablesSchema.schemaType.tables["nextMove"], "accessorName"> & { readonly accessorName: "next_move" };
+    /** @deprecated Use `voiceCaption` instead. This alias will be removed in the next major version. */
+    readonly "voice_caption": Omit<typeof tablesSchema.schemaType.tables["voiceCaption"], "accessorName"> & { readonly accessorName: "voice_caption" };
   };
 };
 
@@ -181,11 +269,16 @@ const REMOTE_MODULE = {
 >;
 
 const tableAccessorAliases = {
+  "assistant_turn": "assistantTurn",
   "call_message": "callMessage",
   "call_owner": "callOwner",
   "call_session": "callSession",
+  "compare_selection": "compareSelection",
+  "compare_suggestion": "compareSuggestion",
   "customer_event": "customerEvent",
+  "dashboard_state": "dashboardState",
   "next_move": "nextMove",
+  "voice_caption": "voiceCaption",
 } as const;
 
 function __withTableAccessorAliases<T extends object>(target: T, freeze = false): T {
@@ -206,30 +299,50 @@ function __withTableAccessorAliases<T extends object>(target: T, freeze = false)
 
 type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
+  /** @deprecated Use `assistantTurn` instead. This alias will be removed in the next major version. */
+  readonly "assistant_turn": __DbViewBase["assistantTurn"];
   /** @deprecated Use `callMessage` instead. This alias will be removed in the next major version. */
   readonly "call_message": __DbViewBase["callMessage"];
   /** @deprecated Use `callOwner` instead. This alias will be removed in the next major version. */
   readonly "call_owner": __DbViewBase["callOwner"];
   /** @deprecated Use `callSession` instead. This alias will be removed in the next major version. */
   readonly "call_session": __DbViewBase["callSession"];
+  /** @deprecated Use `compareSelection` instead. This alias will be removed in the next major version. */
+  readonly "compare_selection": __DbViewBase["compareSelection"];
+  /** @deprecated Use `compareSuggestion` instead. This alias will be removed in the next major version. */
+  readonly "compare_suggestion": __DbViewBase["compareSuggestion"];
   /** @deprecated Use `customerEvent` instead. This alias will be removed in the next major version. */
   readonly "customer_event": __DbViewBase["customerEvent"];
+  /** @deprecated Use `dashboardState` instead. This alias will be removed in the next major version. */
+  readonly "dashboard_state": __DbViewBase["dashboardState"];
   /** @deprecated Use `nextMove` instead. This alias will be removed in the next major version. */
   readonly "next_move": __DbViewBase["nextMove"];
+  /** @deprecated Use `voiceCaption` instead. This alias will be removed in the next major version. */
+  readonly "voice_caption": __DbViewBase["voiceCaption"];
 };
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
+  /** @deprecated Use `assistantTurn` instead. This alias will be removed in the next major version. */
+  readonly "assistant_turn": __TablesBase["assistantTurn"];
   /** @deprecated Use `callMessage` instead. This alias will be removed in the next major version. */
   readonly "call_message": __TablesBase["callMessage"];
   /** @deprecated Use `callOwner` instead. This alias will be removed in the next major version. */
   readonly "call_owner": __TablesBase["callOwner"];
   /** @deprecated Use `callSession` instead. This alias will be removed in the next major version. */
   readonly "call_session": __TablesBase["callSession"];
+  /** @deprecated Use `compareSelection` instead. This alias will be removed in the next major version. */
+  readonly "compare_selection": __TablesBase["compareSelection"];
+  /** @deprecated Use `compareSuggestion` instead. This alias will be removed in the next major version. */
+  readonly "compare_suggestion": __TablesBase["compareSuggestion"];
   /** @deprecated Use `customerEvent` instead. This alias will be removed in the next major version. */
   readonly "customer_event": __TablesBase["customerEvent"];
+  /** @deprecated Use `dashboardState` instead. This alias will be removed in the next major version. */
+  readonly "dashboard_state": __TablesBase["dashboardState"];
   /** @deprecated Use `nextMove` instead. This alias will be removed in the next major version. */
   readonly "next_move": __TablesBase["nextMove"];
+  /** @deprecated Use `voiceCaption` instead. This alias will be removed in the next major version. */
+  readonly "voice_caption": __TablesBase["voiceCaption"];
 };
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */

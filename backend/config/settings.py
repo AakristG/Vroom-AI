@@ -5,6 +5,7 @@ Loads config from environment variables (see backend/.env.example).
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -226,3 +227,6 @@ CACHES = {
 SPACETIMEDB_URL = os.environ.get("SPACETIMEDB_URL", "http://127.0.0.1:3000")
 SPACETIMEDB_MODULE_NAME = os.environ.get("SPACETIMEDB_MODULE_NAME", "toyota-nextmove")
 SPACETIMEDB_TOKEN = os.environ.get("SPACETIMEDB_TOKEN", "")
+# Live-state mirroring to SpacetimeDB (apps/spacetime/sync.py). Off under `manage.py test` so tests
+# never write into a real database.
+SPACETIMEDB_SYNC = env_bool("SPACETIMEDB_SYNC", True) and not (len(sys.argv) > 1 and sys.argv[1] == "test")

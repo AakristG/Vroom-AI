@@ -4,6 +4,8 @@ import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { RequireAuth } from "./components/RequireAuth";
 import { SiteFooter, SiteHeader } from "./components/SiteHeader";
 import { AssistantLogoutListener } from "./state/assistant";
+import { useAuth } from "./state/auth";
+import { DashboardSync } from "./lib/dashboardBus";
 
 const LandingPage = lazy(() => import("./components/LandingPage").then((m) => ({ default: m.LandingPage })));
 const AssistantDock = lazy(() => import("./components/assistant/AssistantDock").then((m) => ({ default: m.AssistantDock })));
@@ -54,6 +56,11 @@ function Page({ children }: { children: ReactNode }) {
   );
 }
 
+function LiveDashboardSync() {
+  const { profile } = useAuth();
+  return <DashboardSync customerId={profile?.customer.customer_id ?? null} />;
+}
+
 function App() {
   const location = useLocation();
   return (
@@ -62,6 +69,7 @@ function App() {
         Skip to content
       </a>
       <AssistantLogoutListener />
+      <LiveDashboardSync />
       <SiteHeader />
       <ScrollManager />
       <div id="content">

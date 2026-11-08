@@ -17,6 +17,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from apps.accounts.authz import login_required_api
+from apps.spacetime import sync as live_sync
 from apps.vehicles.catalog import provider
 
 from . import nim_client
@@ -159,4 +160,6 @@ def compare_suggestions(request):
             break
         if all(p["model"] != c["model"] for p in picks):
             picks.append({**c, "reason": _fallback_reason(c, compared)})
-    return Response({"suggestions": picks[:SUGGESTION_COUNT], "source": source, "year": year})
+    final = picks[:SUGGESTION_COUNT]
+    live_sync.compare_suggestions(account.customer_id, ",".join(f"{y}|{m}" for y, m in picked), final, source)
+    return Response({"suggestions": final, "source": source, "year": year})

@@ -42,6 +42,10 @@ def _broadcast(call_id: str, payload: dict[str, Any]) -> None:
     """Push a caption snapshot to browsers subscribed to this verified call."""
     if not call_id:
         return
+    # SpacetimeDB is the primary live feed; the Channels group below is the fallback.
+    from apps.spacetime import sync as live_sync
+
+    live_sync.voice_caption(call_id, _owners.get(call_id), payload)
     try:
         from asgiref.sync import async_to_sync
         from channels.layers import get_channel_layer

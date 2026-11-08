@@ -6,19 +6,31 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AppendAssistantTurnReducer from "../append_assistant_turn_reducer";
 import AppendCallMessageReducer from "../append_call_message_reducer";
 import AppendCustomerEventReducer from "../append_customer_event_reducer";
 import BookAppointmentReducer from "../book_appointment_reducer";
+import ClearAssistantTurnsReducer from "../clear_assistant_turns_reducer";
 import ClearNextMovesReducer from "../clear_next_moves_reducer";
 import SetCallOwnerReducer from "../set_call_owner_reducer";
+import SetCompareSelectionReducer from "../set_compare_selection_reducer";
+import SetCompareSuggestionsReducer from "../set_compare_suggestions_reducer";
+import SetDashboardReducer from "../set_dashboard_reducer";
 import UpsertCallSessionReducer from "../upsert_call_session_reducer";
 import UpsertNextMoveReducer from "../upsert_next_move_reducer";
+import UpsertVoiceCaptionReducer from "../upsert_voice_caption_reducer";
 
+export type AppendAssistantTurnParams = __Infer<typeof AppendAssistantTurnReducer>;
 export type AppendCallMessageParams = __Infer<typeof AppendCallMessageReducer>;
 export type AppendCustomerEventParams = __Infer<typeof AppendCustomerEventReducer>;
 export type BookAppointmentParams = __Infer<typeof BookAppointmentReducer>;
+export type ClearAssistantTurnsParams = __Infer<typeof ClearAssistantTurnsReducer>;
 export type ClearNextMovesParams = __Infer<typeof ClearNextMovesReducer>;
 export type SetCallOwnerParams = __Infer<typeof SetCallOwnerReducer>;
+export type SetCompareSelectionParams = __Infer<typeof SetCompareSelectionReducer>;
+export type SetCompareSuggestionsParams = __Infer<typeof SetCompareSuggestionsReducer>;
+export type SetDashboardParams = __Infer<typeof SetDashboardReducer>;
 export type UpsertCallSessionParams = __Infer<typeof UpsertCallSessionReducer>;
 export type UpsertNextMoveParams = __Infer<typeof UpsertNextMoveReducer>;
+export type UpsertVoiceCaptionParams = __Infer<typeof UpsertVoiceCaptionReducer>;
 

@@ -101,6 +101,80 @@ const nextMove = table(
   }
 );
 
+/** Website chat with Vroom AI, one row per message. The backend writes both sides of each turn so
+ * every tab and device signed in as this customer shows the same conversation. */
+const assistantTurn = table(
+  {
+    name: 'assistant_turn',
+    public: true,
+    indexes: [{ accessor: 'byCustomer', algorithm: 'btree', columns: ['customerId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    customerId: t.string(),
+    turnId: t.string(), // client- or server-generated id, used to merge with optimistic local turns
+    role: t.string(), // "user" | "assistant"
+    content: t.string(),
+    toolsJson: t.string(), // backend tool results, as JSON ("" when none)
+    actionsJson: t.string(), // suggested actions, as JSON ("" when none)
+    offline: t.bool(), // true when Nemotron was unavailable and only tool results came back
+    createdAt: t.string(), // ISO-8601
+  }
+);
+
+/** The What-if dashboard settings the agent last chose for a customer (chat or voice call).
+ * `revision` increases on every change so each browser applies a command exactly once. */
+const dashboardState = table(
+  { name: 'dashboard_state', public: true },
+  {
+    customerId: t.string().primaryKey(),
+    simulatorJson: t.string(), // {"extra_monthly": n, "lump_sum": n} or ""
+    scenarioJson: t.string(), // {"extend_months": n} or ""
+    source: t.string(), // "web" | "voice" | "phone"
+    revision: t.u64(),
+    updatedAt: t.string(),
+  }
+);
+
+/** Vehicles a customer has picked on the Compare page, synced across tabs and devices. */
+const compareSelection = table(
+  { name: 'compare_selection', public: true },
+  {
+    customerId: t.string().primaryKey(),
+    idsJson: t.string(), // JSON array of "year|model|trim" ids
+    updatedAt: t.string(),
+  }
+);
+
+/** The three models Nemotron suggested for the customer's current Compare selection. */
+const compareSuggestion = table(
+  { name: 'compare_suggestion', public: true },
+  {
+    customerId: t.string().primaryKey(),
+    selectionKey: t.string(), // which selection these suggestions were made for
+    suggestionsJson: t.string(),
+    source: t.string(), // "nemotron" | "ranked" | "none"
+    updatedAt: t.string(),
+  }
+);
+
+/** Latest live-caption snapshot for a voice call (interim text included), pushed by the backend. */
+const voiceCaption = table(
+  {
+    name: 'voice_caption',
+    public: true,
+    indexes: [{ accessor: 'byCustomer', algorithm: 'btree', columns: ['customerId'] }],
+  },
+  {
+    callId: t.string().primaryKey(),
+    customerId: t.string(),
+    status: t.string(),
+    turnsJson: t.string(), // JSON array of {role, content, ...} caption turns
+    sequence: t.u64(),
+    updatedAt: t.string(),
+  }
+);
+
 const spacetimedb = schema({
   call_session: callSession,
   call_message: callMessage,
@@ -108,6 +182,11 @@ const spacetimedb = schema({
   customer_event: customerEvent,
   call_owner: callOwner,
   next_move: nextMove,
+  assistant_turn: assistantTurn,
+  dashboard_state: dashboardState,
+  compare_selection: compareSelection,
+  compare_suggestion: compareSuggestion,
+  voice_caption: voiceCaption,
 });
 export default spacetimedb;
 
@@ -225,5 +304,92 @@ export const bookAppointment = spacetimedb.reducer(
   },
   (ctx, { customerId, name, topic, whenText, phone, status }) => {
     ctx.db.appointment.insert({ id: 0n, customerId, name, topic, whenText, phone, status });
+  }
+);
+
+/** Append one chat message. Called by the backend for both the customer's message and the reply. */
+export const appendAssistantTurn = spacetimedb.reducer(
+  {
+    customerId: t.string(),
+    turnId: t.string(),
+    role: t.string(),
+    content: t.string(),
+    toolsJson: t.string(),
+    actionsJson: t.string(),
+    offline: t.bool(),
+    createdAt: t.string(),
+  },
+  (ctx, args) => {
+    for (const row of ctx.db.assistant_turn.byCustomer.filter(args.customerId)) {
+      if (row.turnId === args.turnId) return; // retries must not duplicate a message
+    }
+    ctx.db.assistant_turn.insert({ id: 0n, ...args });
+  }
+);
+
+/** "Clear" in the chat: drop this customer's conversation everywhere. */
+export const clearAssistantTurns = spacetimedb.reducer({ customerId: t.string() }, (ctx, { customerId }) => {
+  for (const row of [...ctx.db.assistant_turn.byCustomer.filter(customerId)]) {
+    ctx.db.assistant_turn.id.delete(row.id);
+  }
+});
+
+/** The agent moved the What-if dashboard. Each command holds only the parts it changes ("" = untouched). */
+export const setDashboard = spacetimedb.reducer(
+  {
+    customerId: t.string(),
+    simulatorJson: t.string(),
+    scenarioJson: t.string(),
+    source: t.string(),
+    updatedAt: t.string(),
+  },
+  (ctx, { customerId, simulatorJson, scenarioJson, source, updatedAt }) => {
+    const existing = ctx.db.dashboard_state.customerId.find(customerId);
+    if (existing) {
+      ctx.db.dashboard_state.customerId.update({
+        customerId,
+        simulatorJson,
+        scenarioJson,
+        source,
+        revision: existing.revision + 1n,
+        updatedAt,
+      });
+    } else {
+      ctx.db.dashboard_state.insert({ customerId, simulatorJson, scenarioJson, source, revision: 1n, updatedAt });
+    }
+  }
+);
+
+/** Save the Compare page selection for a customer. */
+export const setCompareSelection = spacetimedb.reducer(
+  { customerId: t.string(), idsJson: t.string(), updatedAt: t.string() },
+  (ctx, { customerId, idsJson, updatedAt }) => {
+    const existing = ctx.db.compare_selection.customerId.find(customerId);
+    if (existing) ctx.db.compare_selection.customerId.update({ customerId, idsJson, updatedAt });
+    else ctx.db.compare_selection.insert({ customerId, idsJson, updatedAt });
+  }
+);
+
+/** Store the AI suggestions for a customer's current Compare selection. */
+export const setCompareSuggestions = spacetimedb.reducer(
+  { customerId: t.string(), selectionKey: t.string(), suggestionsJson: t.string(), source: t.string(), updatedAt: t.string() },
+  (ctx, args) => {
+    const existing = ctx.db.compare_suggestion.customerId.find(args.customerId);
+    if (existing) ctx.db.compare_suggestion.customerId.update(args);
+    else ctx.db.compare_suggestion.insert(args);
+  }
+);
+
+/** Replace the live-caption snapshot for a call. Older sequences are ignored. */
+export const upsertVoiceCaption = spacetimedb.reducer(
+  { callId: t.string(), customerId: t.string(), status: t.string(), turnsJson: t.string(), sequence: t.u64(), updatedAt: t.string() },
+  (ctx, args) => {
+    const existing = ctx.db.voice_caption.callId.find(args.callId);
+    if (!existing) {
+      ctx.db.voice_caption.insert(args);
+      return;
+    }
+    if (args.sequence < existing.sequence) return;
+    ctx.db.voice_caption.callId.update({ ...args, customerId: args.customerId || existing.customerId });
   }
 );

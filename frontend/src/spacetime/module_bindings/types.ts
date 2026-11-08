@@ -21,6 +21,19 @@ export const Appointment = __t.object("Appointment", {
 });
 export type Appointment = __Infer<typeof Appointment>;
 
+export const AssistantTurn = __t.object("AssistantTurn", {
+  id: __t.u64(),
+  customerId: __t.string(),
+  turnId: __t.string(),
+  role: __t.string(),
+  content: __t.string(),
+  toolsJson: __t.string(),
+  actionsJson: __t.string(),
+  offline: __t.bool(),
+  createdAt: __t.string(),
+});
+export type AssistantTurn = __Infer<typeof AssistantTurn>;
+
 export const CallMessage = __t.object("CallMessage", {
   id: __t.u64(),
   callId: __t.string(),
@@ -48,6 +61,22 @@ export const CallSession = __t.object("CallSession", {
 });
 export type CallSession = __Infer<typeof CallSession>;
 
+export const CompareSelection = __t.object("CompareSelection", {
+  customerId: __t.string(),
+  idsJson: __t.string(),
+  updatedAt: __t.string(),
+});
+export type CompareSelection = __Infer<typeof CompareSelection>;
+
+export const CompareSuggestion = __t.object("CompareSuggestion", {
+  customerId: __t.string(),
+  selectionKey: __t.string(),
+  suggestionsJson: __t.string(),
+  source: __t.string(),
+  updatedAt: __t.string(),
+});
+export type CompareSuggestion = __Infer<typeof CompareSuggestion>;
+
 export const CustomerEvent = __t.object("CustomerEvent", {
   id: __t.u64(),
   customerId: __t.string(),
@@ -56,6 +85,16 @@ export const CustomerEvent = __t.object("CustomerEvent", {
   createdAt: __t.string(),
 });
 export type CustomerEvent = __Infer<typeof CustomerEvent>;
+
+export const DashboardState = __t.object("DashboardState", {
+  customerId: __t.string(),
+  simulatorJson: __t.string(),
+  scenarioJson: __t.string(),
+  source: __t.string(),
+  revision: __t.u64(),
+  updatedAt: __t.string(),
+});
+export type DashboardState = __Infer<typeof DashboardState>;
 
 export const NextMove = __t.object("NextMove", {
   id: __t.u64(),
@@ -70,4 +109,14 @@ export const NextMove = __t.object("NextMove", {
   updatedAt: __t.string(),
 });
 export type NextMove = __Infer<typeof NextMove>;
+
+export const VoiceCaption = __t.object("VoiceCaption", {
+  callId: __t.string(),
+  customerId: __t.string(),
+  status: __t.string(),
+  turnsJson: __t.string(),
+  sequence: __t.u64(),
+  updatedAt: __t.string(),
+});
+export type VoiceCaption = __Infer<typeof VoiceCaption>;
 

@@ -174,18 +174,22 @@ export interface AssistantResponse {
   detail?: string;
   tools: AssistantTool[];
   actions: AssistantAction[];
+  /** Ids the backend used for this turn in SpacetimeDB, so local and live copies merge. */
+  turn_id?: string;
+  user_turn_id?: string;
 }
 
 /** POST /api/ai/assistant/ — Nemotron grounded in backend tool results for this page. */
 export async function sendAssistantMessage(
   messages: ChatMessage[],
   context: AssistantContext,
-  customerId?: string | null
+  customerId?: string | null,
+  turnId?: string
 ): Promise<AssistantResponse> {
   try {
     const { data } = await apiClient.post<AssistantResponse>(
       "/api/ai/assistant/",
-      { messages, context, customer_id: customerId ?? undefined },
+      { messages, context, customer_id: customerId ?? undefined, turn_id: turnId },
       { timeout: 60000 }
     );
     return data;

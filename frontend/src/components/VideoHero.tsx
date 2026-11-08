@@ -62,7 +62,7 @@ export function VideoHero({ children }: { clips?: HeroClip[]; children: ReactNod
         {!reduce && videoOk && (
           <video
             ref={videoRef}
-            className="absolute inset-0 h-full w-full object-cover object-[62%_center] md:object-center"
+            className="absolute inset-0 h-full w-full object-cover object-[62%_center] md:object-center brightness-105"
             autoPlay={active}
             muted
             playsInline
@@ -77,8 +77,8 @@ export function VideoHero({ children }: { clips?: HeroClip[]; children: ReactNod
         )}
       </motion.div>
 
-      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-charcoal/95 via-charcoal/45 to-charcoal/50" />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-charcoal/80 via-charcoal/20 to-transparent" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-charcoal/50 via-charcoal/20 to-transparent" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-charcoal/40 via-charcoal/10 to-transparent" />
       <div aria-hidden className="grain absolute inset-0 -z-10 opacity-[0.07] mix-blend-overlay" />
 
       <div className="relative w-full">{children}</div>
@@ -110,3 +110,7 @@ export function VideoHero({ children }: { clips?: HeroClip[]; children: ReactNod
     </section>
   );
 }
+
+
+
+

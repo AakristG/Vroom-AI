@@ -18,6 +18,7 @@ Everything here is **synthetic**. No real customers, rates, or Toyota Financial 
 | `data/value_drivers.csv` | Dollar assumptions for revenue, retention, and cost-to-serve |
 | `data/golden_answers.csv` | A reference "best next move" per customer for judging, with plain-language message, why not the others, guardrails, and expected value |
 | `customer_profiles.json` | All of the above joined per customer, ready to feed an LLM or app |
+| `demo_logins.csv` | Demo sign-in for those customers. Username and password are the first name, lowercased |
 | `toyota_next_move_data_pack.xlsx` | Same tables as one workbook |
 | `starter_system_prompt.txt` | A starting prompt with responsible-AI rules |
 
@@ -28,6 +29,10 @@ Everything here is **synthetic**. No real customers, rates, or Toyota Financial 
 - **Guide:** every golden answer ends in one of three `next_step_type` values: **Self-service**, **Follow-up**, or **Offer**.
 - **Value:** `value_drivers.csv` and `golden_answers.csv` (`expected_value_usd` = value if completed x assumed take rate) show relationship, revenue, and service-effort effects.
 - **Expectation:** build a working prototype on this data (chat, dashboard, app), use AI responsibly, and show a reimagined customer experience with real business value.
+
+## Demo sign-in
+
+These are fictional customers. `demo_logins.csv` lists every account: the username and the password are both the first name in lowercase (`Maya` signs in as `maya` / `maya`). The app creates those accounts in local SQLite on startup from `customer_profiles.json`. The database file stays off git because it also holds session tokens. Anyone who clones the pack gets the same logins.
 
 ## Quick data notes
 

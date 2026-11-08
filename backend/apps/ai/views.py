@@ -1,5 +1,6 @@
 import logging
 
+from openai import AuthenticationError, PermissionDeniedError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -29,6 +30,17 @@ def chat(request):
 
     try:
         reply = nim_client.generate_reply(serializer.validated_data["messages"], extra_system=extra)
+    except (AuthenticationError, PermissionDeniedError):
+        logger.warning("NVIDIA refused Nemotron inference for %s", customer_id or "anonymous")
+        return Response(
+            {
+                "detail": (
+                    "NVIDIA accepted the API key but refused Nemotron inference (403). "
+                    "Enable this model for the key at build.nvidia.com."
+                )
+            },
+            status=503,
+        )
     except Exception:
         logger.exception("Nemotron chat failed for %s", customer_id or "anonymous")
         return Response({"detail": "Nemotron is not available right now."}, status=503)

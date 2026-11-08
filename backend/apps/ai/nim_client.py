@@ -24,6 +24,7 @@ _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 def get_client() -> OpenAI:
+    """Official OpenAI SDK pointed at NVIDIA's OpenAI-compatible Nemotron endpoint."""
     global _client
     if _client is None:
         _client = OpenAI(
@@ -49,6 +50,52 @@ def with_system_prompt(messages: Iterable[dict], extra_system: str = "", base: s
             f"{extra_system}"
         )
     return [{"role": "system", "content": content}, *messages]
+
+
+_EMBED_TYPES = {"float", "int8", "uint8", "binary", "ubinary"}
+_NATIVE_DIMENSIONS = 2048
+
+
+def embed(
+    texts: list[str],
+    *,
+    input_type: str = "query",
+    embedding_type: str | None = None,
+    dimensions: int | None = None,
+) -> list[list[float] | list[int]]:
+    """POST /v1/embeddings for nvidia/nemotron-3-embed-1b.
+
+    `query` is for a question. `passage` is for text being indexed. The OpenAI
+    embeddings call has no input_type field, so it is sent in extra_body, which
+    this NIM accepts. Modality is text only for this model.
+    """
+    if input_type not in ("query", "passage"):
+        raise ValueError("input_type must be 'query' or 'passage'.")
+    if not texts:
+        return []
+    kind = embedding_type if embedding_type is not None else settings.NIM_EMBED_TYPE
+    if kind not in _EMBED_TYPES:
+        raise ValueError("embedding_type must be float, int8, uint8, binary, or ubinary.")
+    if dimensions not in (None, _NATIVE_DIMENSIONS):
+        raise ValueError("nvidia/nemotron-3-embed-1b only accepts 2048 dimensions.")
+    if dimensions is not None and kind != "float":
+        raise ValueError("dimensions cannot be combined with embedding_type.")
+
+    extra: dict = {"input_type": input_type, "modality": "text"}
+    kwargs: dict = {}
+    if kind != "float":
+        extra["embedding_type"] = kind
+    elif dimensions == _NATIVE_DIMENSIONS:
+        kwargs["dimensions"] = _NATIVE_DIMENSIONS
+
+    response = get_client().embeddings.create(
+        input=texts,
+        model=settings.NIM_EMBED_MODEL,
+        extra_body=extra,
+        **kwargs,
+    )
+    ordered = sorted(response.data, key=lambda item: item.index)
+    return [list(item.embedding) for item in ordered]
 
 
 def clean(content: str | None) -> str:

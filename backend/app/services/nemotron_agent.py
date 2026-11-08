@@ -1,13 +1,46 @@
 import os
 import json
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Dict, Any
+
+import requests
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
+
 from app.services.tfs_engine import tfs_engine
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+
+def publish_workspace(customer_id: str, summary: str) -> bool:
+    """Push a verified next move into SpacetimeDB so subscribed browsers can show it."""
+    base = os.getenv("SPACETIMEDB_URL", "http://127.0.0.1:3000").rstrip("/")
+    module = os.getenv("SPACETIMEDB_MODULE_NAME") or os.getenv("SPACETIMEDB_DB_NAME") or "toyota-fs-dev"
+    token = os.getenv("SPACETIMEDB_TOKEN", "")
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    call_id = f"next-move-{customer_id}"
+    now = datetime.now(timezone.utc).isoformat()
+    session = requests.post(
+        f"{base}/v1/database/{module}/call/upsert_call_session",
+        json=[call_id, "nemotron", "ready", "agent", now],
+        headers=headers,
+        timeout=10,
+    )
+    message = requests.post(
+        f"{base}/v1/database/{module}/call/append_call_message",
+        json=[call_id, "agent", summary[:2000], now],
+        headers=headers,
+        timeout=10,
+    )
+    return session.ok and message.ok
 
 def get_nemotron_client() -> AsyncOpenAI:
     return AsyncOpenAI(
-        base_url="https://integrate.api.nvidia.com/v1",
-        api_key=os.getenv("NVIDIA_API_KEY", "missing-key")
+        base_url=os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+        api_key=os.getenv("NVIDIA_NIM_API_KEY") or os.getenv("NVIDIA_API_KEY") or "missing-key",
     )
 
 AGENT_TOOLS = [
@@ -51,7 +84,7 @@ async def run_nemotron_agent_turn(customer_id: str, conversation_history: List[D
     if "error" in bundle:
         return {"reply": bundle["error"], "ui_state": None}
 
-    api_key = os.getenv("NVIDIA_API_KEY", "")
+    api_key = os.getenv("NVIDIA_NIM_API_KEY") or os.getenv("NVIDIA_API_KEY") or ""
     if not api_key or api_key == "nvapi-your-key-here":
         eligible_opts = [o for o in bundle["verified_options"] if o["eligible"]]
         best = next((o for o in eligible_opts if o["option_id"] != "KEEP"), eligible_opts[0] if eligible_opts else bundle["verified_options"][0])
@@ -65,6 +98,7 @@ async def run_nemotron_agent_turn(customer_id: str, conversation_history: List[D
             "stated_assumptions": best["key_assumption"]
         }
         tfs_engine.active_ui_state[customer_id] = ui_payload
+        publish_workspace(customer_id, best["plain_language_summary"])
         return {
             "reply": (
                 f"I've pulled up your verified Toyota Financial Services numbers and displayed them on your screen. "
@@ -77,7 +111,7 @@ async def run_nemotron_agent_turn(customer_id: str, conversation_history: List[D
         }
 
     client = get_nemotron_client()
-    model = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+    model = os.getenv("NIM_MODEL") or os.getenv("NVIDIA_MODEL") or "nvidia/nemotron-3.5-lightning-30b-a3b"
 
     system_instructions = (
         f"{tfs_engine.starter_prompt}\n\n"
@@ -130,7 +164,8 @@ async def run_nemotron_agent_turn(customer_id: str, conversation_history: List[D
                     "stated_assumptions": args.get("stated_assumptions", best_opt["key_assumption"])
                 }
                 tfs_engine.active_ui_state[customer_id] = ui_payload
-                tool_result = {"status": "published_to_spacetimedb_and_ui"}
+                stored = publish_workspace(customer_id, best_opt.get("plain_language_summary") or "")
+                tool_result = {"status": "published_to_spacetimedb_and_ui" if stored else "ui_only"}
             else:
                 tool_result = {"error": "Unknown tool"}
 

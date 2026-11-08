@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { Profile, YN } from "../data/types";
 import { date, miles, money } from "../lib/format";
+import { isNewAccount } from "../lib/sessionProfile";
+import { NewAccountView } from "./NewAccountView";
+import { AccountHero } from "./AccountHero";
 import { CustomerTalk } from "./CustomerTalk";
 import { LifeShift } from "./LifeShift";
 import { NextMove } from "./NextMove";
@@ -17,6 +20,11 @@ function sharedNote(shared: { income: string; note: string }) {
 }
 
 export function AccountPage({ p }: { p: Profile }) {
+  if (isNewAccount(p)) return <NewAccountView p={p} eyebrow={`Your account · ${p.customer.customer_id}`} />;
+  return <AgreementAccount p={p} />;
+}
+
+function AgreementAccount({ p }: { p: Profile }) {
   const { customer: c, vehicle: v, account: a, situation: s } = p;
   const isLease = a.contract_type === "lease";
   const [toldIncome, setToldIncome] = useState("");
@@ -26,14 +34,21 @@ export function AccountPage({ p }: { p: Profile }) {
   const vehicleName = `${v.model_year} Toyota ${v.model} ${v.trim}`;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-5 pb-14 pt-28 md:px-8 md:pb-20 md:pt-32">
-      <header>
-        <p className="text-sm font-medium text-signal">Your account · {c.customer_id}</p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Hello, {c.first_name}.</h1>
-        <p className="mt-3 max-w-2xl text-lg text-muted">
-          {vehicleName} · {isLease ? "Lease" : "Retail installment loan"} with Toyota Financial Services · {money(a.monthly_payment, true)} a month
-        </p>
-      </header>
+    <>
+    <AccountHero
+      p={p}
+      eyebrow={`Your account · ${c.customer_id}`}
+      title={`Hello, ${c.first_name}.`}
+      stats={[
+        ["Vehicle", `${v.model_year} ${v.model} ${v.trim}`],
+        ["Monthly payment", money(a.monthly_payment, true)],
+        [isLease ? "Lease ends" : "Loan ends", date(a.contract_end)],
+        ["Odometer", miles(v.odometer_now)],
+      ]}
+    >
+      {vehicleName} · {isLease ? "Lease" : "Retail installment loan"} with Toyota Financial Services
+    </AccountHero>
+    <main className="mx-auto max-w-6xl space-y-6 px-5 pb-14 pt-8 md:px-8 md:pb-20">
 
       <section className="rounded-3xl border border-line bg-paper p-6 md:p-8">
         <h2 className="text-2xl font-semibold tracking-tight">What you told us</h2>
@@ -180,6 +195,7 @@ export function AccountPage({ p }: { p: Profile }) {
       <PhoneDesk p={p} />
       <CustomerTalk p={p} />
     </main>
+    </>
   );
 }
 

@@ -130,9 +130,13 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------------------------
 # Third-party integrations (see backend/.env.example)
 # ---------------------------------------------------------------------------
-NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
+NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY") or os.environ.get("NVIDIA_API_KEY") or ""
 NIM_BASE_URL = os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_MODEL = os.environ.get("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+# NeMo Retriever Embedding NIM. Native size is 2048. Do not combine a reduced
+# dimension with embedding_type; this model rejects every dimension except 2048.
+NIM_EMBED_MODEL = os.environ.get("NIM_EMBED_MODEL", "nvidia/nemotron-3-embed-1b")
+NIM_EMBED_TYPE = os.environ.get("NIM_EMBED_TYPE", "float")
 NIM_ENABLE_THINKING = env_bool("NIM_ENABLE_THINKING", False)
 # Native OpenAI-style tool calls need the NIM container started with
 # --enable-auto-tool-choice --tool-call-parser qwen3_coder. Without it, the assistant runs

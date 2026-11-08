@@ -44,6 +44,7 @@ def public_account(account: CustomerAccount) -> dict:
         "current_payment": float(payment) if payment is not None else None,
         "vehicle_model": account.vehicle_model,
         "vehicle_year": account.vehicle_year,
+        "agreement": account.agreement or {},
         "example_life_change": _EXAMPLE,
     }
 
@@ -126,8 +127,61 @@ def me(request):
             account.phone = str(request.data.get("phone") or "").strip()
         if "current_payment" in request.data:
             account.current_payment = _decimal(request.data.get("current_payment"))
+        if "agreement" in request.data:
+            agreement, error = clean_agreement(request.data.get("agreement"), account.current_payment)
+            if error:
+                return Response({"detail": error}, status=400)
+            account.agreement = agreement
         account.save()
     return Response(public_account(account))
+
+
+def _number(raw: dict, key: str, label: str, low: float, high: float, required: bool) -> tuple[float | None, str | None]:
+    value = _decimal(raw.get(key))
+    if value is None:
+        return None, (f"Add your {label}." if required else None)
+    if not low <= float(value) <= high:
+        return None, f"Your {label} should be between {low:,.0f} and {high:,.0f}."
+    return float(value), None
+
+
+def clean_agreement(raw, monthly_payment: Decimal | None) -> tuple[dict, str | None]:
+    """Validate self-reported loan or lease terms. An empty value clears them."""
+    if not raw:
+        return {}, None
+    if not isinstance(raw, dict):
+        return {}, "Those agreement details could not be read."
+    kind = raw.get("contract_type")
+    if kind not in ("loan", "lease"):
+        return {}, "Choose loan or lease."
+    payment = float(monthly_payment or 0)
+    if payment <= 0:
+        return {}, "Add your monthly payment."
+
+    due, error = _number(raw, "payment_due_day", "payment due day", 1, 28, False)
+    if error:
+        return {}, error
+    out: dict = {"contract_type": kind, "payment_due_day": int(due or 1)}
+
+    if kind == "loan":
+        fields = [("current_balance", "loan balance", 1, 500_000, True), ("apr", "APR", 0, 40, True)]
+    else:
+        fields = [
+            ("months_remaining", "months left on the lease", 1, 72, True),
+            ("residual_value", "residual (buyout) value", 0, 500_000, False),
+            ("mileage_allowance_total", "total mileage allowance", 0, 300_000, False),
+            ("odometer_now", "odometer reading", 0, 500_000, False),
+        ]
+    for key, label, low, high, required in fields:
+        value, error = _number(raw, key, label, low, high, required)
+        if error:
+            return {}, error
+        if value is not None:
+            out[key] = int(value) if key in ("months_remaining", "mileage_allowance_total", "odometer_now") else round(value, 2)
+
+    if kind == "loan" and payment <= out["current_balance"] * out["apr"] / 1200:
+        return {}, "That payment doesn't cover the monthly interest at this APR. Check the balance, APR, and payment."
+    return out, None
 
 
 @api_view(["GET"])

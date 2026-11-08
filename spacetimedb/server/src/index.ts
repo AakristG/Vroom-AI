@@ -23,6 +23,7 @@ const callSession = table(
 const callMessage = table(
   {
     name: 'call_message',
+    public: true,
     indexes: [{ accessor: 'byCall', algorithm: 'btree', columns: ['callId'] }],
   },
   {
@@ -34,7 +35,24 @@ const callMessage = table(
   }
 );
 
-const spacetimedb = schema({ call_session: callSession, call_message: callMessage });
+const appointment = table(
+  { name: 'appointment', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    customerId: t.string(),
+    name: t.string(),
+    topic: t.string(),
+    whenText: t.string(),
+    phone: t.string(),
+    status: t.string(),
+  }
+);
+
+const spacetimedb = schema({
+  call_session: callSession,
+  call_message: callMessage,
+  appointment,
+});
 export default spacetimedb;
 
 /** Create or update the row for a call. Called from the backend on webhook events, and from
@@ -71,5 +89,20 @@ export const appendCallMessage = spacetimedb.reducer(
   },
   (ctx, { callId, role, content, createdAt }) => {
     ctx.db.call_message.insert({ id: 0n, callId, role, content, createdAt });
+  }
+);
+
+/** A scheduled conversation with a representative. The website reads this live. */
+export const bookAppointment = spacetimedb.reducer(
+  {
+    customerId: t.string(),
+    name: t.string(),
+    topic: t.string(),
+    whenText: t.string(),
+    phone: t.string(),
+    status: t.string(),
+  },
+  (ctx, { customerId, name, topic, whenText, phone, status }) => {
+    ctx.db.appointment.insert({ id: 0n, customerId, name, topic, whenText, phone, status });
   }
 );

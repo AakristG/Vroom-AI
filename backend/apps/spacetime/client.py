@@ -21,8 +21,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import logging
+
 import requests
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class SpacetimeDBError(RuntimeError):
@@ -40,20 +44,31 @@ def _headers() -> dict:
     return headers
 
 
-def call_reducer(reducer_name: str, args: list[Any], *, module_name: str | None = None) -> None:
+def call_reducer(reducer_name: str, args: list[Any] | dict[str, Any], *, module_name: str | None = None) -> None:
     """POST /v1/database/:name_or_identity/call/:reducer
 
-    `args` is a JSON array of positional arguments matching the reducer's signature in
-    spacetimedb/server/src/lib.rs.
+    A dict is sent as positional arguments in key order, which is how this server
+    accepts the TypeScript reducer parameters.
     """
     module = module_name or settings.SPACETIMEDB_MODULE_NAME
     url = f"{_base_url()}/v1/database/{module}/call/{reducer_name}"
+    body = list(args.values()) if isinstance(args, dict) else args
 
-    response = requests.post(url, json=args, headers=_headers(), timeout=10)
+    response = requests.post(url, json=body, headers=_headers(), timeout=10)
     if not response.ok:
         raise SpacetimeDBError(
             f"SpacetimeDB reducer '{reducer_name}' failed ({response.status_code}): {response.text}"
         )
+
+
+def try_reducer(reducer_name: str, args: list[Any] | dict[str, Any]) -> bool:
+    """Live paths keep working when SpacetimeDB is down. The failure is logged, not raised."""
+    try:
+        call_reducer(reducer_name, args)
+        return True
+    except (SpacetimeDBError, requests.RequestException) as exc:
+        logger.warning("SpacetimeDB %s skipped: %s", reducer_name, exc)
+        return False
 
 
 def run_sql(query: str, *, module_name: str | None = None) -> list[dict]:

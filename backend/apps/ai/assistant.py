@@ -14,6 +14,7 @@ from apps.accounts.views import account_from_request
 
 from . import nim_client, tools
 from .account_context import account_context, bind_signed_in
+from .retrieve import relevant_account_context
 from .prompts import ASSISTANT_PROMPT
 from .serializers import ChatRequestSerializer
 
@@ -56,7 +57,7 @@ def _grounded(messages: list[dict], customer_id: str | None, context: dict) -> t
         results.append({"name": name, "args": args, "result": tools.run_tool(name, args, customer_id)})
     extra = _context_text(context, customer_id)
     if customer_id:
-        extra += "\n" + (account_context(customer_id) or f"No record was found for {customer_id}. Say so.")
+        extra += "\n" + (relevant_account_context(customer_id, question) or f"No record was found for {customer_id}. Say so.")
     if results:
         extra += "\nTOOL RESULTS (computed by the backend; quote these figures, do not change them):\n"
         extra += "\n".join(f"- {r['name']}: {json.dumps(r['result'], default=str)}" for r in results)
@@ -69,7 +70,8 @@ def _grounded(messages: list[dict], customer_id: str | None, context: dict) -> t
 def _native(messages: list[dict], customer_id: str | None, context: dict) -> tuple[str, list[dict]]:
     system = ASSISTANT_PROMPT + "\n\n" + _context_text(context, customer_id)
     if customer_id:
-        system += "\nVERIFIED ACCOUNT:\n" + (account_context(customer_id) or "No record found.")
+        question = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+        system += "\nVERIFIED ACCOUNT:\n" + (relevant_account_context(customer_id, question) or "No record found.")
     convo: list[dict] = [{"role": "system", "content": system}, *[m for m in messages if m["role"] != "system"]]
     results: list[dict] = []
     for _ in range(_TOOL_ROUNDS):

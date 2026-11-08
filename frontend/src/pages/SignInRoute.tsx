@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { apiError } from "../api/client";
 import { SignInPage } from "../components/SignInPage";
 import { usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
@@ -9,20 +10,44 @@ const safeNext = (raw: string | null) => (raw && raw.startsWith("/") && !raw.sta
 
 export function SignInRoute() {
   const [params] = useSearchParams();
-  const { profile } = useAuth();
+  const { account, profile, ready, signIn } = useAuth();
   const navigate = useNavigate();
   const next = safeNext(params.get("next"));
+  const asName = params.get("as") ?? "";
+  const [error, setError] = useState<string | null>(null);
+  const started = useRef(false);
   usePageContext("signin");
 
   useEffect(() => {
-    if (profile && !params.get("as")) navigate(next, { replace: true });
-  }, [profile, params, next, navigate]);
+    if (!ready) return;
+    if (!asName) {
+      if (profile) navigate(next, { replace: true });
+      return;
+    }
+    if (account && account.first_name.toLowerCase() === asName.toLowerCase()) {
+      navigate(next, { replace: true });
+      return;
+    }
+    if (started.current) return;
+    started.current = true;
+    signIn(asName, asName)
+      .then(() => navigate(next, { replace: true }))
+      .catch((reason) => {
+        started.current = false;
+        setError(apiError(reason, "That sign-in doesn't match an account."));
+      });
+  }, [ready, asName, account, profile, next, navigate, signIn]);
 
-  if (profile && !params.get("as")) return <Navigate to={next} replace />;
+  if (!asName && profile) return <Navigate to={next} replace />;
 
   return (
     <div className="pt-16 md:pt-[72px]">
-      <SignInPage prefill={params.get("as") ?? ""} onSignedIn={() => navigate(next, { replace: true })} />
+      {error && (
+        <p role="alert" className="mx-auto max-w-6xl px-5 pt-6 text-sm text-signal md:px-8">
+          {error}
+        </p>
+      )}
+      <SignInPage prefill={asName} onSignedIn={() => navigate(next, { replace: true })} />
     </div>
   );
 }

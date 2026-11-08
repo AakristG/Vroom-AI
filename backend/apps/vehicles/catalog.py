@@ -362,4 +362,5 @@ class CarsXEProvider:
 
 
 def provider():
-    return CarsXEProvider() if carsxe.is_configured() else DemoProvider()
+    # Saved responses answer without the API key. The key is used only for a vehicle we have never stored.
+    return CarsXEProvider() if carsxe.is_configured() or carsxe.has_saved_catalog() else DemoProvider()

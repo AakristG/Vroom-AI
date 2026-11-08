@@ -13,6 +13,7 @@ from django.conf import settings
 
 from apps.ai import nim_client
 from apps.ai.account_context import account_context
+from apps.vehicles import carsxe
 
 from .models import CustomerAccount, ToyotaSpec
 
@@ -41,7 +42,7 @@ def catalog_page(account: CustomerAccount, *, page: int, body: str, seats: str, 
         }
     try:
         specs = _ensure_catalog(key)
-    except requests.RequestException:
+    except (requests.RequestException, carsxe.CarsXEError):
         logger.exception("CarsXE catalog failed")
         return {"source": "error", "detail": "CarsXE did not respond.", "page": 1, "pages": 1, "total": 0, "models": [], "recommendations": _empty_recommendations(account)}
 
@@ -73,7 +74,7 @@ def model_detail(name: str) -> dict | None:
     if not spec and settings.CARSXE_API_KEY:
         try:
             _ensure_catalog(settings.CARSXE_API_KEY)
-        except requests.RequestException:
+        except (requests.RequestException, carsxe.CarsXEError):
             logger.exception("CarsXE detail refresh failed")
         spec = ToyotaSpec.objects.filter(year=CATALOG_YEAR, model_name__iexact=name).first()
     if not spec:
@@ -84,56 +85,52 @@ def model_detail(name: str) -> dict | None:
 
 
 def _ensure_catalog(key: str) -> list[ToyotaSpec]:
+    del key  # The shared CarsXE client reads the saved catalog and only calls the API for a missing model.
     existing = list(ToyotaSpec.objects.filter(year=CATALOG_YEAR))
     if existing:
         return existing
-    names = _model_names(key)
+    names = _model_names()
     if not names:
         return []
     for name in names:
-        _fetch_one(key, name)
+        _fetch_one(name)
     return list(ToyotaSpec.objects.filter(year=CATALOG_YEAR))
 
 
-def _model_names(key: str) -> list[str]:
-    response = requests.get(
-        "https://api.carsxe.com/v1/ymm-options",
-        params={"key": key, "dimension": "models", "year": CATALOG_YEAR, "make": "Toyota"},
-        timeout=20,
+def _model_names() -> list[str]:
+    from apps.vehicles import carsxe
+    from apps.vehicles.schemas import YmmOptionsResponse
+
+    body = carsxe.client.get(
+        "/v1/ymm-options", {"year": CATALOG_YEAR, "make": "Toyota"}, YmmOptionsResponse
     )
-    response.raise_for_status()
-    body = response.json()
-    names = body.get("models") or body.get("data") or []
-    cleaned = []
-    for name in names:
-        text = str(name).strip()
-        if text and text not in cleaned:
-            cleaned.append(text)
-    return cleaned
+    return list(dict.fromkeys(body.models or []))
 
 
-def _fetch_one(key: str, model: str) -> None:
-    specs = requests.get(
-        "https://api.carsxe.com/v1/ymm",
-        params={"key": key, "year": CATALOG_YEAR, "make": "Toyota", "model": model},
-        timeout=20,
-    )
-    match = {}
-    if specs.ok:
-        match = (specs.json() or {}).get("bestMatch") or {}
+def _fetch_one(model: str) -> None:
+    from apps.vehicles import carsxe
+    from apps.vehicles.schemas import ImagesResponse, YmmResponse
+
+    match: dict = {}
+    try:
+        specs = carsxe.client.get(
+            "/v1/ymm", {"year": CATALOG_YEAR, "make": "Toyota", "model": model}, YmmResponse
+        )
+        if specs.bestMatch:
+            match = specs.bestMatch.model_dump()
+    except carsxe.CarsXEError:
+        logger.warning("CarsXE specs unavailable for %s", model)
     image = ""
     try:
-        photos = requests.get(
-            "https://api.carsxe.com/images",
-            params={"key": key, "make": "Toyota", "model": model, "year": CATALOG_YEAR, "angle": "front"},
-            timeout=20,
+        photos = carsxe.client.get(
+            "/images",
+            {"make": "Toyota", "model": model, "year": CATALOG_YEAR, "angle": "side", "license": "ModifyCommercially"},
+            ImagesResponse,
         )
-        if photos.ok:
-            images = (photos.json() or {}).get("images") or []
-            if images:
-                image = images[0].get("link") or images[0].get("thumbnailLink") or ""
-    except requests.RequestException:
-        logger.warning("CarsXE image failed for %s", model)
+        if photos.images:
+            image = photos.images[0].link or photos.images[0].thumbnailLink or ""
+    except carsxe.CarsXEError:
+        logger.warning("CarsXE image unavailable for %s", model)
 
     mpg = match.get("mpg") if isinstance(match.get("mpg"), dict) else {}
     colors = []

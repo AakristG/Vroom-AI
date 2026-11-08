@@ -128,8 +128,6 @@ def market_value(request):
     vin = str(request.query_params.get("vin") or "").strip().upper()
     if len(vin) != 17:
         return Response({"detail": "A 17-character VIN is required."}, status=400)
-    if not carsxe.is_configured():
-        return Response({"available": False, "detail": "CarsXE is not configured on the server."})
     params = {
         "vin": vin,
         "mileage": request.query_params.get("mileage"),

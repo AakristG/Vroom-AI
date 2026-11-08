@@ -5,6 +5,7 @@
 @import "@fontsource/josefin-sans/latin-600.css";
 @import "@fontsource/josefin-sans/latin-700.css";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource/bebas-neue/latin-400.css";
 
 /*
   Design tokens — "night drive into daylight".
@@ -47,6 +48,7 @@
   --font-display: "Josefin Sans", "Helvetica Neue", sans-serif;
   --font-sans: "Josefin Sans", "Helvetica Neue", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-headline: "Bebas Neue", "Impact", "Arial Narrow", sans-serif;
 }
 
 @layer base {
@@ -247,4 +249,13 @@
 .level-bar {
   transform-origin: bottom;
   animation: level 0.9s ease-in-out infinite;
+}
+
+/* Charts on the Financial Insights page use the mono face so figures read as data. */
+.chart-font .recharts-wrapper,
+.chart-font .recharts-text,
+.chart-font .recharts-legend-item-text,
+.chart-font .recharts-tooltip-wrapper {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
 }

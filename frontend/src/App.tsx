@@ -1,12 +1,12 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
-import { AssistantDock } from "./components/assistant/AssistantDock";
-import { LandingPage } from "./components/LandingPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { SiteFooter, SiteHeader } from "./components/SiteHeader";
 import { AssistantLogoutListener } from "./state/assistant";
 
+const LandingPage = lazy(() => import("./components/LandingPage").then((m) => ({ default: m.LandingPage })));
+const AssistantDock = lazy(() => import("./components/assistant/AssistantDock").then((m) => ({ default: m.AssistantDock })));
 const ExplorePage = lazy(() => import("./pages/ExplorePage").then((m) => ({ default: m.ExplorePage })));
 const VehicleDetailPage = lazy(() => import("./pages/VehicleDetailPage").then((m) => ({ default: m.VehicleDetailPage })));
 const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
@@ -82,7 +82,9 @@ function App() {
         </AnimatePresence>
       </div>
       <SiteFooter />
-      <AssistantDock />
+      <Suspense fallback={null}>
+        <AssistantDock />
+      </Suspense>
     </div>
   );
 }

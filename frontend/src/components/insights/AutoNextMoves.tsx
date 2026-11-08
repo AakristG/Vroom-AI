@@ -77,9 +77,6 @@ export function AutoNextMoves({ p }: { p: Profile }) {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-signal">
-            {state === "running" ? "Vroom AI is working through your plan…" : `${done} done for you · ${decisions} left for you`}
-          </p>
           {state === "running" && !plan ? (
             <div className="mt-3 space-y-2" aria-hidden>
               <div className="h-3 w-4/5 animate-pulse rounded-full bg-black/[0.06]" />
@@ -115,7 +112,7 @@ export function AutoNextMoves({ p }: { p: Profile }) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className={cn("flex gap-4 rounded-2xl border p-4", s.status === "needs_you" ? "border-signal/30 bg-signal/[0.03]" : "border-line bg-paper")}
+                className={cn("flex gap-4 rounded-md border p-4", s.status === "needs_you" ? "border-signal/30 bg-signal/[0.03]" : "border-line bg-paper")}
               >
                 <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full", meta.tone)}>
                   <Icon className={cn("h-4 w-4", s.status === "working" && "animate-spin")} />

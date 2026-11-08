@@ -70,7 +70,7 @@ export function NextMove({ p }: { p: Profile }) {
     appointments.length > 0;
 
   return (
-    <section className="rounded-3xl border border-line bg-paper p-6 shadow-sm md:p-8">
+    <section className="card rounded-md p-6 md:p-8">
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <span className="flex items-center gap-2 rounded-full bg-signal/10 px-3 py-1 font-medium text-signal">
           <Icon className="h-4 w-4" /> {g.next_step_type === "Offer" ? "An option you can review" : g.next_step_type}
@@ -81,11 +81,11 @@ export function NextMove({ p }: { p: Profile }) {
       <p className="mt-4 max-w-[65ch] text-lg leading-relaxed text-ink/80">{g.plain_language_message}</p>
 
       <div className="mt-6 grid gap-4 text-sm md:grid-cols-2">
-        <div className="rounded-2xl bg-daylight p-4">
+        <div className="rounded-md bg-daylight p-4">
           <div className="font-medium">Why this, and not the other paths</div>
           <p className="mt-1 leading-relaxed text-muted">{g.why_not_the_others}</p>
         </div>
-        <div className="rounded-2xl border border-sodium/40 bg-sodium/10 p-4">
+        <div className="rounded-md border border-sodium/40 bg-sodium/10 p-4">
           <div className="font-medium text-caution">What has to stay true</div>
           <p className="mt-1 leading-relaxed text-ink/80">{g.guardrail_notes}</p>
         </div>
@@ -93,7 +93,7 @@ export function NextMove({ p }: { p: Profile }) {
 
       <p className="mt-4 text-sm text-muted">This is not an approval. Toyota Financial Services still has to confirm eligibility, and nothing on your contract changes until you authorize it.</p>
 
-      <div className="mt-6 rounded-2xl border border-line bg-daylight/60 px-4 py-3 text-sm">
+      <div className="mt-6 rounded-md border border-line bg-daylight/60 px-4 py-3 text-sm">
         <div className="flex items-center gap-2 font-medium">
           {hasOpen ? <CheckCircle2 className="h-4 w-4 text-go" /> : <CalendarClock className="h-4 w-4 text-muted" />}
           Your requests and appointments

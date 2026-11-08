@@ -1,4 +1,12 @@
-import { ArrowRight, CalendarClock, Gauge, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  Gauge,
+  Sparkles,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -37,6 +45,84 @@ const usd = (n: number) => money(Math.round(n));
 const usdShort = (n: number) => (Math.abs(n) >= 1000 ? `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `$${Math.round(n)}`);
 const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
+/** Shared chart tooltip so every chart on the page reads the same. */
+function ChartTip({
+  active,
+  payload,
+  label,
+  unit = "usd",
+}: {
+  active?: boolean;
+  payload?: { name?: string; value?: number | string; color?: string; payload?: { fill?: string } }[];
+  label?: string | number;
+  unit?: "usd" | "mi";
+}) {
+  if (!active || !payload?.length) return null;
+  const fmt = (n: number) => (unit === "mi" ? `${Math.round(n).toLocaleString("en-US")} mi` : usd(n));
+  return (
+    <div className="rounded-md border border-black/[0.06] bg-paper/95 px-3.5 py-2.5 text-xs shadow-[var(--shadow-lift)] backdrop-blur">
+      {label != null && label !== "" && <div className="mb-1.5 font-semibold text-ink">{label}</div>}
+      <div className="space-y-1">
+        {payload.map((e, i) => (
+          <div key={i} className="flex items-center justify-between gap-5">
+            <span className="flex items-center gap-1.5 text-muted">
+              <span className="h-2 w-2 rounded-full" style={{ background: e.color || e.payload?.fill || INK }} />
+              {e.name}
+            </span>
+            <span className="font-semibold tabular-nums text-ink">{fmt(Number(e.value))}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const SECTIONS_LOAN = [
+  ["overview", "Overview"],
+  ["progress", "Progress"],
+  ["simulator", "Simulator"],
+  ["scenarios", "Scenarios"],
+  ["equity", "Equity"],
+  ["next-moves", "Next moves"],
+] as const;
+const SECTIONS_LEASE = [
+  ["overview", "Overview"],
+  ["progress", "Progress"],
+  ["scenarios", "Lease end"],
+  ["next-moves", "Next moves"],
+] as const;
+
+function SectionNav({ lease }: { lease: boolean }) {
+  const items = lease ? SECTIONS_LEASE : SECTIONS_LOAN;
+  return (
+    <nav
+      aria-label="Insights sections"
+      className="sticky top-16 z-20 md:top-[72px] -mx-5 overflow-x-auto px-5 py-2 md:-mx-8 md:px-8"
+    >
+      <div className="inline-flex gap-1 rounded-full border border-black/[0.06] bg-paper/85 p-1 shadow-[var(--shadow-soft)] backdrop-blur">
+        {items.map(([id, label]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            className="whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-mist hover:text-ink"
+          >
+            {label}
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function SectionLabel({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
+  return (
+    <div className={cn("flex items-center gap-4 pt-8", align === "right" && "flex-row-reverse")}>
+      <h2 className="font-headline text-[clamp(2.25rem,4.5vw,3.5rem)] font-bold uppercase leading-none tracking-[0.04em] text-signal">{children}</h2>
+      <span className="h-[2px] flex-1 bg-signal/20" />
+    </div>
+  );
+}
+
 export function InsightsPage() {
   const { profile } = useAuth();
   usePageContext("insights");
@@ -54,7 +140,7 @@ function Dashboard({ p }: { p: Profile }) {
   const daysToDue = Math.ceil((due.getTime() - Date.now()) / 86_400_000);
 
   return (
-    <main className="pb-24">
+    <main className="chart-font pb-24">
       <AccountHero
         p={p}
         eyebrow="Financial insights"
@@ -69,11 +155,13 @@ function Dashboard({ p }: { p: Profile }) {
         {isLoan ? "Retail installment loan" : "Lease"} with Toyota Financial Services
       </AccountHero>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-5 pt-8 md:px-8">
+      <div className="mx-auto max-w-7xl space-y-6 px-5 pt-6 md:px-8">
+        <SectionNav lease={!isLoan} />
+        <div id="overview" className="-mt-2 scroll-mt-36" />
         <Reveal>
           <div
             className={cn(
-              "relative overflow-hidden rounded-3xl p-6 text-white md:p-8",
+              "relative overflow-hidden rounded-md p-6 text-white md:p-8",
               journey.kind === "payment" || journey.kind === "safety" ? "bg-gradient-to-br from-[#3a0a10] to-charcoal" : "bg-gradient-to-br from-charcoal-2 to-charcoal"
             )}
           >
@@ -93,25 +181,35 @@ function Dashboard({ p }: { p: Profile }) {
         </Reveal>
 
         <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi icon={<Wallet className="h-4 w-4" />} label="Monthly payment" value={a.monthly_payment} cents />
+          <Kpi icon={Wallet} label="Monthly payment" value={a.monthly_payment} cents note={a.autopay === "Y" ? "Autopay is on" : "Autopay is off"} />
           {isLoan ? (
-            <Kpi icon={<Gauge className="h-4 w-4" />} label="Remaining balance" value={a.current_balance!} note={`Payoff quote ${money(a.payoff_quote)}`} />
+            <Kpi icon={Gauge} label="Remaining balance" value={a.current_balance!} note={`Payoff quote ${money(a.payoff_quote)}`} />
           ) : (
-            <Kpi icon={<Gauge className="h-4 w-4" />} label="Residual value" value={a.residual_value ?? 0} note="Set by your lease agreement" />
+            <Kpi icon={Gauge} label="Residual value" value={a.residual_value ?? 0} note="Set by your lease agreement" />
           )}
-          <Kpi icon={<CalendarClock className="h-4 w-4" />} label="Months remaining" value={a.months_remaining} plain note={`Ends ${fmtDate(new Date(a.contract_end + "T12:00:00"))}`} />
           <Kpi
-            icon={<CalendarClock className="h-4 w-4" />}
+            icon={CalendarDays}
+            label="Months remaining"
+            value={a.months_remaining}
+            plain
+            note={`Ends ${fmtDate(new Date(a.contract_end + "T12:00:00"))}`}
+            progress={a.months_elapsed / a.term_months}
+          />
+          <Kpi
+            icon={CalendarClock}
             label="Next payment"
             value={a.monthly_payment}
             cents
-            note={`${fmtDate(due)} · in ${daysToDue} day${daysToDue === 1 ? "" : "s"}${a.autopay === "Y" ? " · autopay" : ""}`}
+            note={`${fmtDate(due)} · in ${daysToDue} day${daysToDue === 1 ? "" : "s"}`}
+            dark
             highlight={journey.kind === "payment"}
           />
         </Stagger>
 
+        <SectionLabel>{isLoan ? "Your loan" : "Your lease"}</SectionLabel>
         {isLoan ? <LoanInsights p={p} /> : <LeaseInsights p={p} />}
 
+        <SectionLabel align="right">What to do next</SectionLabel>
         <Recommendations p={p} />
 
         <p className="text-xs leading-relaxed text-muted">
@@ -124,44 +222,130 @@ function Dashboard({ p }: { p: Profile }) {
 }
 
 function Kpi({
-  icon,
+  icon: Icon,
   label,
   value,
   note,
   cents,
   plain,
   highlight,
+  dark,
+  progress,
 }: {
-  icon: ReactNode;
+  icon: LucideIcon;
   label: string;
   value: number;
   note?: string;
   cents?: boolean;
   plain?: boolean;
   highlight?: boolean;
+  dark?: boolean;
+  progress?: number;
 }) {
   const format = (n: number) => (plain ? Math.round(n).toString() : money(cents ? Math.round(n * 100) / 100 : n, cents));
   return (
-    <StaggerItem className={cn("card p-5", highlight && "ring-2 ring-signal/50")}>
-      <div className="flex items-center gap-2 text-sm text-muted">
-        {icon} {label}
+    <StaggerItem
+      className={cn(
+        "card card-hover relative overflow-hidden rounded-md p-5",
+        dark && "border-transparent bg-gradient-to-br from-charcoal-2 to-charcoal text-white",
+        highlight && "ring-2 ring-signal/60"
+      )}
+    >
+      {dark && <div aria-hidden className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-signal/30 blur-3xl" />}
+      <div className="relative flex items-center justify-between">
+        <span className={cn("text-sm font-medium", dark ? "text-white/70" : "text-muted")}>{label}</span>
+        <span className={cn("grid h-9 w-9 place-items-center rounded-md", dark ? "bg-white/10 text-white" : "bg-signal/[0.08] text-signal")}>
+          <Icon className="h-4 w-4" />
+        </span>
       </div>
-      <div className="mt-2 text-3xl font-semibold tracking-tight">
+      <div className="relative mt-3 text-[2rem] font-semibold leading-none tracking-tight tabular-nums">
         <CountUp value={value} format={format} />
       </div>
-      {note && <div className="mt-1 text-xs text-muted">{note}</div>}
+      {progress != null && (
+        <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-[#ececec]">
+          <div className="h-full rounded-full bg-gradient-to-r from-ink to-steel" style={{ width: `${Math.min(progress, 1) * 100}%` }} />
+        </div>
+      )}
+      {note && <div className={cn("relative mt-2 text-xs", dark ? "text-white/60" : "text-muted")}>{note}</div>}
     </StaggerItem>
   );
 }
 
-function Panel({ id, title, subtitle, children, className }: { id?: string; title: string; subtitle?: string; children: ReactNode; className?: string }) {
+function Panel({
+  id,
+  title,
+  subtitle,
+  children,
+  className,
+}: {
+  id?: string;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <Reveal as="section" className={cn("card scroll-mt-28 p-6 md:p-7", className)}>
-      <div id={id} className="scroll-mt-28" />
-      <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-      {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+    <Reveal as="section" className={cn("card scroll-mt-36 rounded-md p-6 md:p-7", className)}>
+      <div id={id} className="scroll-mt-36" />
+      <div className="border-b border-line pb-4">
+        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}
+      </div>
       <div className="mt-5">{children}</div>
     </Reveal>
+  );
+}
+
+/** Small labelled figure used inside panels. */
+function Stat({ label, value, note, dot, tone }: { label: string; value: string; note?: string; dot?: string; tone?: "go" | "signal" }) {
+  return (
+    <div className="rounded-md bg-mist p-4">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
+        {dot && <span className="h-2 w-2 rounded-full" style={{ background: dot }} />}
+        {label}
+      </div>
+      <div className={cn("mt-1 text-lg font-semibold tabular-nums", tone === "go" && "text-go", tone === "signal" && "text-signal")}>{value}</div>
+      {note && <div className="mt-0.5 text-[11px] leading-snug text-muted">{note}</div>}
+    </div>
+  );
+}
+
+/** Estimated value vs. what is owed, as one track. */
+function EquityMeter({ value, owed, owedLabel }: { value: number; owed: number; owedLabel: string }) {
+  const max = Math.max(value, owed, 1);
+  const equity = value - owed;
+  return (
+    <div>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <div className="text-xs font-medium text-muted">{equity >= 0 ? "Estimated equity" : "Estimated shortfall"}</div>
+          <div className={cn("mt-1 text-4xl font-semibold tracking-tight tabular-nums", equity >= 0 ? "text-go" : "text-signal")}>
+            <CountUp value={Math.abs(equity)} format={(n) => money(Math.round(n))} />
+          </div>
+        </div>
+        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", equity >= 0 ? "bg-go/10 text-go" : "bg-signal/10 text-signal")}>
+          {equity >= 0 ? "Positive" : "Negative"}
+        </span>
+      </div>
+      <div className="relative mt-6 h-4 overflow-hidden rounded-full bg-[#ececec]">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-ink to-charcoal-3" style={{ width: `${(Math.min(owed, value) / max) * 100}%` }} />
+        {equity >= 0 ? (
+          <div
+            className="absolute inset-y-0 rounded-r-full bg-go/70"
+            style={{ left: `${(owed / max) * 100}%`, width: `${(equity / max) * 100}%` }}
+          />
+        ) : (
+          <div
+            className="absolute inset-y-0 rounded-r-full bg-signal/70"
+            style={{ left: `${(value / max) * 100}%`, width: `${(-equity / max) * 100}%` }}
+          />
+        )}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Stat label="Estimated value" value={money(value)} dot={equity >= 0 ? "#1f8a70" : INK} />
+        <Stat label={owedLabel} value={money(owed)} dot={INK} />
+      </div>
+    </div>
   );
 }
 
@@ -177,73 +361,82 @@ function LoanInsights({ p }: { p: Profile }) {
   const yearly = byYear(rows);
   const due = nextDueDate(a.payment_due_day);
   const payoff = a.payoff_quote ?? balance;
-  const equity = v.est_market_value_now - payoff;
 
   return (
     <>
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <Panel title="Payment progress" subtitle={`${a.months_elapsed} of ${a.term_months} payments made`}>
-          <div className="flex flex-col items-center gap-6 sm:flex-row">
-            <div className="relative h-48 w-48 shrink-0">
+        <Panel id="progress" title="Payment progress" subtitle={`${a.months_elapsed} of ${a.term_months} payments made · ${a.months_remaining} to go`}>
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-stretch">
+            <div className="relative h-52 w-52 shrink-0">
               <ResponsiveContainer>
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Principal paid", value: paidPrincipal },
-                      { name: "Principal remaining", value: balance },
+                      { name: "Principal paid", value: paidPrincipal, fill: RED },
+                      { name: "Principal remaining", value: balance, fill: "#ececec" },
                     ]}
                     dataKey="value"
-                    innerRadius="70%"
+                    innerRadius="74%"
                     outerRadius="100%"
                     startAngle={90}
                     endAngle={-270}
+                    paddingAngle={2}
+                    cornerRadius={10}
                     stroke="none"
                     animationDuration={1000}
                   >
                     <Cell fill={RED} />
                     <Cell fill="#ececec" />
                   </Pie>
-                  <Tooltip formatter={(n) => usd(Number(n))} />
+                  <Tooltip content={<ChartTip />} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
                 <div>
-                  <div className="text-2xl font-semibold">{Math.round((paidPrincipal / a.amount_financed) * 100)}%</div>
-                  <div className="text-xs text-muted">principal paid</div>
+                  <div className="text-4xl font-semibold tracking-tight tabular-nums">{Math.round((paidPrincipal / a.amount_financed) * 100)}%</div>
+                  <div className="mt-1 text-xs text-muted">of {money(a.amount_financed)} repaid</div>
                 </div>
               </div>
             </div>
-            <dl className="w-full space-y-3 text-sm">
-              <Line2 label="Amount financed" value={money(a.amount_financed)} />
-              <Line2 label="Principal paid" value={money(paidPrincipal)} dot={RED} />
-              <Line2 label="Principal remaining" value={money(balance)} dot="#d4d4d4" />
-              <Line2 label="Interest paid so far" value={`≈ ${money(interestPaid)}`} note="Estimate: scheduled payments minus principal paid" />
-              <Line2 label="Interest still to pay" value={money(interestLeft)} note="If every payment is on time" />
-              <div>
-                <div className="flex justify-between text-xs text-muted">
-                  <span>Term</span>
-                  <span>{a.months_remaining} months left</span>
-                </div>
-                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#ececec]">
-                  <div className="h-full rounded-full bg-ink" style={{ width: `${(a.months_elapsed / a.term_months) * 100}%` }} />
-                </div>
-              </div>
-            </dl>
+            <div className="grid w-full grid-cols-2 content-center gap-3">
+              <Stat label="Principal paid" value={money(paidPrincipal)} dot={RED} />
+              <Stat label="Principal remaining" value={money(balance)} dot="#d4d4d4" />
+              <Stat label="Interest paid so far" value={`≈ ${money(interestPaid)}`} note="Scheduled payments minus principal paid" />
+              <Stat label="Interest still to pay" value={money(interestLeft)} note="If every payment is on time" tone="signal" />
+            </div>
           </div>
         </Panel>
 
         <Panel title="Loan amortization" subtitle={`Principal and interest by year at ${apr}% APR, from today's balance`}>
-          <div className="h-64">
+          <div className="h-72">
             <ResponsiveContainer>
               <ComposedChart data={yearly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="#ececec" />
+                <defs>
+                  <linearGradient id="gPrincipal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34373d" />
+                    <stop offset="100%" stopColor={INK} />
+                  </linearGradient>
+                  <linearGradient id="gInterest" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ff4a5a" />
+                    <stop offset="100%" stopColor={RED} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="#ececec" strokeDasharray="3 4" />
                 <XAxis dataKey="label" tick={axis} axisLine={false} tickLine={false} />
                 <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={usdShort} width={56} />
-                <Tooltip formatter={(n) => usd(Number(n))} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="principal" name="Principal" stackId="p" fill={INK} maxBarSize={44} />
-                <Bar dataKey="interest" name="Interest" stackId="p" fill={RED} radius={[8, 8, 0, 0]} maxBarSize={44} />
-                <Line dataKey="balance" name="Balance at year end" stroke="#8a8f98" strokeWidth={2} dot={false} type="monotone" />
+                <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(0,0,0,0.04)", radius: 8 }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                <Bar dataKey="principal" name="Principal" stackId="p" fill="url(#gPrincipal)" maxBarSize={44} />
+                <Bar dataKey="interest" name="Interest" stackId="p" fill="url(#gInterest)" radius={[8, 8, 0, 0]} maxBarSize={44} />
+                <Line
+                  dataKey="balance"
+                  name="Balance at year end"
+                  stroke="#8a8f98"
+                  strokeWidth={2.5}
+                  strokeDasharray="5 4"
+                  dot={{ r: 3, fill: "#fff", stroke: "#8a8f98", strokeWidth: 2 }}
+                  type="monotone"
+                />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -257,53 +450,36 @@ function LoanInsights({ p }: { p: Profile }) {
       <Scenarios p={p} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Vehicle equity" subtitle="Estimated value compared with your payoff quote">
-          <div className="h-48">
-            <ResponsiveContainer>
-              <BarChart
-                layout="vertical"
-                data={[
-                  { name: "Estimated value", value: v.est_market_value_now },
-                  { name: "Payoff quote", value: payoff },
-                ]}
-                margin={{ left: 8, right: 24 }}
-              >
-                <XAxis type="number" tick={axis} axisLine={false} tickLine={false} tickFormatter={usdShort} />
-                <YAxis type="category" dataKey="name" tick={axis} axisLine={false} tickLine={false} width={110} />
-                <Tooltip formatter={(n) => usd(Number(n))} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-                <Bar dataKey="value" radius={[0, 10, 10, 0]} maxBarSize={36}>
-                  <Cell fill={INK} />
-                  <Cell fill={STEEL} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <p className={cn("mt-3 text-lg font-semibold", equity >= 0 ? "text-go" : "text-signal")}>
-            About {money(Math.abs(equity))} {equity >= 0 ? "of estimated equity" : "more owed than the estimated value"}
-          </p>
-          <p className="mt-1 text-xs text-caution">The vehicle value is an estimate from the account record, not a guaranteed trade-in offer.</p>
+        <Panel id="equity" title="Vehicle equity" subtitle={`${p.vehicle.model_year} ${p.vehicle.model}: estimated value compared with your payoff quote`}>
+          <EquityMeter value={v.est_market_value_now} owed={payoff} owedLabel="Payoff quote" />
+          <p className="mt-4 text-xs text-caution">The vehicle value is an estimate from the account record, not a guaranteed trade-in offer.</p>
         </Panel>
 
         <Panel title="Upcoming payments" subtitle="Next six scheduled payments, split by principal and interest">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="-mx-2 overflow-x-auto">
+            <table className="w-full text-sm tabular-nums">
               <thead>
-                <tr className="text-left text-xs text-muted">
-                  <th className="pb-2 font-medium">Due</th>
-                  <th className="pb-2 text-right font-medium">Payment</th>
-                  <th className="pb-2 text-right font-medium">Principal</th>
-                  <th className="pb-2 text-right font-medium">Interest</th>
-                  <th className="pb-2 text-right font-medium">Balance after</th>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-muted">
+                  <th className="px-2 pb-3 font-semibold">Due</th>
+                  <th className="px-2 pb-3 text-right font-semibold">Payment</th>
+                  <th className="px-2 pb-3 text-right font-semibold">Principal</th>
+                  <th className="px-2 pb-3 text-right font-semibold">Interest</th>
+                  <th className="px-2 pb-3 text-right font-semibold">Balance after</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.slice(0, 6).map((r, i) => (
-                  <tr key={r.month} className={cn("border-t border-line", i === 0 && "font-semibold")}>
-                    <td className="py-2.5">{fmtDate(addMonths(due, i))}</td>
-                    <td className="py-2.5 text-right">{money(r.principal + r.interest, true)}</td>
-                    <td className="py-2.5 text-right">{money(r.principal, true)}</td>
-                    <td className="py-2.5 text-right text-signal">{money(r.interest, true)}</td>
-                    <td className="py-2.5 text-right text-muted">{money(r.balance)}</td>
+                  <tr key={r.month} className={cn("transition-colors hover:bg-mist", i === 0 ? "bg-signal/[0.05] font-semibold" : "border-t border-line")}>
+                    <td className="rounded-l-md px-2 py-3">
+                      <span className="flex items-center gap-2 whitespace-nowrap">
+                        {fmtDate(addMonths(due, i))}
+                        {i === 0 && <span className="rounded-full bg-signal px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Next</span>}
+                      </span>
+                    </td>
+                    <td className="px-2 py-3 text-right">{money(r.principal + r.interest, true)}</td>
+                    <td className="px-2 py-3 text-right">{money(r.principal, true)}</td>
+                    <td className="px-2 py-3 text-right text-signal">{money(r.interest, true)}</td>
+                    <td className="rounded-r-md px-2 py-3 text-right text-muted">{money(r.balance)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -342,9 +518,9 @@ function Scenarios({ p }: { p: Profile }) {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {cols.map(({ key, title, tag, s, color }) => (
-          <div key={key} className="rounded-2xl border border-line p-5">
+          <div key={key} className={cn("relative overflow-hidden rounded-md border p-5", key === "keep" ? "border-line bg-paper" : "border-signal/20 bg-signal/[0.03]")}>
+            <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ background: color }} />
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
               <span className="font-semibold">{title}</span>
             </div>
             <div className={cn("mt-1 text-xs", key === "extend" ? "font-semibold text-caution" : "text-muted")}>{tag}</div>
@@ -362,10 +538,10 @@ function Scenarios({ p }: { p: Profile }) {
         <div className="h-56">
           <ResponsiveContainer>
             <BarChart data={cols.map((c) => ({ name: c.title, interest: Math.round(c.s.interest), color: c.color }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#ececec" />
+              <CartesianGrid vertical={false} stroke="#ececec" strokeDasharray="3 4" />
               <XAxis dataKey="name" tick={axis} axisLine={false} tickLine={false} />
               <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={usdShort} width={56} />
-              <Tooltip formatter={(n) => usd(Number(n))} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+              <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(0,0,0,0.04)", radius: 8 }} />
               <Bar dataKey="interest" name="Interest from today" radius={[10, 10, 0, 0]} maxBarSize={64} animationDuration={700}>
                 {cols.map((c) => (
                   <Cell key={c.key} fill={c.color} />
@@ -387,7 +563,7 @@ function Scenarios({ p }: { p: Profile }) {
             .
           </li>
           {humanHelp && (
-            <li className="rounded-2xl bg-sodium/15 p-3">
+            <li className="rounded-md bg-sodium/15 p-3">
               Your account shows recent payment stress, so a specialist reviews any hardship option first. Nothing here is submitted.
             </li>
           )}
@@ -414,10 +590,10 @@ function LeaseInsights({ p }: { p: Profile }) {
   return (
     <>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Lease progress" subtitle={`${a.months_elapsed} of ${a.term_months} months`}>
+        <Panel id="progress" title="Lease progress" subtitle={`${a.months_elapsed} of ${a.term_months} months`}>
           <div className="grid grid-cols-12 gap-1" aria-hidden>
             {timeline.map((m) => (
-              <span key={m.month} className={cn("h-3 rounded-sm", m.paid ? "bg-ink" : "bg-[#ececec]")} />
+              <span key={m.month} className={cn("h-4 rounded-md", m.paid ? "bg-gradient-to-b from-charcoal-3 to-ink" : "bg-[#ececec]")} />
             ))}
           </div>
           <dl className="mt-5 space-y-3 text-sm">
@@ -435,7 +611,7 @@ function LeaseInsights({ p }: { p: Profile }) {
                   <BarChart layout="vertical" data={[{ name: "Projected at end", value: projected }, { name: "Allowance", value: allowance }]} margin={{ left: 8, right: 24 }}>
                     <XAxis type="number" tick={axis} axisLine={false} tickLine={false} tickFormatter={(n) => `${Math.round(Number(n) / 1000)}k`} />
                     <YAxis type="category" dataKey="name" tick={axis} axisLine={false} tickLine={false} width={120} />
-                    <Tooltip formatter={(n) => `${Number(n).toLocaleString("en-US")} mi`} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+                    <Tooltip content={<ChartTip unit="mi" />} cursor={{ fill: "rgba(0,0,0,0.04)", radius: 8 }} />
                     <Bar dataKey="value" radius={[0, 10, 10, 0]} maxBarSize={32}>
                       <Cell fill={projected > allowance ? RED : INK} />
                       <Cell fill={STEEL} />
@@ -463,7 +639,7 @@ function LeaseInsights({ p }: { p: Profile }) {
               <BarChart layout="vertical" data={[{ name: "Estimated value", value: v.est_market_value_now }, { name: "Residual", value: residual ?? 0 }]} margin={{ left: 8, right: 24 }}>
                 <XAxis type="number" tick={axis} axisLine={false} tickLine={false} tickFormatter={usdShort} />
                 <YAxis type="category" dataKey="name" tick={axis} axisLine={false} tickLine={false} width={110} />
-                <Tooltip formatter={(n) => usd(Number(n))} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+                <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(0,0,0,0.04)", radius: 8 }} />
                 <Bar dataKey="value" radius={[0, 10, 10, 0]} maxBarSize={36}>
                   <Cell fill={INK} />
                   <Cell fill={STEEL} />
@@ -505,17 +681,24 @@ function Recommendations({ p }: { p: Profile }) {
     ? ["My lease ends soon. What are my options?", "Should I buy my leased car?", "Which Toyota could replace my current one?"]
     : ["Can you help me understand my monthly payment?", "What happens if I pay extra toward my loan?", "Could a longer term lower my payment, and what would it cost?"];
   return (
-    <Panel title="Your next moves" subtitle="Vroom AI works through these for you. Nothing on your agreement changes until you confirm it.">
+    <Panel id="next-moves" title="Your next moves" subtitle="Vroom AI works through these for you. Nothing on your agreement changes until you confirm it.">
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <AutoNextMoves p={p} />
-        <div className="rounded-2xl bg-mist p-5">
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            Ask Toyota Vroom AI
+        <div className="relative overflow-hidden rounded-md bg-gradient-to-br from-charcoal-2 to-charcoal p-5 text-white">
+          <div aria-hidden className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-signal/25 blur-3xl" />
+          <p className="relative flex items-center gap-2 text-sm font-semibold">
+            <Sparkles className="h-4 w-4 text-signal" /> Ask Toyota Vroom AI
           </p>
-          <div className="mt-4 flex flex-col gap-2">
+          <p className="relative mt-1 text-xs text-white/60">Tap a question to start a conversation about your account.</p>
+          <div className="relative mt-4 flex flex-col gap-2">
             {prompts.map((q) => (
-              <button key={q} onClick={() => ask(q)} className="rounded-2xl border border-line bg-paper px-4 py-3 text-left text-sm transition-colors hover:border-ink">
+              <button
+                key={q}
+                onClick={() => ask(q)}
+                className="group flex items-center justify-between gap-3 rounded-md border border-white/10 bg-white/5 px-4 py-3 text-left text-sm transition-colors hover:border-white/30 hover:bg-white/10"
+              >
                 {q}
+                <ArrowRight className="h-4 w-4 shrink-0 text-white/40 transition-transform group-hover:translate-x-0.5 group-hover:text-white" />
               </button>
             ))}
           </div>
@@ -545,7 +728,7 @@ function Slider({
   onChange: (n: number) => void;
 }) {
   return (
-    <label className="block rounded-2xl bg-mist p-4 text-sm">
+    <label className="block rounded-md bg-mist p-4 text-sm">
       <span className="flex justify-between">
         <span className="font-medium">{label}</span>
         <span className="font-semibold tabular-nums">

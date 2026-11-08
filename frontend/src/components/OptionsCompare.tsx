@@ -14,7 +14,7 @@ function eligibility(o: Option) {
 
 /**
  * Every precomputed option for this customer, with a diverging bar showing total cost vs keeping
- * things as they are. Left (green) saves money over the contract; right (red) costs more later.
+ * things as they are. Left (solid line) saves money over the contract; right (dashed line) costs more later.
  */
 export function OptionsCompare({ p }: { p: Profile }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -22,20 +22,20 @@ export function OptionsCompare({ p }: { p: Profile }) {
   const best = p.golden.offer_id;
 
   return (
-    <section className="rounded-2xl border border-line bg-paper">
+    <section className="card overflow-hidden rounded-md">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line p-6">
         <div>
-          <h3 className="text-2xl font-semibold tracking-tight">Options on your agreement</h3>
+          <h2 className="text-xl font-semibold tracking-tight">Options on your agreement</h2>
           <p className="mt-1 max-w-[62ch] text-sm text-muted">
             These figures come from your contract and the rate sheet. We explain what each one costs. We do not invent a new payment, and we do not start one until you choose it.
           </p>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-4 rounded-sm bg-go" /> Saves over the contract
+            <span aria-hidden className="w-6 border-t-[3px] border-solid border-ink" /> Saves over the contract
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-4 rounded-sm bg-signal" /> Costs more later
+            <span aria-hidden className="w-6 border-t-[3px] border-dashed border-ink" /> Costs more later
           </span>
         </div>
       </div>
@@ -100,11 +100,12 @@ export function OptionsCompare({ p }: { p: Profile }) {
                     <span className="relative flex h-6 w-full items-center">
                       <span className="absolute left-1/2 h-full w-px bg-line" />
                       <span
-                        className={cn("absolute h-2.5 rounded-sm", t < 0 ? "bg-go" : "bg-signal")}
+                        aria-hidden
+                        className={cn("absolute border-t-[3px] border-ink", t < 0 ? "border-solid" : "border-dashed")}
                         style={t < 0 ? { right: "50%", width: `${w}%` } : { left: "50%", width: `${w}%` }}
                       />
                       <span
-                        className={cn("absolute text-xs font-medium", t < -0.5 ? "text-go" : t > 0.5 ? "text-signal" : "text-muted")}
+                        className={cn("absolute text-xs font-medium", Math.abs(t) > 0.5 ? "text-ink" : "text-muted")}
                         style={t < 0 ? { right: `calc(50% + ${w}% + 6px)` } : { left: `calc(50% + ${w}% + 6px)` }}
                       >
                         {delta(t)}

@@ -186,7 +186,6 @@ export function LandingPage() {
               <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-signal/10 blur-3xl" aria-hidden />
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted">Example · synthetic account</p>
-                <span className="rounded-full bg-sodium/20 px-2.5 py-1 text-[11px] font-semibold text-caution">Simulated</span>
               </div>
               <h3 className="mt-3 text-2xl font-semibold tracking-tight">A payment that got harder to make</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -563,6 +562,8 @@ function PersonaSelector() {
                     src={modelImage(p.vehicle.model)}
                     alt={`Toyota ${p.vehicle.model}`}
                     title={modelImageNote(p.vehicle.model)}
+                    loading="lazy"
+                    decoding="async"
                     className="h-auto w-full max-w-sm rounded-2xl shadow-2xl shadow-black/40"
                   />
                 </div>

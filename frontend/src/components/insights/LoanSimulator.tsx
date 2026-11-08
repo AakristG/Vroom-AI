@@ -66,7 +66,7 @@ export function LoanSimulator({ p, selfReported = false }: { p: Profile; selfRep
   }
 
   return (
-    <section id="simulator" className="card scroll-mt-28 overflow-hidden" aria-labelledby="simulator-title">
+    <section id="simulator" className="card scroll-mt-28 overflow-hidden rounded-md" aria-labelledby="simulator-title">
       <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
         <div className="border-b border-line p-6 md:p-8 lg:border-b-0 lg:border-r">
           <p className="eyebrow">What if?</p>
@@ -98,7 +98,7 @@ export function LoanSimulator({ p, selfReported = false }: { p: Profile; selfRep
             </button>
           )}
 
-          <details className="group mt-6 rounded-2xl bg-mist p-4 text-sm">
+          <details className="group mt-6 rounded-md bg-mist p-4 text-sm">
             <summary className="flex cursor-pointer list-none items-center gap-2 font-medium">
               <Info className="h-4 w-4 text-muted" /> Show how this was calculated
             </summary>
@@ -180,7 +180,7 @@ export function LoanSimulator({ p, selfReported = false }: { p: Profile; selfRep
               </div>
             </>
           ) : (
-            <div role="alert" className="rounded-2xl border border-sodium/40 bg-sodium/10 p-5 text-sm">
+            <div role="alert" className="rounded-md border border-sodium/40 bg-sodium/10 p-5 text-sm">
               We can't project a payoff from the figures on file: the monthly payment does not cover the interest that accrues each month. A Toyota
               Financial Services specialist can review the account.
             </div>
@@ -217,7 +217,7 @@ function BalanceChart({ data }: { data: ReturnType<typeof balanceSeries> }) {
 function YearTable({ data, due }: { data: ReturnType<typeof balanceSeries>; due: Date }) {
   const rows = data.filter((d) => d.month > 0 && (d.month % 12 === 0 || d.month === data.length - 1));
   return (
-    <div className="max-h-56 overflow-auto rounded-2xl border border-line">
+    <div className="max-h-56 overflow-auto rounded-md border border-line">
       <table className="w-full text-sm">
         <caption className="sr-only">Remaining balance by year, current schedule compared with the simulated changes</caption>
         <thead className="sticky top-0 bg-paper text-left text-xs text-muted">
@@ -271,7 +271,7 @@ function RangeField({
   const id = useId();
   const pct = ((value - min) / (max - min || 1)) * 100;
   return (
-    <div className="rounded-2xl border border-line p-4">
+    <div className="rounded-md border border-line p-4">
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor={id} className="text-sm font-medium">
           {label}

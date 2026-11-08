@@ -25,6 +25,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 from apps.ai import nim_client
 from apps.ai.account_context import account_context
+from apps.voice.live import append_agent, sync_transcript
 
 GREETING = "Hi, thanks for calling Toyota Financial Services. How can I help you today?"
 
@@ -81,7 +82,7 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
             return
 
         if interaction_type == "update_only":
-            # Just a live-transcript / turn-taking update, no response needed.
+            sync_transcript(self.customer_id, self.call_id, event.get("transcript") or [])
             return
 
         if interaction_type in ("response_required", "reminder_required"):
@@ -92,6 +93,7 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
         response_id = event.get("response_id")
         transcript = event.get("transcript", [])
         messages = nim_client.transcript_to_messages(transcript)
+        sync_transcript(self.customer_id, self.call_id, transcript)
 
         # TODO(perf): nim_client.generate_reply is a blocking HTTP call. sync_to_async offloads
         # it to a worker thread so we don't block the event loop; for lower latency, switch to
@@ -101,6 +103,7 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
         if self.customer_id:
             extra = await sync_to_async(account_context)(self.customer_id) or ""
         reply = await sync_to_async(nim_client.generate_reply)(messages, extra_system=extra)
+        append_agent(self.customer_id, self.call_id, reply)
 
         await self._send_json(
             {

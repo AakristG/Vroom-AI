@@ -2,8 +2,10 @@ import { useState } from "react";
 import type { Profile, YN } from "../data/types";
 import { date, miles, money } from "../lib/format";
 import { CustomerTalk } from "./CustomerTalk";
+import { LifeShift } from "./LifeShift";
 import { NextMove } from "./NextMove";
 import { OptionsCompare } from "./OptionsCompare";
+import { PhoneDesk } from "./PhoneDesk";
 
 const yesNo = (v: YN) => (v === "Y" ? "Yes" : "No");
 
@@ -171,7 +173,9 @@ export function AccountPage({ p }: { p: Profile }) {
         )}
       </section>
 
+      <LifeShift p={p} />
       <OptionsCompare p={p} />
+      <PhoneDesk p={p} />
       <CustomerTalk p={p} />
     </main>
   );

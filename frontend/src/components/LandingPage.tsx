@@ -1,11 +1,12 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Check, MessageCircle, Phone, Shield, Sparkles } from "lucide-react";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { profiles } from "../data/types";
 import { cn, money } from "../lib/format";
 import { heroClips } from "../media/heroClips";
 import { CATEGORY_IMAGE, IMAGE_NOTE, modelImage, type CategoryKey } from "../media/vehicleImages";
+import { getCatalog, getCatalogStatus } from "../api/vehicles";
 import { useAuth } from "../state/auth";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { CountUp, EASE, Parallax, Reveal, Stagger, StaggerItem } from "./ui/motion";
@@ -35,14 +36,14 @@ const steps = [
   },
 ];
 
-const categories: { label: string; key: CategoryKey; query: string; blurb: string; models: string[] }[] = [
-  { label: "Sedans", key: "sedans", query: "category=Sedan", blurb: "Efficient daily drivers with room for five.", models: ["Camry", "Corolla", "Crown"] },
-  { label: "SUVs", key: "suvs", query: "category=SUV", blurb: "Space, all-weather confidence, and a higher seat.", models: ["RAV4", "Highlander", "4Runner", "Grand Highlander"] },
-  { label: "Trucks", key: "trucks", query: "category=Truck", blurb: "Built to tow, haul, and leave the pavement.", models: ["Tacoma", "Tundra"] },
-  { label: "Hybrids", key: "hybrids", query: "fuel=Hybrid", blurb: "Lower fuel costs without changing how you drive.", models: ["Prius", "Camry", "RAV4 Hybrid", "Sienna"] },
-  { label: "Electric", key: "electric", query: "fuel=Electric", blurb: "Zero tailpipe emissions and charging at home.", models: ["bZ4X"] },
-  { label: "Minivans", key: "minivans", query: "category=Minivan", blurb: "Sliding doors, three rows, and standard hybrid power.", models: ["Sienna"] },
-  { label: "Sports cars", key: "sports-cars", query: "category=Sports car", blurb: "Rear-wheel drive and a reason to take the long way.", models: ["GR86", "GR Supra"] },
+const categories: { label: string; key: CategoryKey; query: string; blurb: string; models: string[]; group: "category" | "fuel"; value: string }[] = [
+  { label: "Sedans", key: "sedans", query: "category=Sedan", blurb: "Efficient daily drivers with room for five.", models: ["Camry", "Corolla", "Crown"], group: "category", value: "Sedan" },
+  { label: "SUVs", key: "suvs", query: "category=SUV", blurb: "Space, all-weather confidence, and a higher seat.", models: ["RAV4", "Highlander", "4Runner", "Grand Highlander"], group: "category", value: "SUV" },
+  { label: "Trucks", key: "trucks", query: "category=Truck", blurb: "Built to tow, haul, and leave the pavement.", models: ["Tacoma", "Tundra"], group: "category", value: "Truck" },
+  { label: "Hybrids", key: "hybrids", query: "fuel=Hybrid", blurb: "Lower fuel costs without changing how you drive.", models: ["Prius", "Camry", "RAV4 Hybrid", "Sienna"], group: "fuel", value: "Hybrid" },
+  { label: "Electric", key: "electric", query: "fuel=Electric", blurb: "Zero tailpipe emissions and charging at home.", models: ["bZ4X"], group: "fuel", value: "Electric" },
+  { label: "Minivans", key: "minivans", query: "category=Minivan", blurb: "Sliding doors, three rows, and standard hybrid power.", models: ["Sienna"], group: "category", value: "Minivan" },
+  { label: "Sports cars", key: "sports-cars", query: "category=Sports car", blurb: "Rear-wheel drive and a reason to take the long way.", models: ["GR86", "GR Supra"], group: "category", value: "Sports car" },
 ];
 
 const byId = (id: string) => profiles.find((p) => p.customer.customer_id === id)!;
@@ -329,9 +330,34 @@ export function LandingPage() {
 }
 
 function CategoryExplorer() {
+  const { profile } = useAuth();
   const [active, setActive] = useState(0);
+  const [liveModels, setLiveModels] = useState<Record<string, string[]>>({});
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const c = categories[active];
+  const models = liveModels[c.key] ?? c.models;
+
+  useEffect(() => {
+    if (!profile) return;
+    let live = true;
+    getCatalogStatus()
+      .then((status) => getCatalog(status.default_year))
+      .then((r) => {
+        if (!live) return;
+        const next: Record<string, string[]> = {};
+        for (const cat of categories) {
+          const names = r.data
+            .filter((v) => (cat.group === "fuel" ? v.fuel_type === cat.value : v.category === cat.value))
+            .map((v) => v.model);
+          next[cat.key] = [...new Set(names)].slice(0, 8);
+        }
+        setLiveModels(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [profile]);
 
   const select = (i: number) => {
     setActive(i);
@@ -410,7 +436,7 @@ function CategoryExplorer() {
                   <h3 className="text-3xl font-semibold tracking-tight md:text-5xl">{c.label}</h3>
                   <p className="mt-2 max-w-md text-white/80">{c.blurb}</p>
                   <div className="mt-5 flex flex-wrap items-center gap-2">
-                    {c.models.map((m) => (
+                    {models.map((m) => (
                       <Link
                         key={m}
                         to={`/vehicles?q=${encodeURIComponent(m)}`}

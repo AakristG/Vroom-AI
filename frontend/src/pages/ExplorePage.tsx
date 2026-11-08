@@ -19,7 +19,7 @@ import { VehicleCard } from "../components/vehicles/VehicleCard";
 import { EmptyState, ErrorState, Skeleton, SourceBanner } from "../components/ui/kit";
 import { EASE, Stagger, StaggerItem } from "../components/ui/motion";
 import { CATEGORY_IMAGE, categoryKey } from "../media/vehicleImages";
-import { cn, money } from "../lib/format";
+import { cn } from "../lib/format";
 import { efficiencyScore } from "../lib/spec";
 import { usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
@@ -28,14 +28,6 @@ const SORTS = {
   model: { label: "Model A–Z", fn: (a: VehicleRecord, b: VehicleRecord) => a.model.localeCompare(b.model) },
   hp: { label: "Horsepower: high to low", fn: (a: VehicleRecord, b: VehicleRecord) => (b.horsepower ?? -1) - (a.horsepower ?? -1) },
   efficiency: { label: "Efficiency: high to low", fn: (a: VehicleRecord, b: VehicleRecord) => (efficiencyScore(b) ?? -1) - (efficiencyScore(a) ?? -1) },
-  price: {
-    label: "Price: low to high",
-    fn: (a: VehicleRecord, b: VehicleRecord) => (a.msrp.value ?? Infinity) - (b.msrp.value ?? Infinity),
-  },
-  priceDesc: {
-    label: "Price: high to low",
-    fn: (a: VehicleRecord, b: VehicleRecord) => (b.msrp.value ?? -1) - (a.msrp.value ?? -1),
-  },
   seats: { label: "Seats: high to low", fn: (a: VehicleRecord, b: VehicleRecord) => (b.seating ?? -1) - (a.seating ?? -1) },
 } as const;
 type SortKey = keyof typeof SORTS;
@@ -309,7 +301,7 @@ function Recommend({ label, vehicle, reason }: { label: string; vehicle: Vehicle
         {vehicle.year} {vehicle.model}
       </div>
       <p className="mt-1 text-sm text-muted">
-        {vehicle.category} · {vehicle.seating ? `${vehicle.seating} seats` : "Seats pending"} · {vehicle.msrp.value ? money(vehicle.msrp.value) : "MSRP pending"}
+        {vehicle.category} · {vehicle.fuel_type || "Fuel unclassified"}
       </p>
       <p className="mt-2 text-sm text-muted">{reason}</p>
       </div>

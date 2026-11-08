@@ -38,6 +38,9 @@ spacetimedb/server/target/
 spacetimedb/server/Cargo.lock
 spacetimedb/.spacetime/
 
+# Accidental installer downloads (not part of the app)
+GitHubDesktop*.zip
+
 # ===== OS / Editor =====
 .DS_Store
 Thumbs.db

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getVehicleImage, vehiclePath, type VehicleImage, type VehicleRecord } from "../../api/vehicles";
 import { cn } from "../../lib/format";
-import { categoryLabel, efficiency, msrp, NA, num } from "../../lib/spec";
+import { categoryLabel, efficiency, NA, num } from "../../lib/spec";
 import { COMPARE_LIMIT, useCompare } from "../../state/compare";
 import { SourceBadge } from "../ui/kit";
 
@@ -13,6 +13,11 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
   const inView = useInView(ref, { once: true, margin: "200px" });
   const [image, setImage] = useState<VehicleImage | null>(v.image);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setImage(v.image);
+    setFailed(false);
+  }, [v.id, v.image]);
 
   useEffect(() => {
     if (image?.url || !(inView || eager)) return;
@@ -27,6 +32,9 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
 
   const url = image?.url;
   const match = image?.match || v.image_match;
+  const provider = image?.provider || v.sources?.images;
+  const credit =
+    provider === "CarImagesAPI" ? "CarImagesAPI" : provider === "local" ? "Product footage" : null;
 
   return (
     <div ref={ref} className={cn("relative grid place-items-center overflow-hidden bg-gradient-to-b from-[#f1f1ef] to-[#e4e4e1]", className)}>
@@ -44,9 +52,11 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
               Closest generation image
             </span>
           )}
-          <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
-            CarImagesAPI
-          </span>
+          {credit && (
+            <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
+              {credit}
+            </span>
+          )}
         </>
       ) : (
         <div className="flex flex-col items-center gap-2 px-6 text-center text-muted">
@@ -85,19 +95,20 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          <Spec label="Engine" value={v.engine ?? NA} wide />
-          <Spec label="Horsepower" value={num(v.horsepower, " hp")} />
-          <Spec label="Efficiency" value={efficiency(v)} />
-          <Spec label="Drivetrain" value={v.drivetrain ?? NA} />
-          <Spec label="Seats" value={num(v.seating)} />
+          <Spec label="Category" value={categoryLabel(v)} />
+          <Spec label="Fuel" value={v.fuel_type ?? "Unclassified"} />
+          {v.vehicle_type ? <Spec label="NHTSA type" value={v.vehicle_type} wide /> : null}
+          {v.engine ? <Spec label="Engine" value={v.engine} wide /> : null}
+          {v.horsepower != null ? <Spec label="Horsepower" value={num(v.horsepower, " hp")} /> : null}
+          {efficiency(v) !== NA ? <Spec label="Efficiency" value={efficiency(v)} /> : null}
+          {v.drivetrain ? <Spec label="Drivetrain" value={v.drivetrain} /> : null}
+          {v.seating != null ? <Spec label="Seats" value={num(v.seating)} /> : null}
         </dl>
+        {!v.engine && v.horsepower == null && (
+          <p className="mt-3 text-xs text-muted">NHTSA vPIC lists make, model, and year. Trim-level specs are not in this dataset.</p>
+        )}
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-4">
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-muted">Verified pricing</div>
-            <div className="text-lg font-semibold">{msrp(v)}</div>
-            <div className="text-[11px] text-muted">Not currently connected</div>
-          </div>
+        <div className="mt-auto flex items-end justify-end gap-3 border-t border-line pt-4">
           <button
             onClick={() => compare.toggle(v.id)}
             disabled={blocked}

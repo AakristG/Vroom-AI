@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env")
+# override=True so a newly pasted key in .env wins after restart.
+load_dotenv(BASE_DIR / ".env", override=True)
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -172,13 +173,14 @@ TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
 
-CARIMAGES_API_KEY = os.environ.get("CARIMAGES_API_KEY", "")
-CARIMAGES_API_SECRET = os.environ.get("CARIMAGES_API_SECRET", "")
-CARIMAGES_BASE_URL = os.environ.get("CARIMAGES_BASE_URL", "https://carimagesapi.com")
+CARIMAGES_API_KEY = os.environ.get("CARIMAGES_API_KEY", "").strip()
+CARIMAGES_API_SECRET = os.environ.get("CARIMAGES_API_SECRET", "").strip()
+CARIMAGES_BASE_URL = os.environ.get("CARIMAGES_BASE_URL", "https://carimagesapi.com").strip()
 CARIMAGES_SIGNED_URL_TTL = int(os.environ.get("CARIMAGES_SIGNED_URL_TTL", str(60 * 60)))
 
 NHTSA_VPIC_BASE_URL = os.environ.get("NHTSA_VPIC_BASE_URL", "https://vpic.nhtsa.dot.gov/api")
 NHTSA_DATA_BASE_URL = os.environ.get("NHTSA_DATA_BASE_URL", "https://api.nhtsa.gov")
+EPA_FUELECONOMY_BASE_URL = os.environ.get("EPA_FUELECONOMY_BASE_URL", "https://www.fueleconomy.gov/ws/rest")
 
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},

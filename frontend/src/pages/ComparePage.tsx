@@ -16,7 +16,7 @@ import { VehicleMedia } from "../components/vehicles/VehicleCard";
 import { EmptyState, ErrorState, PageIntro, Skeleton, SourceBadge } from "../components/ui/kit";
 import { Reveal } from "../components/ui/motion";
 import { cn, money } from "../lib/format";
-import { NA, num, vehicleName } from "../lib/spec";
+import { NA, mpgRange, num, vehicleName } from "../lib/spec";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
 import { COMPARE_LIMIT, useCompare } from "../state/compare";
@@ -36,7 +36,6 @@ const ROWS: { group: string; rows: Row[] }[] = [
   {
     group: "Overview",
     rows: [
-      { label: "Verified pricing", value: (v) => v.msrp.value, format: () => "Verified pricing is not currently connected." },
       { label: "Vehicle type", value: (v) => v.category },
       { label: "Fuel type", value: (v) => v.fuel_type },
       { label: "Data source", value: (v) => "NHTSA" },
@@ -56,9 +55,9 @@ const ROWS: { group: string; rows: Row[] }[] = [
   {
     group: "Efficiency",
     rows: [
-      { label: "City", value: (v) => v.mpg.city, format: (v) => num(v.mpg.city, " mpg"), better: "high" },
-      { label: "Highway", value: (v) => v.mpg.highway, format: (v) => num(v.mpg.highway, " mpg"), better: "high" },
-      { label: "Combined", value: (v) => v.mpg.combined, format: (v) => num(v.mpg.combined, " mpg"), better: "high" },
+      { label: "City", value: (v) => v.mpg.city, format: (v) => mpgRange(v.mpg.city, v.mpg.city_high), better: "high" },
+      { label: "Highway", value: (v) => v.mpg.highway, format: (v) => mpgRange(v.mpg.highway, v.mpg.highway_high), better: "high" },
+      { label: "Combined", value: (v) => v.mpg.combined, format: (v) => mpgRange(v.mpg.combined, v.mpg.combined_high), better: "high" },
       { label: "MPGe (electric)", value: (v) => v.mpge, format: (v) => num(v.mpge), better: "high" },
       { label: "Electric range", value: (v) => v.ev_range_mi, format: (v) => num(v.ev_range_mi, " mi"), better: "high" },
     ],
@@ -580,7 +579,7 @@ function CostCharts({ vs, assume }: { vs: VehicleRecord[]; assume: Assumptions }
     () =>
       vs.map((v, i) => {
         const fuel = annualFuel(v, assume);
-        const fiveYear = fuel.cost != null && v.msrp.value != null ? v.msrp.value + 5 * (fuel.cost + assume.other) : null;
+        const fiveYear = fuel.cost != null ? 5 * (fuel.cost + assume.other) : null;
         return { v, color: COLORS[i], fuel, fiveYear };
       }),
     [vs, assume]
@@ -589,10 +588,7 @@ function CostCharts({ vs, assume }: { vs: VehicleRecord[]; assume: Assumptions }
   const usd = (n: number) => money(Math.round(n));
 
   return (
-    <div className="mt-5 grid gap-5 lg:grid-cols-3">
-      <ChartCard title="Original base MSRP" note={`Source: ${sources(vs)}. Historical base price for model year ${years(vs)}; not today's price.`} missing={vs.filter((v) => v.msrp.value == null).map((v) => `${shortName(v)} (no MSRP)`)}>
-        <SingleBar rows={rows.flatMap((r) => (r.v.msrp.value == null ? [] : [{ name: shortName(r.v), value: r.v.msrp.value, color: r.color }]))} unit="" format={usd} />
-      </ChartCard>
+    <div className="mt-5 grid gap-5 lg:grid-cols-2">
       <ChartCard
         title="Estimated annual fuel cost"
         note={`${base} ${rows.filter((r) => r.fuel.basis).map((r) => `${shortName(r.v)}: ${r.fuel.basis}`).join("; ")}.`}
@@ -601,9 +597,9 @@ function CostCharts({ vs, assume }: { vs: VehicleRecord[]; assume: Assumptions }
         <SingleBar rows={rows.flatMap((r) => (r.fuel.cost == null ? [] : [{ name: shortName(r.v), value: Math.round(r.fuel.cost), color: r.color }]))} unit="" format={usd} />
       </ChartCard>
       <ChartCard
-        title="Estimated five-year cost"
-        note={`Original base MSRP + 5 years of fuel${assume.other ? ` + $${assume.other.toLocaleString("en-US")}/yr other costs` : ""}. Excludes taxes, fees, financing, insurance unless entered, and resale value.`}
-        missing={rows.filter((r) => r.fiveYear == null).map((r) => `${shortName(r.v)} (needs ${r.v.msrp.value == null ? "MSRP" : r.fuel.missing})`)}
+        title="Estimated five-year fuel and other costs"
+        note={`Five years of fuel${assume.other ? ` + $${assume.other.toLocaleString("en-US")}/yr other costs` : ""}. Vehicle purchase price is not included — NHTSA and CarImagesAPI do not publish MSRP.`}
+        missing={rows.filter((r) => r.fiveYear == null).map((r) => `${shortName(r.v)} (needs ${r.fuel.missing})`)}
       >
         <SingleBar rows={rows.flatMap((r) => (r.fiveYear == null ? [] : [{ name: shortName(r.v), value: Math.round(r.fiveYear), color: r.color }]))} unit="" format={usd} />
       </ChartCard>

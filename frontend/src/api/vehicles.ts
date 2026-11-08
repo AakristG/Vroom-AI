@@ -31,7 +31,22 @@ export interface VehicleRecord {
   torque_lb_ft: number | null;
   drivetrain: string | null;
   transmission: string | null;
-  mpg: { city: number | null; highway: number | null; combined: number | null };
+  mpg: {
+    city: number | null;
+    highway: number | null;
+    combined: number | null;
+    city_high?: number | null;
+    highway_high?: number | null;
+    combined_high?: number | null;
+  };
+  epa?: {
+    note?: string;
+    config_count?: number;
+    varies?: boolean;
+    year?: number;
+    source?: "EPA";
+    configurations?: { name: string; label: string; city: number | null; highway: number | null; combined: number | null; engine?: string | null; drivetrain?: string | null }[];
+  };
   mpge: number | null;
   ev_range_mi: number | null;
   seating: number | null;
@@ -52,11 +67,14 @@ export interface VehicleRecord {
   recalls?: { count: number | null; note?: string; campaigns?: unknown[] };
   source: DataSource;
   source_note: string;
+  make_id?: number | null;
+  model_id?: number | null;
   sources?: {
     vehicleData: "NHTSA";
-    images: "CarImagesAPI" | null;
+    images: "CarImagesAPI" | "local" | null;
     safety: "NHTSA" | null;
     recalls: "NHTSA" | null;
+    efficiency?: "EPA" | null;
   };
 }
 

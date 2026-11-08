@@ -209,6 +209,9 @@ def market_value(request):
 def lookup(year: int, model: str, trim: str | None) -> tuple[dict | None, dict | None]:
     try:
         record = catalog_service.detail(year, model, trim)
+        # Leftover trim IDs from the old CarsXE catalog still resolve at model level.
+        if not record and trim:
+            record = catalog_service.detail(year, model, None)
     except ProviderError as exc:
         return None, {"status": exc.status, "detail": str(exc)}
     if not record:

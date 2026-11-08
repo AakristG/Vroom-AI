@@ -7,7 +7,7 @@ import { VehicleMedia } from "../components/vehicles/VehicleCard";
 import { ErrorState, Skeleton, SourceBadge } from "../components/ui/kit";
 import { Reveal } from "../components/ui/motion";
 import { cn } from "../lib/format";
-import { msrp, NA, num, vehicleName } from "../lib/spec";
+import { NA, mpgRange, num, vehicleName } from "../lib/spec";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { useCompare } from "../state/compare";
 
@@ -99,20 +99,15 @@ export function VehicleDetailPage() {
               )}
 
               <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-line bg-line">
-                <Stat label="Horsepower" value={num(v.horsepower)} unit={v.horsepower ? "hp" : ""} />
                 <Stat
                   label={v.fuel_type === "Electric" ? "Efficiency" : "Combined"}
-                  value={v.fuel_type === "Electric" ? num(v.mpge) : num(v.mpg.combined)}
+                  value={v.fuel_type === "Electric" ? mpgRange(v.mpge, null, "") : mpgRange(v.mpg.combined, v.mpg.combined_high, "")}
                   unit={v.fuel_type === "Electric" ? (v.mpge ? "MPGe" : "") : v.mpg.combined ? "mpg" : ""}
                 />
-                <Stat label="Seats" value={num(v.seating)} />
+                <Stat label="Fuel" value={v.fuel_type ?? NA} />
+                <Stat label="Category" value={v.category ?? NA} />
               </div>
-
-              <div className="mt-6">
-                <div className="text-xs uppercase tracking-wider text-muted">Verified pricing</div>
-                <div className="text-3xl font-semibold tracking-tight">{msrp(v)}</div>
-                <p className="mt-1 text-xs text-muted">Verified pricing is not currently connected. NHTSA and CarImagesAPI do not publish retail prices.</p>
-              </div>
+              {v.epa?.note ? <p className="mt-3 text-xs text-muted">{v.epa.note}</p> : null}
 
               <div className="mt-7 flex flex-wrap gap-3">
                 <button
@@ -134,39 +129,39 @@ export function VehicleDetailPage() {
             <SpecCard
               title="Performance"
               rows={[
-                ["Engine", v.engine ?? NA],
-                ["Horsepower", num(v.horsepower, " hp")],
-                ["Torque", num(v.torque_lb_ft, " lb-ft")],
-                ["Drivetrain", v.drivetrain ?? NA],
-                ["Transmission", v.transmission ?? NA],
+                ["Engine", v.engine],
+                ["Horsepower", v.horsepower != null ? num(v.horsepower, " hp") : null],
+                ["Torque", v.torque_lb_ft != null ? num(v.torque_lb_ft, " lb-ft") : null],
+                ["Drivetrain", v.drivetrain],
+                ["Transmission", v.transmission],
               ]}
             />
             <SpecCard
               title="Efficiency"
               rows={[
-                ["Fuel type", v.fuel_type ?? NA],
-                ["City", num(v.mpg.city, " mpg")],
-                ["Highway", num(v.mpg.highway, " mpg")],
-                ["Combined", num(v.mpg.combined, " mpg")],
-                ["MPGe", num(v.mpge)],
-                ["Electric range", num(v.ev_range_mi, " mi")],
+                ["Fuel type", v.fuel_type],
+                ["City", v.mpg.city != null ? mpgRange(v.mpg.city, v.mpg.city_high) : null],
+                ["Highway", v.mpg.highway != null ? mpgRange(v.mpg.highway, v.mpg.highway_high) : null],
+                ["Combined", v.mpg.combined != null ? mpgRange(v.mpg.combined, v.mpg.combined_high) : null],
+                ["MPGe", v.mpge != null ? num(v.mpge) : null],
+                ["Electric range", v.ev_range_mi != null ? num(v.ev_range_mi, " mi") : null],
               ]}
             />
             <SpecCard
               title="Capacity"
               rows={[
-                ["Seating", num(v.seating)],
-                ["Cargo", num(v.cargo_cu_ft, " cu ft")],
-                ["Curb weight", num(v.curb_weight_lb, " lb")],
+                ["Seating", v.seating != null ? num(v.seating) : null],
+                ["Cargo", v.cargo_cu_ft != null ? num(v.cargo_cu_ft, " cu ft") : null],
+                ["Curb weight", v.curb_weight_lb != null ? num(v.curb_weight_lb, " lb") : null],
               ]}
             />
             <SpecCard
               title="Dimensions"
               rows={[
-                ["Length", num(v.dimensions.length_in, " in")],
-                ["Width", num(v.dimensions.width_in, " in")],
-                ["Height", num(v.dimensions.height_in, " in")],
-                ["Wheelbase", num(v.dimensions.wheelbase_in, " in")],
+                ["Length", v.dimensions.length_in != null ? num(v.dimensions.length_in, " in") : null],
+                ["Width", v.dimensions.width_in != null ? num(v.dimensions.width_in, " in") : null],
+                ["Height", v.dimensions.height_in != null ? num(v.dimensions.height_in, " in") : null],
+                ["Wheelbase", v.dimensions.wheelbase_in != null ? num(v.dimensions.wheelbase_in, " in") : null],
               ]}
             />
           </section>
@@ -201,15 +196,28 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
   );
 }
 
-function SpecCard({ title, rows }: { title: string; rows: [string, string][] }) {
+function SpecCard({ title, rows }: { title: string; rows: [string, string | null | undefined][] }) {
+  const filled = rows.filter(([, val]) => val && val !== NA);
+  if (!filled.length) {
+    return (
+      <Reveal className="card p-6">
+        <h2 className="font-semibold">{title}</h2>
+        <p className="mt-3 text-sm text-muted">
+          {title === "Dimensions"
+            ? "NHTSA and EPA do not publish exterior measurements for this model."
+            : "No verified figures from NHTSA or EPA for these fields."}
+        </p>
+      </Reveal>
+    );
+  }
   return (
     <Reveal className="card p-6">
       <h2 className="font-semibold">{title}</h2>
       <dl className="mt-4 space-y-2.5 text-sm">
-        {rows.map(([k, val]) => (
+        {filled.map(([k, val]) => (
           <div key={k} className="flex justify-between gap-4 border-b border-line pb-2.5 last:border-0">
             <dt className="text-muted">{k}</dt>
-            <dd className={cn("text-right font-medium", val === NA && "font-normal text-muted/70")}>{val}</dd>
+            <dd className="text-right font-medium">{val}</dd>
           </div>
         ))}
       </dl>
@@ -253,6 +261,9 @@ function SafetyAndRecalls({ v }: { v: VehicleRecord }) {
   const recallCount = v.recall_count;
   const recallNote =
     typeof v.recalls === "object" && v.recalls && "note" in v.recalls ? String(v.recalls.note || "") : "";
+  const safety = typeof v.safety === "object" && v.safety && !Array.isArray(v.safety) ? v.safety : null;
+  const reason = safety && "reason" in safety ? String(safety.reason || "") : "";
+  const variants = safety && Array.isArray(safety.variants) ? (safety.variants as { description?: string }[]) : [];
   return (
     <section className="mx-auto mt-5 grid max-w-7xl gap-5 px-5 md:grid-cols-2 md:px-8">
       <div className="card p-6">
@@ -261,8 +272,15 @@ function SafetyAndRecalls({ v }: { v: VehicleRecord }) {
         <p className="mt-2 text-sm text-muted">
           {rating != null
             ? "Overall NHTSA rating for the only published crash-tested variant of this model year."
-            : "NHTSA has not published a single overall rating we can show for this model year, or more than one variant exists."}
+            : reason || "NHTSA has not published a crash-test result we can show for this model year."}
         </p>
+        {variants.length > 0 && (
+          <ul className="mt-3 space-y-1 text-sm text-muted">
+            {variants.map((item, i) => (
+              <li key={`${item.description}-${i}`}>{item.description}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="card p-6">
         <h2 className="font-semibold">NHTSA recalls</h2>

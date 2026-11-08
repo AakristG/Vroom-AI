@@ -11,6 +11,7 @@ import logging
 from typing import Any
 
 from .carimages import carimages
+from .epa import fueleconomy
 from .http import ProviderError
 from .matching import canonical
 from .nhtsa import nhtsa
@@ -20,7 +21,8 @@ logger = logging.getLogger(__name__)
 MAKE = "Toyota"
 SOURCE_NOTE = (
     "Model list from NHTSA vPIC. Images from CarImagesAPI when a catalog match exists. "
-    "Neither source provides verified retail pricing or financing terms."
+    "Fuel economy and tested configurations from EPA FuelEconomy.gov when published. "
+    "None of these sources provide horsepower, seating, exterior dimensions, or retail pricing."
 )
 
 # Maintained body-style mapping for Toyota nameplates. Used when NHTSA's vehicle
@@ -88,8 +90,9 @@ def trims(year: int, model: str) -> list[str]:
 
 def catalog(year: int) -> list[dict]:
     rows = nhtsa.models_for_year(year)
-    # Vehicle-type index is fetched on the detail page so the listing stays one vPIC call.
-    return [_record(row, {}, include_image=True) for row in rows]
+    type_index = _type_index(year)
+    images = _images_for([row["model"] for row in rows], year)
+    return [_record(row, type_index, images.get(row["model"])) for row in rows]
 
 
 def detail(year: int, model: str, trim: str | None = None) -> dict | None:
@@ -98,12 +101,9 @@ def detail(year: int, model: str, trim: str | None = None) -> dict | None:
     row = _find_model(rows, model)
     if not row:
         return None
-    type_index = {}
-    try:
-        type_index = nhtsa.type_index(year)
-    except ProviderError:
-        logger.warning("NHTSA vehicle types unavailable for %s", year)
-    record = _record(row, type_index, include_image=True)
+    type_index = _type_index(year)
+    images = _images_for([row["model"]], year)
+    record = _record(row, type_index, images.get(row["model"]))
     try:
         safety = nhtsa.safety(row["model"], year)
     except ProviderError as exc:
@@ -121,6 +121,51 @@ def detail(year: int, model: str, trim: str | None = None) -> dict | None:
     record["recalls"] = recalls
     record["sources"]["safety"] = "NHTSA" if safety.get("source") == "NHTSA" else None
     record["sources"]["recalls"] = "NHTSA" if recalls.get("source") == "NHTSA" else None
+    try:
+        epa = fueleconomy.for_model(year, row["model"])
+    except Exception as exc:
+        logger.warning("EPA FuelEconomy failed for %s %s: %s", year, model, exc)
+        epa = None
+    if epa:
+        record["engine"] = epa.get("engine")
+        record["drivetrain"] = epa.get("drivetrain")
+        record["transmission"] = epa.get("transmission")
+        if epa.get("fuel"):
+            record["fuel_type"] = _fuel_from_epa(epa["fuel"]) or record["fuel_type"]
+        record["mpg"] = {
+            "city": epa.get("city"),
+            "highway": epa.get("highway"),
+            "combined": epa.get("combined"),
+            "city_high": epa.get("city_high"),
+            "highway_high": epa.get("highway_high"),
+            "combined_high": epa.get("combined_high"),
+        }
+        record["cargo_cu_ft"] = epa.get("luggage_cu_ft")
+        if epa.get("mpge"):
+            record["mpge"] = epa.get("mpge")
+        if epa.get("ev_range_mi"):
+            record["ev_range_mi"] = epa.get("ev_range_mi")
+        record["epa"] = {
+            "note": epa.get("note"),
+            "config_count": epa.get("config_count"),
+            "varies": epa.get("varies"),
+            "configurations": epa.get("configurations"),
+            "year": epa.get("year"),
+            "source": "EPA",
+        }
+        record["spec_groups"] = [
+            {
+                "category": "EPA tested configurations",
+                "items": [
+                    {
+                        "name": f"{c.get('name')} · {c.get('label')}".strip(" ·"),
+                        "value": _mpg_line(c),
+                    }
+                    for c in epa.get("configurations") or []
+                ],
+            }
+        ]
+        record["sources"]["efficiency"] = "EPA"
     return record
 
 
@@ -129,10 +174,52 @@ def image(year: int, model: str, trim: str | None = None) -> dict | None:
     rows = nhtsa.models_for_year(year)
     row = _find_model(rows, model)
     name = row["model"] if row else model
-    payload = carimages.image_for(name, year)
-    if not payload.get("url"):
+    images = _images_for([name], year)
+    return images.get(name)
+
+
+def _type_index(year: int) -> dict[str, str]:
+    try:
+        return nhtsa.type_index(year)
+    except ProviderError:
+        logger.warning("NHTSA vehicle types unavailable for %s", year)
+        return {}
+
+
+def _images_for(models: list[str], year: int) -> dict[str, dict]:
+    remote: dict[str, dict] = {}
+    try:
+        remote = carimages.images_for(models, year)
+    except Exception:
+        logger.warning("CarImagesAPI batch image lookup failed for %s", year)
+    out: dict[str, dict] = {}
+    for name in models:
+        payload = remote.get(name) or _local_image(name)
+        if payload and payload.get("url"):
+            out[name] = payload
+    return out
+
+
+def _local_image(model: str) -> dict | None:
+    """Verified in-repo footage for a nameplate. Never used as a stand-in for a different model."""
+    if canonical(model) != canonical("Tundra"):
         return None
-    return payload
+    url = "/media/hero/tundra-trd-pro-poster.jpg"
+    return {
+        "url": url,
+        "thumbnail": url,
+        "views": {"front34": url},
+        "match": "generation",
+        "matched_name": "Tundra",
+        "provider": "local",
+        "source_page": None,
+        "license_filter": None,
+        "license_note": (
+            "Product footage bundled with this app, not a CarImagesAPI studio still "
+            "and not an official Toyota catalog photograph."
+        ),
+        "expires_at": None,
+    }
 
 
 def _find_model(rows: list[dict], model: str) -> dict | None:
@@ -147,19 +234,10 @@ def _find_model(rows: list[dict], model: str) -> dict | None:
     return None
 
 
-def _record(row: dict, type_index: dict[str, str], include_image: bool) -> dict[str, Any]:
+def _record(row: dict, type_index: dict[str, str], image_payload: dict | None) -> dict[str, Any]:
     year = int(row["year"])
     model = row["model"]
     nhtsa_type = type_index.get(model.lower())
-    image_payload = None
-    if include_image:
-        try:
-            image_payload = carimages.image_for(model, year)
-            if not image_payload.get("url"):
-                image_payload = None
-        except Exception:
-            logger.warning("CarImagesAPI image failed for %s %s", year, model)
-            image_payload = None
     match = (image_payload or {}).get("match") or "unavailable"
     return {
         "id": vehicle_id(year, model, None),
@@ -201,9 +279,16 @@ def _record(row: dict, type_index: dict[str, str], include_image: bool) -> dict[
         "source_note": SOURCE_NOTE,
         "sources": {
             "vehicleData": "NHTSA",
-            "images": "CarImagesAPI" if image_payload else None,
+            "images": (
+                "CarImagesAPI"
+                if (image_payload or {}).get("provider") == "CarImagesAPI"
+                else "local"
+                if (image_payload or {}).get("provider") == "local"
+                else None
+            ),
             "safety": None,
             "recalls": None,
+            "efficiency": None,
         },
     }
 
@@ -222,6 +307,30 @@ def _body_from_mapping(model: str) -> str | None:
         if model.lower() == name.lower() or model.lower().startswith(name.lower() + " "):
             return body
     return None
+
+
+def _fuel_from_epa(label: str) -> str | None:
+    text = (label or "").strip().lower()
+    if not text:
+        return None
+    if "plug" in text:
+        return "Plug-in hybrid"
+    if "hybrid" in text:
+        return "Hybrid"
+    if "electric" in text:
+        return "Electric"
+    if "diesel" in text:
+        return "Diesel"
+    if "gasoline" in text or "regular" in text:
+        return "Gas"
+    return label.strip()
+
+
+def _mpg_line(config: dict) -> str | None:
+    city, hwy, comb = config.get("city"), config.get("highway"), config.get("combined")
+    if comb is None:
+        return config.get("engine")
+    return f"{city}/{hwy}/{comb} mpg city/hwy/comb"
 
 
 def _fuel(model: str, year: int) -> str | None:

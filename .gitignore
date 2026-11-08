@@ -22,6 +22,8 @@ backend/.ruff_cache/
 
 # ===== Node / React (frontend) =====
 frontend/node_modules/
+spacetimedb/server/node_modules/
+spacetimedb/.cli/
 frontend/dist/
 frontend/build/
 frontend/.vite/

@@ -54,7 +54,7 @@ function remember(account: AuthAccount) {
 }
 
 export async function login(username: string, password: string) {
-  const { data } = await apiClient.post<AuthAccount>("/api/auth/login/", { username, password });
+  const { data } = await apiClient.post<AuthAccount>("/api/auth/login/", { username, password }, { timeout: 20000 });
   return remember(data);
 }
 
@@ -74,10 +74,15 @@ export async function updateAccount(patch: Partial<Pick<AuthAccount, "life_chang
   return data;
 }
 
+export function isUnauthorized(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 401;
+}
+
 export function apiError(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
     const detail = error.response?.data?.detail;
     if (typeof detail === "string" && detail) return detail;
+    if (!error.response) return "The server didn't answer. Check that the backend is running and try again.";
   }
   return fallback;
 }

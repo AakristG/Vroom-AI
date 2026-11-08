@@ -11,12 +11,15 @@ export function SignInPage({ onSignedIn, prefill = "" }: { onSignedIn: () => voi
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(event: FormEvent) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const typedUsername = String(data.get("username") || username);
+    const typedPassword = String(data.get("password") || password);
     setBusy(true);
     setError(null);
     try {
-      await signIn(username, password);
+      await signIn(typedUsername, typedPassword);
       onSignedIn();
     } catch (reason) {
       setError(apiError(reason, "That sign-in doesn't match an account."));
@@ -38,11 +41,12 @@ export function SignInPage({ onSignedIn, prefill = "" }: { onSignedIn: () => voi
         <form onSubmit={submit} className="card space-y-4 p-6 md:p-8" style={{ boxShadow: "var(--shadow-lift)" }}>
           <label className="block text-sm">
             <span className="font-medium">Username</span>
-            <input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} className="field mt-2" />
+            <input name="username" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} className="field mt-2" />
           </label>
           <label className="block text-sm">
             <span className="font-medium">Password</span>
             <input
+              name="password"
               type="password"
               autoComplete="current-password"
               value={password}

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getMe, login, signup, TOKEN_KEY, updateAccount, type AuthAccount, type SignupInput } from "../api/client";
+import { getMe, isUnauthorized, login, signup, TOKEN_KEY, updateAccount, type AuthAccount, type SignupInput } from "../api/client";
 import type { Profile } from "../data/types";
 import { knownProfile, shellProfile } from "../lib/sessionProfile";
 
@@ -27,7 +27,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     getMe()
       .then(setAccount)
-      .catch(() => sessionStorage.removeItem(TOKEN_KEY))
+      .catch((error) => {
+        // A newer sign-in may have replaced this token while the request was in flight.
+        if (isUnauthorized(error) && sessionStorage.getItem(TOKEN_KEY) === token) sessionStorage.removeItem(TOKEN_KEY);
+      })
       .finally(() => setReady(true));
   }, []);
 

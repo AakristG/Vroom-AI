@@ -1,16 +1,4 @@
-"""
-Retell AI post-call webhook endpoint.
-
-Configure this URL (e.g. https://<your-domain>/api/voice/webhook/) in the Retell dashboard
-under Agent -> Webhook URL. Retell POSTs `call_started`, `call_ended`, and `call_analyzed`
-events here.
-
-Signature verification follows:
-https://docs.retellai.com/features/secure-webhook
-
-  X-Retell-Signature: "v={timestamp_ms},d={hex_hmac_sha256}"
-  digest = HMAC-SHA256(key=RETELL_API_KEY, msg=raw_body + timestamp_ms)
-"""
+"""Receive Retell call events at /api/voice/webhook/."""
 
 from __future__ import annotations
 
@@ -21,18 +9,28 @@ import re
 import time
 
 from django.conf import settings
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from requests.exceptions import RequestException
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.spacetime.client import SpacetimeDBError, call_reducer
+
 from .models import CallLog
+
 
 _SIGNATURE_RE = re.compile(r"v=(\d+),d=(.*)")
 _MAX_CLOCK_SKEW_MS = 5 * 60 * 1000
+_CALL_EVENTS = {"call_started", "call_ended", "call_analyzed"}
 
 
-def verify_retell_signature(raw_body: bytes, signature_header: str | None, api_key: str) -> bool:
+def verify_retell_signature(
+    raw_body: bytes,
+    signature_header: str | None,
+    api_key: str,
+) -> bool:
     if not signature_header or not api_key:
         return False
 
@@ -40,7 +38,7 @@ def verify_retell_signature(raw_body: bytes, signature_header: str | None, api_k
     if not match:
         return False
 
-    timestamp_str, digest = match.group(1), match.group(2)
+    timestamp_str, digest = match.groups()
 
     now_ms = int(time.time() * 1000)
     if abs(now_ms - int(timestamp_str)) > _MAX_CLOCK_SKEW_MS:
@@ -81,8 +79,19 @@ def post_call_webhook(request):
     log.raw_payload = payload
     log.save()
 
-    # TODO: also mirror this into SpacetimeDB so the live dashboard updates, e.g.:
-    #   from apps.spacetime.client import call_reducer
-    #   call_reducer("upsert_call_session", [call_id, log.agent_id, log.status, "", now_iso])
+    if event in _CALL_EVENTS:
+        try:
+            call_reducer(
+                "upsert_call_session",
+                [
+                    call_id,
+                    log.agent_id or "",
+                    log.status or "",
+                    "agent",
+                    timezone.now().isoformat(),
+                ],
+            )
+        except (SpacetimeDBError, RequestException):
+            return Response({"message": "SpacetimeDB write failed"}, status=503)
 
     return Response(status=204)

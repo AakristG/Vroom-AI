@@ -26,7 +26,7 @@ export function AccountPage({ p }: { p: Profile }) {
   const vehicleName = `${v.model_year} Toyota ${v.model} ${v.trim}`;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-5 py-10 md:px-8 md:py-14">
+    <main className="mx-auto max-w-6xl space-y-6 px-5 pb-14 pt-28 md:px-8 md:pb-20 md:pt-32">
       <header>
         <p className="text-sm font-medium text-signal">Your account · {c.customer_id}</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Hello, {c.first_name}.</h1>
@@ -174,7 +174,9 @@ export function AccountPage({ p }: { p: Profile }) {
       </section>
 
       <LifeShift p={p} />
-      <OptionsCompare p={p} />
+      <div id="options" className="scroll-mt-28">
+        <OptionsCompare p={p} />
+      </div>
       <PhoneDesk p={p} />
       <CustomerTalk p={p} />
     </main>

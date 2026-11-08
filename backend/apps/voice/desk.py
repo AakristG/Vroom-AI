@@ -29,7 +29,7 @@ def book_appointment(request):
     when = str(request.data.get("when") or "").strip()
     phone = str(request.data.get("phone") or "").strip()
     name = str(request.data.get("name") or "").strip()
-    allowed = {"Refinance", "Trade-in", "Vehicle information"}
+    allowed = {"Refinance", "Trade-in", "Vehicle information", "Payment help", "Lease end"}
     if topic not in allowed or not customer_id or not when or not phone:
         return Response({"detail": "Choose a topic, a time, and a phone number."}, status=400)
 

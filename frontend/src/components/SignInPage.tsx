@@ -1,9 +1,18 @@
 import { useState, type FormEvent } from "react";
 import type { Profile } from "../data/types";
+import { Reveal } from "./ui/motion";
 
-export function SignInPage({ profiles, onSignIn }: { profiles: Profile[]; onSignIn: (id: string) => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+export function SignInPage({
+  profiles,
+  onSignIn,
+  prefill = "",
+}: {
+  profiles: Profile[];
+  onSignIn: (id: string) => void;
+  prefill?: string;
+}) {
+  const [username, setUsername] = useState(prefill);
+  const [password, setPassword] = useState(prefill);
   const [error, setError] = useState<string | null>(null);
 
   function submit(event: FormEvent) {
@@ -28,35 +37,39 @@ export function SignInPage({ profiles, onSignIn }: { profiles: Profile[]; onSign
   }
 
   return (
-    <main className="mx-auto max-w-lg px-5 py-16 md:py-24">
-      <p className="text-sm font-medium text-signal">Toyota Financial Services</p>
-      <h1 className="mt-2 text-4xl font-semibold tracking-tight">Sign in</h1>
-      <p className="mt-3 text-sm leading-relaxed text-muted">
-        For this demo, the username and the password are both your first name. Signing in opens only that account.
-      </p>
-      <form onSubmit={submit} className="mt-8 space-y-4">
-        <label className="block text-sm">
-          <span className="font-medium">Username</span>
-          <input
-            autoComplete="username"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            className="mt-1 w-full rounded-2xl border border-line px-4 py-3 outline-none focus:border-ink"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="font-medium">Password</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="mt-1 w-full rounded-2xl border border-line px-4 py-3 outline-none focus:border-ink"
-          />
-        </label>
-        {error && <p className="text-sm text-signal">{error}</p>}
-        <button className="rounded-full bg-signal px-6 py-3 text-sm font-medium text-white hover:bg-signal-deep">Sign in</button>
-      </form>
+    <main className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-2 md:px-8 md:py-24">
+      <Reveal>
+        <p className="eyebrow">Toyota Financial Services</p>
+        <h1 className="section-title mt-4">Sign in to see your next move.</h1>
+        <p className="mt-4 max-w-md leading-relaxed text-muted">
+          For this demo, the username and the password are both your first name. Signing in opens only that account, and every figure on it is
+          fictional.
+        </p>
+      </Reveal>
+      <Reveal delay={0.08}>
+        <form onSubmit={submit} className="card space-y-4 p-6 md:p-8" style={{ boxShadow: "var(--shadow-lift)" }}>
+          <label className="block text-sm">
+            <span className="font-medium">Username</span>
+            <input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} className="field mt-2" />
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium">Password</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="field mt-2"
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-sm text-signal">
+              {error}
+            </p>
+          )}
+          <button className="btn-primary w-full">Sign in</button>
+        </form>
+      </Reveal>
     </main>
   );
 }

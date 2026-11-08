@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.ai",
     "apps.voice",
     "apps.spacetime",
+    "apps.vehicles",
 ]
 
 MIDDLEWARE = [
@@ -132,6 +133,10 @@ NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
 NIM_BASE_URL = os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_MODEL = os.environ.get("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
 NIM_ENABLE_THINKING = env_bool("NIM_ENABLE_THINKING", False)
+# Native OpenAI-style tool calls need the NIM container started with
+# --enable-auto-tool-choice --tool-call-parser qwen3_coder. Without it, the assistant runs
+# its backend tools first and grounds Nemotron in the results.
+NIM_TOOL_CALLING = env_bool("NIM_TOOL_CALLING", False)
 
 RETELL_API_KEY = os.environ.get("RETELL_API_KEY", "")
 RETELL_AGENT_ID = os.environ.get("RETELL_AGENT_ID", "")
@@ -142,6 +147,19 @@ TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
 
 CARSXE_API_KEY = os.environ.get("CARSXE_API_KEY", "")
+CARSXE_BASE_URL = os.environ.get("CARSXE_BASE_URL", "https://api.carsxe.com")
+# CarsXE bills per call, so responses are kept on disk across restarts.
+CARSXE_CACHE_SECONDS = int(os.environ.get("CARSXE_CACHE_SECONDS", str(60 * 60 * 24 * 7)))
+
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "carsxe": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": BASE_DIR / ".cache" / "carsxe",
+        "TIMEOUT": CARSXE_CACHE_SECONDS,
+        "OPTIONS": {"MAX_ENTRIES": 5000},
+    },
+}
 
 SPACETIMEDB_URL = os.environ.get("SPACETIMEDB_URL", "http://127.0.0.1:3000")
 SPACETIMEDB_MODULE_NAME = os.environ.get("SPACETIMEDB_MODULE_NAME", "toyota-fs-dev")

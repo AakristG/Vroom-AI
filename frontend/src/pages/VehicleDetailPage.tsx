@@ -11,6 +11,8 @@ import { cn, money } from "../lib/format";
 import { msrp, NA, num, vehicleName } from "../lib/spec";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { useCompare } from "../state/compare";
+import { useAuth } from "../state/auth";
+import { SignInGate } from "../components/SignInGate";
 
 export function VehicleDetailPage() {
   const params = useParams();
@@ -23,6 +25,7 @@ export function VehicleDetailPage() {
   const [reload, setReload] = useState(0);
   const compare = useCompare();
   const { ask } = useAssistant();
+  const { profile, ready } = useAuth();
 
   usePageContext("vehicle-detail", state.v ? [state.v.id] : []);
 
@@ -41,6 +44,10 @@ export function VehicleDetailPage() {
   }, [year, model, trim, reload]);
 
   const v = state.v;
+  if (!ready) return <main className="min-h-[50vh] pt-32" />;
+  if (!profile) {
+    return <SignInGate next={`/vehicles/${year}/${encodeURIComponent(model)}`} title="Sign in to see this Toyota." />;
+  }
 
   return (
     <main className="pb-28 pt-16 md:pt-[72px]">

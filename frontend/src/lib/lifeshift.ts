@@ -30,11 +30,11 @@ export function monthlyIncome(annual: number, incomePct: number) {
 export function simulate(profile: Profile, input: LifeInputs): { income: number; milesNow: number; scenarios: Scenario[]; tradeIn: number; equity: number | null } {
   const income = monthlyIncome(profile.customer.annual_income, input.incomePct);
   const debt = profile.customer.other_monthly_debt;
-  const current = profile.account.monthly_payment;
+  const current = profile.account.monthly_payment > 0 ? profile.account.monthly_payment : null;
   const leftover = (payment: number) => income - debt - input.extraExpenses - payment;
   const refi = eligiblePayment(profile.options, "REFI");
   const extended = eligiblePayment(profile.options, "EXTEND");
-  const smallerPayment = extended != null && extended <= input.budget ? extended : input.budget < current ? input.budget : null;
+  const smallerPayment = extended != null && extended <= input.budget ? extended : current != null && input.budget < current ? input.budget : null;
   const milesNow = Math.round(input.dailyMiles * 2 * WORKDAYS);
 
   return {
@@ -47,9 +47,9 @@ export function simulate(profile: Profile, input: LifeInputs): { income: number;
         id: "keep",
         title: "Keep your vehicle",
         payment: current,
-        leftover: leftover(current),
-        note: "No change to the contract you already have.",
-        available: true,
+        leftover: current == null ? null : leftover(current),
+        note: current == null ? "No Toyota payment is on file yet." : profile.account.account_id ? "No change to the contract you already have." : "This is the payment you entered. Toyota does not have a contract on file for it yet.",
+        available: current != null,
       },
       {
         id: "refi",
@@ -73,14 +73,3 @@ export function simulate(profile: Profile, input: LifeInputs): { income: number;
     ],
   };
 }
-
-export const lifeEvents: { id: string; label: string; patch: Partial<LifeInputs> }[] = [
-  { id: "grad", label: "I just graduated", patch: { incomePct: 20, extraExpenses: 200, dailyMiles: 15 } },
-  { id: "job", label: "I lost my job", patch: { incomePct: -40, extraExpenses: 0 } },
-  { id: "married", label: "I'm getting married", patch: { incomePct: 10, extraExpenses: 300 } },
-  { id: "child", label: "I'm having a child", patch: { extraExpenses: 400 } },
-  { id: "move", label: "I'm moving", patch: { extraExpenses: 250, dailyMiles: 20 } },
-  { id: "commute", label: "My commute got longer", patch: { dailyMiles: 50 } },
-  { id: "bonus", label: "I received a bonus", patch: { incomePct: 8, extraExpenses: 0 } },
-  { id: "cut", label: "My income fell 20%", patch: { incomePct: -20 } },
-];

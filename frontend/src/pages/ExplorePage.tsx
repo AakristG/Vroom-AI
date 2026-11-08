@@ -1,6 +1,6 @@
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   apiErrorMessage,
   getCatalog,
@@ -8,32 +8,41 @@ import {
   getTrims,
   getVehicle,
   getYears,
+  vehiclePath,
   type CatalogStatus,
   type DataSource,
   type VehicleRecord,
 } from "../api/vehicles";
 import { CompareTray } from "../components/vehicles/CompareTray";
 import { VehicleCard } from "../components/vehicles/VehicleCard";
+import { SignInGate } from "../components/SignInGate";
 import { EmptyState, ErrorState, PageIntro, Skeleton, SourceBanner } from "../components/ui/kit";
 import { Stagger, StaggerItem } from "../components/ui/motion";
-import { cn } from "../lib/format";
+import { cn, money } from "../lib/format";
 import { efficiencyScore } from "../lib/spec";
 import { usePageContext } from "../state/assistant";
+import { useAuth } from "../state/auth";
 
 const SORTS = {
   model: { label: "Model A–Z", fn: (a: VehicleRecord, b: VehicleRecord) => a.model.localeCompare(b.model) },
   hp: { label: "Horsepower: high to low", fn: (a: VehicleRecord, b: VehicleRecord) => (b.horsepower ?? -1) - (a.horsepower ?? -1) },
   efficiency: { label: "Efficiency: high to low", fn: (a: VehicleRecord, b: VehicleRecord) => (efficiencyScore(b) ?? -1) - (efficiencyScore(a) ?? -1) },
   price: {
-    label: "Original MSRP: low to high",
+    label: "Price: low to high",
     fn: (a: VehicleRecord, b: VehicleRecord) => (a.msrp.value ?? Infinity) - (b.msrp.value ?? Infinity),
   },
+  priceDesc: {
+    label: "Price: high to low",
+    fn: (a: VehicleRecord, b: VehicleRecord) => (b.msrp.value ?? -1) - (a.msrp.value ?? -1),
+  },
+  seats: { label: "Seats: high to low", fn: (a: VehicleRecord, b: VehicleRecord) => (b.seating ?? -1) - (a.seating ?? -1) },
 } as const;
 type SortKey = keyof typeof SORTS;
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T; source: DataSource; fallback: string | null };
 
 export function ExplorePage() {
+  const { profile, account, ready } = useAuth();
   const [params, setParams] = useSearchParams();
   const [status, setStatus] = useState<CatalogStatus | null>(null);
   const [years, setYears] = useState<number[]>([]);
@@ -41,11 +50,14 @@ export function ExplorePage() {
   const [trimCards, setTrimCards] = useState<Load<VehicleRecord[]> | null>(null);
   const [reload, setReload] = useState(0);
 
-  const year = Number(params.get("year")) || years[0] || 0;
+  const preferredYear = years.includes(2026) ? 2026 : years[0] || 0;
+  const year = Number(params.get("year")) || preferredYear;
   const model = params.get("model") ?? "";
   const category = params.get("category") ?? "";
+  const seats = params.get("seats") ?? "";
   const fuel = params.get("fuel") ?? "";
   const q = params.get("q") ?? "";
+  const page = Math.max(1, Number(params.get("page")) || 1);
   const sort = (params.get("sort") as SortKey) in SORTS ? (params.get("sort") as SortKey) : "model";
 
   const set = useCallback(
@@ -55,6 +67,7 @@ export function ExplorePage() {
           const next = new URLSearchParams(prev);
           if (value) next.set(key, value);
           else next.delete(key);
+          if (key !== "page") next.delete("page");
           if (key === "year") next.delete("model");
           return next;
         },
@@ -113,13 +126,23 @@ export function ExplorePage() {
     const needle = q.trim().toLowerCase();
     return active.data
       .filter((v) => !category || v.category === category)
+      .filter((v) => !seats || String(v.seating ?? "") === seats)
       .filter((v) => !fuel || v.fuel_type === fuel)
       .filter((v) => !needle || `${v.model} ${v.trim ?? ""} ${v.category}`.toLowerCase().includes(needle))
       .sort(SORTS[sort].fn);
-  }, [active, category, fuel, q, sort]);
+  }, [active, category, fuel, q, seats, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(shown.length / 9));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = shown.slice((safePage - 1) * 9, safePage * 9);
+  const recommendations = useMemo(() => recommend(catalog.state === "ready" ? catalog.data : [], account?.life_change ?? ""), [account?.life_change, catalog]);
 
   const categories = status?.categories ?? [];
   const fuels = status?.fuel_types ?? [];
+  const seatOptions = ["2", "4", "5", "7", "8"];
+
+  if (!ready) return <main className="min-h-[50vh] pt-32" />;
+  if (!profile) return <SignInGate next="/vehicles" title="Sign in to see Toyota models." />;
 
   return (
     <main className="pb-28">
@@ -137,6 +160,7 @@ export function ExplorePage() {
           <Select label="Model year" value={String(year || "")} onChange={(v) => set("year", v)} options={years.map((y) => [String(y), String(y)])} />
           <Select label="Model" value={model} onChange={(v) => set("model", v)} options={[["", "All models"], ...models.map((m) => [m, m] as [string, string])]} />
           <Select label="Fuel type" value={fuel} onChange={(v) => set("fuel", v)} options={[["", "Any fuel"], ...fuels.map((f) => [f, f] as [string, string])]} />
+          <Select label="Seats" value={seats} onChange={(v) => set("seats", v)} options={[["", "Any seats"], ...seatOptions.map((n) => [n, `${n} seats`] as [string, string])]} />
           <Select
             label="Sort"
             value={sort}
@@ -168,6 +192,13 @@ export function ExplorePage() {
           </p>
         )}
 
+        {active.state === "ready" && recommendations && !model && (
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <Recommend label="Best for trade-in value" vehicle={recommendations.trade} reason={recommendations.reason} />
+            <Recommend label="Best for your current situation" vehicle={recommendations.situation} reason="Uses the life change on your account." />
+          </div>
+        )}
+
         <div className="mt-6">
           {active.state === "loading" ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -180,8 +211,8 @@ export function ExplorePage() {
           ) : shown.length === 0 ? (
             <EmptyState title="No vehicles match those filters.">Try a different category, fuel type, or search.</EmptyState>
           ) : (
-            <Stagger key={`${year}-${model}-${category}-${fuel}-${sort}`} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {shown.map((v) => (
+            <Stagger key={`${year}-${model}-${category}-${seats}-${fuel}-${sort}-${safePage}`} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {pageItems.map((v) => (
                 <StaggerItem key={v.id}>
                   <VehicleCard v={v} />
                 </StaggerItem>
@@ -189,9 +220,59 @@ export function ExplorePage() {
             </Stagger>
           )}
         </div>
+        {active.state === "ready" && shown.length > 9 && (
+          <div className="mt-6 flex items-center justify-between text-sm">
+            <span className="text-muted">
+              Page {safePage} of {pageCount} · 9 per page
+            </span>
+            <div className="flex gap-2">
+              <button type="button" disabled={safePage <= 1} onClick={() => set("page", String(safePage - 1))} className="rounded-full border border-line px-4 py-2 disabled:opacity-40">
+                Previous
+              </button>
+              <button type="button" disabled={safePage >= pageCount} onClick={() => set("page", String(safePage + 1))} className="rounded-full border border-line px-4 py-2 disabled:opacity-40">
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <CompareTray />
     </main>
+  );
+}
+
+function recommend(list: VehicleRecord[], life: string) {
+  const priced = list.filter((v) => v.msrp.value != null).sort((a, b) => (a.msrp.value ?? 0) - (b.msrp.value ?? 0));
+  if (!priced.length) return null;
+  const text = life.toLowerCase();
+  const trade = priced[0];
+  let situation = priced[Math.floor(priced.length / 2)];
+  if (/child|baby|family|married/.test(text)) {
+    situation = [...list].sort((a, b) => (b.seating ?? 0) - (a.seating ?? 0))[0] ?? situation;
+  } else if (/expense|job|lost|fell|cut|hard|payment|budget|\$/.test(text)) {
+    situation = priced[0];
+  }
+  return {
+    trade,
+    situation,
+    reason: life
+      ? `Based on what you told us: “${life}”. Prices are CarsXE base MSRP, not a financing offer.`
+      : "Based on the payment and vehicle on your account. Prices are CarsXE base MSRP, not a financing offer.",
+  };
+}
+
+function Recommend({ label, vehicle, reason }: { label: string; vehicle: VehicleRecord; reason: string }) {
+  return (
+    <Link to={vehiclePath(vehicle)} className="card p-5 text-left">
+      <div className="text-xs font-semibold uppercase tracking-wide text-signal">{label}</div>
+      <div className="mt-2 text-xl font-semibold">
+        {vehicle.year} {vehicle.model}
+      </div>
+      <p className="mt-1 text-sm text-muted">
+        {vehicle.category} · {vehicle.seating ? `${vehicle.seating} seats` : "Seats pending"} · {vehicle.msrp.value ? money(vehicle.msrp.value) : "MSRP pending"}
+      </p>
+      <p className="mt-2 text-sm text-muted">{reason}</p>
+    </Link>
   );
 }
 

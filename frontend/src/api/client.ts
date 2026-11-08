@@ -2,11 +2,85 @@ import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
+export const TOKEN_KEY = "tfs-token";
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 8000,
 });
+
+apiClient.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+export interface AuthAccount {
+  token: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  life_change: string;
+  preferences: string;
+  customer_id: string;
+  current_payment: number | null;
+  vehicle_model: string;
+  vehicle_year: number | null;
+}
+
+export interface SignupInput {
+  first_name: string;
+  last_name: string;
+  username: string;
+  password: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  life_change: string;
+  current_payment: string;
+  vehicle_model: string;
+  vehicle_year: string;
+}
+
+function remember(account: AuthAccount) {
+  sessionStorage.setItem(TOKEN_KEY, account.token);
+  return account;
+}
+
+export async function login(username: string, password: string) {
+  const { data } = await apiClient.post<AuthAccount>("/api/auth/login/", { username, password });
+  return remember(data);
+}
+
+export async function signup(input: SignupInput) {
+  const { data } = await apiClient.post<AuthAccount>("/api/auth/signup/", input);
+  return remember(data);
+}
+
+export async function getMe() {
+  const { data } = await apiClient.get<AuthAccount>("/api/auth/me/");
+  return data;
+}
+
+export async function updateAccount(patch: Partial<Pick<AuthAccount, "life_change" | "preferences" | "city" | "phone">>) {
+  const { data } = await apiClient.patch<AuthAccount>("/api/auth/me/", patch);
+  if (data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
+  return data;
+}
+
+export function apiError(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === "string" && detail) return detail;
+  }
+  return fallback;
+}
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";

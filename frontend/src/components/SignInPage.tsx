@@ -1,39 +1,28 @@
 import { useState, type FormEvent } from "react";
-import type { Profile } from "../data/types";
+import { Link } from "react-router-dom";
+import { apiError } from "../api/client";
+import { useAuth } from "../state/auth";
 import { Reveal } from "./ui/motion";
 
-export function SignInPage({
-  profiles,
-  onSignIn,
-  prefill = "",
-}: {
-  profiles: Profile[];
-  onSignIn: (id: string) => void;
-  prefill?: string;
-}) {
+export function SignInPage({ onSignedIn, prefill = "" }: { onSignedIn: () => void; prefill?: string }) {
+  const { signIn } = useAuth();
   const [username, setUsername] = useState(prefill);
   const [password, setPassword] = useState(prefill);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
-    const name = username.trim().toLowerCase();
-    const secret = password.trim().toLowerCase();
-    if (!name || !secret) {
-      setError("Enter your name as both the username and the password.");
-      return;
-    }
-    if (name !== secret) {
-      setError("The username and password need to match.");
-      return;
-    }
-    const match = profiles.find((profile) => profile.customer.first_name.toLowerCase() === name);
-    if (!match) {
-      setError("That sign-in doesn't match an account.");
-      return;
-    }
+    setBusy(true);
     setError(null);
-    onSignIn(match.customer.customer_id);
+    try {
+      await signIn(username, password);
+      onSignedIn();
+    } catch (reason) {
+      setError(apiError(reason, "That sign-in doesn't match an account."));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -42,8 +31,7 @@ export function SignInPage({
         <p className="eyebrow">Toyota Financial Services</p>
         <h1 className="section-title mt-4">Sign in to see your next move.</h1>
         <p className="mt-4 max-w-md leading-relaxed text-muted">
-          For this demo, the username and the password are both your first name. Signing in opens only that account, and every figure on it is
-          fictional.
+          One sign-in opens Financial services, Models, and the rest of your account. Demo customers use their first name as both the username and the password.
         </p>
       </Reveal>
       <Reveal delay={0.08}>
@@ -67,7 +55,15 @@ export function SignInPage({
               {error}
             </p>
           )}
-          <button className="btn-primary w-full">Sign in</button>
+          <button disabled={busy} className="btn-primary w-full disabled:opacity-50">
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
+          <p className="text-sm text-muted">
+            New here?{" "}
+            <Link to="/signup" className="font-medium text-ink underline">
+              Create an account
+            </Link>
+          </p>
         </form>
       </Reveal>
     </main>

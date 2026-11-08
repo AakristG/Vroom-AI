@@ -1,16 +1,15 @@
 import { useEffect } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { SignInPage } from "../components/SignInPage";
-import { profiles } from "../data/types";
 import { usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
 
 /** Only same-site paths are allowed as a post-sign-in destination. */
-const safeNext = (raw: string | null) => (raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/my-toyota");
+const safeNext = (raw: string | null) => (raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/financial-services");
 
 export function SignInRoute() {
   const [params] = useSearchParams();
-  const { profile, signIn } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const next = safeNext(params.get("next"));
   usePageContext("signin");
@@ -23,14 +22,7 @@ export function SignInRoute() {
 
   return (
     <div className="pt-16 md:pt-[72px]">
-      <SignInPage
-        profiles={profiles}
-        prefill={params.get("as") ?? ""}
-        onSignIn={(id) => {
-          signIn(id);
-          navigate(next, { replace: true });
-        }}
-      />
+      <SignInPage prefill={params.get("as") ?? ""} onSignedIn={() => navigate(next, { replace: true })} />
     </div>
   );
 }

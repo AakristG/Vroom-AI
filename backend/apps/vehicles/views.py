@@ -161,7 +161,7 @@ def safety(request):
     if not year or not model:
         return Response({"detail": "year and model are required."}, status=400)
     try:
-        return Response(nhtsa.safety(model, year))
+        return Response(nhtsa.safety(catalog_service.base_model(year, model), year))
     except ProviderError as exc:
         return Response({"detail": str(exc), "available": False, "overall_rating": None}, status=exc.status)
 
@@ -174,7 +174,7 @@ def recalls(request):
     if not year or not model:
         return Response({"detail": "year and model are required."}, status=400)
     try:
-        return Response(nhtsa.recalls(model, year))
+        return Response(nhtsa.recalls(catalog_service.base_model(year, model), year))
     except ProviderError as exc:
         return Response({"detail": str(exc), "count": None, "campaigns": []}, status=exc.status)
 

@@ -88,9 +88,3 @@ export function modelImageNote(model: string) {
     ? `Representative photo of a Toyota ${photo.names[0]}, not the customer's vehicle. Photo: ${photo.author}, ${photo.license}, via Wikimedia Commons.`
     : IMAGE_NOTE;
 }
-
-/** Short on-image label for modelImage(model). */
-export function modelImageLabel(model: string) {
-  const photo = modelPhoto(model);
-  return photo ? `Photo: ${photo.author} · ${photo.license}` : "Representative AI image";
-}

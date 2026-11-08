@@ -122,6 +122,7 @@ def generate_reply(
     completion = client.chat.completions.create(
         model=model or settings.NIM_MODEL,
         messages=with_system_prompt(messages, extra_system, base),
+        temperature=settings.NIM_TEMPERATURE,
         extra_body=_extra_body(),
     )
     return clean(completion.choices[0].message.content)
@@ -131,7 +132,7 @@ def complete(messages: list[dict], *, tools: list[dict] | None = None):
     """Raw completion for the tool-calling loop. Caller supplies the system message."""
     kwargs = {"tools": tools, "tool_choice": "auto"} if tools else {}
     return get_client().chat.completions.create(
-        model=settings.NIM_MODEL, messages=messages, extra_body=_extra_body(), **kwargs
+        model=settings.NIM_MODEL, messages=messages, temperature=settings.NIM_TEMPERATURE, extra_body=_extra_body(), **kwargs
     )
 
 

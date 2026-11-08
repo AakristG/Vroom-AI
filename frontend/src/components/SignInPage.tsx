@@ -38,7 +38,7 @@ export function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
   return (
     <main className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-2 md:px-8 md:py-24">
       <Reveal>
-        <span className="grid h-11 w-[3.25rem] place-items-center rounded-lg bg-white shadow-sm">
+        <span className="grid h-11 w-[3.25rem] place-items-center rounded-lg bg-charcoal shadow-sm">
           <ToyotaMark className="h-8 w-auto" />
         </span>
         <p className="eyebrow mt-6">Toyota Financial Services</p>

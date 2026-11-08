@@ -82,6 +82,13 @@ const ROWS: { group: string; rows: Row[] }[] = [
   },
 ];
 
+const hasValue = (raw: number | string | null) => raw != null && raw !== "";
+
+/** Only rows where at least one selected vehicle has data; empty groups are dropped. */
+function visibleRows(vs: VehicleRecord[]) {
+  return ROWS.map((g) => ({ ...g, rows: g.rows.filter((row) => vs.some((v) => hasValue(row.value(v)))) })).filter((g) => g.rows.length);
+}
+
 interface Assumptions {
   miles: number;
   gas: number;
@@ -410,7 +417,7 @@ function SpecTable({ vs }: { vs: VehicleRecord[] }) {
               ))}
             </tr>
           </thead>
-          {ROWS.map((g) => (
+          {visibleRows(vs).map((g) => (
             <tbody key={g.group}>
               <tr>
                 <th colSpan={vs.length + 1} scope="colgroup" className="bg-paper px-5 pb-2 pt-6 text-left text-xs font-semibold uppercase tracking-wider text-signal">
@@ -534,14 +541,19 @@ function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {
           )}
         </ChartCard>
 
-        <ChartCard title="Horsepower" note={`${base} Peak SAE net horsepower.`} missing={missing((v) => v.horsepower, "horsepower")}>
-          <SingleBar rows={pick((v) => v.horsepower)} unit=" hp" />
-        </ChartCard>
+        {pick((v) => v.horsepower).length > 0 && (
+          <ChartCard title="Horsepower" note={`${base} Peak SAE net horsepower.`} missing={missing((v) => v.horsepower, "horsepower")}>
+            <SingleBar rows={pick((v) => v.horsepower)} unit=" hp" />
+          </ChartCard>
+        )}
 
-        <ChartCard title="Passenger capacity" note={`${base} Factory seating for the listed trim.`} missing={missing((v) => v.seating, "seating")}>
-          <SingleBar rows={pick((v) => v.seating)} unit=" seats" format={(n) => `${n}`} />
-        </ChartCard>
+        {pick((v) => v.seating).length > 0 && (
+          <ChartCard title="Passenger capacity" note={`${base} Factory seating for the listed trim.`} missing={missing((v) => v.seating, "seating")}>
+            <SingleBar rows={pick((v) => v.seating)} unit=" seats" format={(n) => `${n}`} />
+          </ChartCard>
+        )}
 
+        {dimRows.length > 0 && (
         <ChartCard
           title="Exterior dimensions (in)"
           note={`${base} Length, width, and height in inches.`}
@@ -569,6 +581,7 @@ function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {
             <NoData />
           )}
         </ChartCard>
+        )}
       </div>
     </section>
   );

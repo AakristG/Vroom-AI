@@ -20,28 +20,38 @@ WIDTH = 1280
 # slug -> (Wikipedia article, NHTSA/account names that use it)
 MODELS = {
     "4runner": ("Toyota 4Runner", ["4Runner"]),
+    "4runner-hybrid": ("File:Toyota 4Runner 2026.jpg", ["4Runner Hybrid"]),
     "86": ("Toyota 86", ["86", "GR86"]),
     "avalon": ("Toyota Avalon", ["Avalon", "Avalon Hybrid"]),
     "c-hr": ("Toyota C-HR", ["C-HR"]),
-    "camry": ("Toyota Camry", ["Camry", "Camry Hybrid"]),
-    "corolla": ("Toyota Corolla", ["Corolla", "Corolla Hybrid"]),
-    "corolla-cross": ("Toyota Corolla Cross", ["Corolla Cross", "Corolla Cross Hybrid"]),
+    "camry": ("Toyota Camry", ["Camry"]),
+    "camry-hybrid": ("File:2018 Toyota Camry Hybrid WAS 2017 1727.jpg", ["Camry Hybrid"]),
+    "corolla": ("Toyota Corolla", ["Corolla"]),
+    "corolla-hybrid": ("File:2020 Toyota Corolla Hybrid front NYIAS 2019.jpg", ["Corolla Hybrid"]),
+    "corolla-hatchback": ("File:2020 Toyota Corolla Hatchback XSE in Blizzard Pearl, Front Left, 09-02-2023.jpg", ["Corolla Hatchback"]),
+    "corolla-cross": ("Toyota Corolla Cross", ["Corolla Cross"]),
+    "corolla-cross-hybrid": ("File:Toyota Corolla Cross Hybrid 1X7A1861.jpg", ["Corolla Cross Hybrid"]),
     "corolla-im": ("Toyota Auris", ["Corolla iM"]),
     "crown": ("File:2023 Toyota Crown Crossover G in Black, front left.jpg", ["Crown"]),
     "crown-signia": ("File:2025 Toyota Crown Signia Limited in Storm Cloud, front right, 2025-04-14.jpg", ["Crown Signia"]),
     "gr-corolla": ("Toyota GR Corolla", ["GR Corolla"]),
-    "grand-highlander": ("Toyota Grand Highlander", ["Grand Highlander", "Grand Highlander Hybrid"]),
-    "highlander": ("Toyota Highlander", ["Highlander", "Highlander Hybrid"]),
+    "grand-highlander": ("Toyota Grand Highlander", ["Grand Highlander"]),
+    "grand-highlander-hybrid": ("File:24 Toyota Grand Highlander Hybrid MAX Platinum.jpg", ["Grand Highlander Hybrid"]),
+    "highlander": ("Toyota Highlander", ["Highlander"]),
+    "highlander-hybrid": ("File:2022 Toyota Highlander Hybrid Bronze Edition front.jpg", ["Highlander Hybrid"]),
     "land-cruiser": ("Toyota Land Cruiser Prado", ["Land Cruiser"]),
     "mirai": ("Toyota Mirai", ["Mirai"]),
     "prius": ("Toyota Prius", ["Prius", "Prius Prime", "Prius Prime (PHEV)", "Prius Plug-in Hybrid"]),
     "prius-c": ("Toyota Aqua", ["Prius C", "Prius c"]),
-    "rav4": ("Toyota RAV4", ["RAV4", "RAV4 Hybrid", "RAV4 Prime", "RAV4 Prime (PHEV)", "RAV4 Plug-in Hybrid"]),
+    "rav4": ("Toyota RAV4", ["RAV4", "RAV4 Prime", "RAV4 Prime (PHEV)", "RAV4 Plug-in Hybrid"]),
+    "rav4-hybrid": ("File:2022 Toyota RAV4 Hybrid LE in Midnight Black Metallic, front left.jpg", ["RAV4 Hybrid"]),
     "sequoia": ("Toyota Sequoia", ["Sequoia"]),
     "sienna": ("Toyota Sienna", ["Sienna"]),
     "supra": ("File:2023 Toyota GR Supra 3.0 in Cu Later, Front Left, 04-23-2023.jpg", ["Supra", "GR Supra"]),
-    "tacoma": ("Toyota Tacoma", ["Tacoma", "Tacoma Hybrid"]),
-    "tundra": ("Toyota Tundra", ["Tundra", "Tundra Hybrid"]),
+    "tacoma": ("Toyota Tacoma", ["Tacoma"]),
+    "tacoma-hybrid": ("File:25 Toyota Tacoma TRD Off-Road HV.jpg", ["Tacoma Hybrid"]),
+    "tundra": ("Toyota Tundra", ["Tundra"]),
+    "tundra-hybrid": ("File:23 Toyota Tundra Limited iForce Max.jpg", ["Tundra Hybrid"]),
     "venza": ("Toyota Venza", ["Venza"]),
     "yaris": ("Toyota Yaris", ["Yaris", "Yaris iA"]),
     "bz4x": ("Toyota bZ4X", ["bZ4X", "bZ"]),
@@ -144,6 +154,9 @@ def main(out_dir):
             print(f"FAIL {slug}: {exc}")
         mpath.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         time.sleep(3)
+    for slug in manifest:  # keep name lists in sync with MODELS
+        if slug in MODELS:
+            manifest[slug]["names"] = MODELS[slug][1]
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 

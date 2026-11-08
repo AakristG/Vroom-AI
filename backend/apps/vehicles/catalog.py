@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+from collections import Counter
 from typing import Any
 
-from .epa import fueleconomy
+from .epa import fueleconomy, owner
 from .http import ProviderError
 from .matching import canonical
 from .nhtsa import nhtsa
@@ -59,6 +60,22 @@ FUEL_BY_MODEL: dict[str, list[tuple[int, int, str]]] = {
     "Land Cruiser": [(2024, 2100, "Hybrid")],
 }
 
+# Variants Toyota sells under their own name but NHTSA lists under the base nameplate.
+# A variant joins a year's lineup only when EPA tested it separately that year AND the base
+# model still has its own EPA tests (so an all-hybrid year doesn't list the same car twice).
+VARIANTS: dict[str, str] = {
+    "Corolla Hatchback": "Corolla",
+    "Corolla Hybrid": "Corolla",
+    "Corolla Cross Hybrid": "Corolla Cross",
+    "Camry Hybrid": "Camry",
+    "RAV4 Hybrid": "RAV4",
+    "Highlander Hybrid": "Highlander",
+    "Grand Highlander Hybrid": "Grand Highlander",
+    "4Runner Hybrid": "4Runner",
+    "Tacoma Hybrid": "Tacoma",
+    "Tundra Hybrid": "Tundra",
+}
+
 CATEGORIES = ["Sedan", "Hatchback", "SUV", "Truck", "Minivan", "Sports car"]
 FUEL_TYPES = ["Gas", "Hybrid", "Plug-in hybrid", "Electric", "Hydrogen fuel cell"]
 
@@ -79,8 +96,36 @@ def years() -> list[int]:
     return list(range(today + 1, today - 11, -1))
 
 
+def lineup(year: int) -> list[dict]:
+    """NHTSA's models for the year plus the EPA-tested variants above, each right after its base model."""
+    rows = nhtsa.models_for_year(year)
+    names = [row["model"] for row in rows]
+    try:
+        epa_names = fueleconomy.model_names(year)
+    except Exception as exc:
+        logger.warning("EPA model list failed for %s: %s", year, exc)
+        epa_names = []
+    pending = [v for v, base in VARIANTS.items() if base in names and v not in names]
+    pool = names + pending
+    owned = Counter(owner(name, pool) for name in epa_names)
+    active = {v for v in pending if owned[v] and owned[VARIANTS[v]]}
+    out: list[dict] = []
+    for row in rows:
+        out.append(row)
+        for variant in VARIANTS:
+            if variant in active and VARIANTS[variant] == row["model"]:
+                out.append({**row, "model": variant, "model_id": None, "variant_of": row["model"]})
+    return out
+
+
+def base_model(year: int, model: str) -> str:
+    """NHTSA nameplate for a catalog entry (variants share their base model's safety and recall data)."""
+    row = _find_model(lineup(year), model)
+    return (row.get("variant_of") or row["model"]) if row else model
+
+
 def models(year: int) -> list[str]:
-    return [row["model"] for row in nhtsa.models_for_year(year)]
+    return [row["model"] for row in lineup(year)]
 
 
 def trims(year: int, model: str) -> list[str]:
@@ -90,7 +135,7 @@ def trims(year: int, model: str) -> list[str]:
 
 
 def catalog(year: int) -> list[dict]:
-    rows = nhtsa.models_for_year(year)
+    rows = lineup(year)
     type_index = _type_index(year)
     images = _images_for([row["model"] for row in rows], year)
     return [_record(row, type_index, images.get(row["model"])) for row in rows]
@@ -98,20 +143,21 @@ def catalog(year: int) -> list[dict]:
 
 def detail(year: int, model: str, trim: str | None = None) -> dict | None:
     del trim  # NHTSA catalog is model-level; trim is accepted for URL compatibility.
-    rows = nhtsa.models_for_year(year)
+    rows = lineup(year)
     row = _find_model(rows, model)
     if not row:
         return None
+    nameplate = row.get("variant_of") or row["model"]
     type_index = _type_index(year)
     images = _images_for([row["model"]], year)
     record = _record(row, type_index, images.get(row["model"]))
     try:
-        safety = nhtsa.safety(row["model"], year)
+        safety = nhtsa.safety(nameplate, year)
     except ProviderError as exc:
         logger.warning("NHTSA safety failed for %s %s: %s", year, model, exc)
         safety = {"available": False, "overall_rating": None, "reason": "Safety rating unavailable", "source": "NHTSA"}
     try:
-        recalls = nhtsa.recalls(row["model"], year)
+        recalls = nhtsa.recalls(nameplate, year)
     except ProviderError as exc:
         logger.warning("NHTSA recalls failed for %s %s: %s", year, model, exc)
         recalls = {"count": None, "campaigns": [], "note": "Recall data is unavailable right now.", "source": "NHTSA"}
@@ -123,7 +169,7 @@ def detail(year: int, model: str, trim: str | None = None) -> dict | None:
     record["sources"]["safety"] = "NHTSA" if safety.get("source") == "NHTSA" else None
     record["sources"]["recalls"] = "NHTSA" if recalls.get("source") == "NHTSA" else None
     try:
-        epa = fueleconomy.for_model(year, row["model"])
+        epa = fueleconomy.for_model(year, row["model"], [r["model"] for r in rows])
     except Exception as exc:
         logger.warning("EPA FuelEconomy failed for %s %s: %s", year, model, exc)
         epa = None
@@ -172,7 +218,7 @@ def detail(year: int, model: str, trim: str | None = None) -> dict | None:
 
 def image(year: int, model: str, trim: str | None = None) -> dict | None:
     del trim
-    rows = nhtsa.models_for_year(year)
+    rows = lineup(year)
     row = _find_model(rows, model)
     name = row["model"] if row else model
     images = _images_for([name], year)
@@ -213,13 +259,14 @@ def _find_model(rows: list[dict], model: str) -> dict | None:
 def _record(row: dict, type_index: dict[str, str], image_payload: dict | None) -> dict[str, Any]:
     year = int(row["year"])
     model = row["model"]
-    nhtsa_type = type_index.get(model.lower())
+    nhtsa_type = type_index.get(model.lower()) or type_index.get((row.get("variant_of") or "").lower())
     match = (image_payload or {}).get("match") or "unavailable"
     return {
         "id": vehicle_id(year, model, None),
         "year": year,
         "make": row.get("make") or MAKE,
         "model": model,
+        "variant_of": row.get("variant_of"),
         "make_id": row.get("make_id"),
         "model_id": row.get("model_id"),
         "trim": None,

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getVehicleImage, vehiclePath, type VehicleImage, type VehicleRecord } from "../../api/vehicles";
 import { cn } from "../../lib/format";
-import { categoryLabel, efficiency, NA, num } from "../../lib/spec";
+import { efficiency, NA, num } from "../../lib/spec";
 import { COMPARE_LIMIT, useCompare } from "../../state/compare";
 import { SourceBadge } from "../ui/kit";
 
@@ -31,9 +31,6 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
   }, [v, image, inView, eager]);
 
   const url = image?.url;
-  const match = image?.match || v.image_match;
-  const provider = image?.provider || v.sources?.images;
-  const credit = provider === "Wikimedia Commons" ? (image?.author ? `© ${image.author}` : "Wikimedia Commons") : null;
 
   return (
     <div ref={ref} className={cn("relative grid place-items-center overflow-hidden bg-gradient-to-b from-[#f1f1ef] to-[#e4e4e1]", className)}>
@@ -46,16 +43,6 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
             onError={() => setFailed(true)}
             className="h-full w-full object-cover"
           />
-          {match === "generation" && (
-            <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
-              Representative photo
-            </span>
-          )}
-          {credit && (
-            <span className="absolute bottom-2 right-2 max-w-[55%] truncate rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
-              {credit}
-            </span>
-          )}
         </>
       ) : (
         <div className="flex flex-col items-center gap-2 px-6 text-center text-muted">
@@ -81,7 +68,8 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium text-muted">
-              {v.year} · {categoryLabel(v)}
+              {v.year}
+              {v.category ? ` · ${v.category}` : ""}
               {v.fuel_type ? ` · ${v.fuel_type}` : ""}
             </p>
             <h3 className="mt-1 text-xl font-semibold tracking-tight">
@@ -94,8 +82,8 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          <Spec label="Category" value={categoryLabel(v)} />
-          <Spec label="Fuel" value={v.fuel_type ?? "Unclassified"} />
+          {v.category ? <Spec label="Category" value={v.category} /> : null}
+          {v.fuel_type ? <Spec label="Fuel" value={v.fuel_type} /> : null}
           {v.vehicle_type ? <Spec label="NHTSA type" value={v.vehicle_type} wide /> : null}
           {v.engine ? <Spec label="Engine" value={v.engine} wide /> : null}
           {v.horsepower != null ? <Spec label="Horsepower" value={num(v.horsepower, " hp")} /> : null}
@@ -103,9 +91,6 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
           {v.drivetrain ? <Spec label="Drivetrain" value={v.drivetrain} /> : null}
           {v.seating != null ? <Spec label="Seats" value={num(v.seating)} /> : null}
         </dl>
-        {!v.engine && v.horsepower == null && (
-          <p className="mt-3 text-xs text-muted">NHTSA vPIC lists make, model, and year. Trim-level specs are not in this dataset.</p>
-        )}
 
         <div className="mt-auto flex items-end justify-end gap-3 border-t border-line pt-4">
           <button

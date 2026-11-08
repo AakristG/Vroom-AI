@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { profiles } from "../data/types";
 import { cn, money } from "../lib/format";
 import { heroClips } from "../media/heroClips";
-import { CATEGORY_IMAGE, IMAGE_NOTE, modelImage, modelImageLabel, modelImageNote, type CategoryKey } from "../media/vehicleImages";
+import { CATEGORY_IMAGE, IMAGE_NOTE, modelImage, modelImageNote, type CategoryKey } from "../media/vehicleImages";
 import { getCatalog, getCatalogStatus } from "../api/vehicles";
 import { useAuth } from "../state/auth";
 import { useAssistant, usePageContext } from "../state/assistant";
@@ -428,7 +428,6 @@ function CategoryExplorer() {
               />
             </AnimatePresence>
             <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-2/3 bg-gradient-to-t from-charcoal/90 via-charcoal/40 to-transparent" />
-            <span className="absolute right-4 top-4 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-medium text-ink/70 backdrop-blur">Representative AI image</span>
 
             <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
               <AnimatePresence mode="wait" initial={false}>
@@ -565,7 +564,6 @@ function PersonaSelector() {
                 </div>
                 <div className="relative min-h-[16rem] bg-gradient-to-b from-[#efeeec] to-[#d9d8d4]">
                   <img src={modelImage(p.vehicle.model)} alt={`Representative image of a Toyota ${p.vehicle.model}`} title={modelImageNote(p.vehicle.model)} className="absolute inset-0 h-full w-full object-cover" />
-                  <span className="absolute bottom-4 right-4 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-medium text-ink/70 backdrop-blur">{modelImageLabel(p.vehicle.model)}</span>
                 </div>
               </motion.div>
             </AnimatePresence>

@@ -55,8 +55,7 @@
   },
   "camry": {
     "names": [
-      "Camry",
-      "Camry Hybrid"
+      "Camry"
     ],
     "file": "camry.jpg",
     "article": "Toyota Camry",
@@ -69,8 +68,7 @@
   },
   "corolla": {
     "names": [
-      "Corolla",
-      "Corolla Hybrid"
+      "Corolla"
     ],
     "file": "corolla.jpg",
     "article": "Toyota Corolla",
@@ -83,8 +81,7 @@
   },
   "corolla-cross": {
     "names": [
-      "Corolla Cross",
-      "Corolla Cross Hybrid"
+      "Corolla Cross"
     ],
     "file": "corolla-cross.jpg",
     "article": "Toyota Corolla Cross",
@@ -149,8 +146,7 @@
   },
   "grand-highlander": {
     "names": [
-      "Grand Highlander",
-      "Grand Highlander Hybrid"
+      "Grand Highlander"
     ],
     "file": "grand-highlander.jpg",
     "article": "Toyota Grand Highlander",
@@ -163,8 +159,7 @@
   },
   "highlander": {
     "names": [
-      "Highlander",
-      "Highlander Hybrid"
+      "Highlander"
     ],
     "file": "highlander.jpg",
     "article": "Toyota Highlander",
@@ -234,7 +229,6 @@
   "rav4": {
     "names": [
       "RAV4",
-      "RAV4 Hybrid",
       "RAV4 Prime",
       "RAV4 Prime (PHEV)",
       "RAV4 Plug-in Hybrid"
@@ -276,8 +270,7 @@
   },
   "tacoma": {
     "names": [
-      "Tacoma",
-      "Tacoma Hybrid"
+      "Tacoma"
     ],
     "file": "tacoma.jpg",
     "article": "Toyota Tacoma",
@@ -290,8 +283,7 @@
   },
   "tundra": {
     "names": [
-      "Tundra",
-      "Tundra Hybrid"
+      "Tundra"
     ],
     "file": "tundra.jpg",
     "article": "Toyota Tundra",
@@ -369,5 +361,135 @@
     "license": "CC BY-SA 4.0",
     "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
     "description": "2023 Toyota GR Supra 3.0 photographed in Sault Ste. Marie, Ontario, Canada."
+  },
+  "4runner-hybrid": {
+    "names": [
+      "4Runner Hybrid"
+    ],
+    "file": "4runner-hybrid.jpg",
+    "article": null,
+    "commons_file": "Toyota 4Runner 2026.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_4Runner_2026.jpg",
+    "author": "Gogerr",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota 4Runner 2026"
+  },
+  "camry-hybrid": {
+    "names": [
+      "Camry Hybrid"
+    ],
+    "file": "camry-hybrid.jpg",
+    "article": null,
+    "commons_file": "2018 Toyota Camry Hybrid WAS 2017 1727.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2018_Toyota_Camry_Hybrid_WAS_2017_1727.jpg",
+    "author": "Mariordo (Mario Roberto Durán Ortiz)",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "New 2018 Toyota Camry Hybrid (XV70) exhibited at the 2017 Washington Auto Show, DC, US."
+  },
+  "corolla-hybrid": {
+    "names": [
+      "Corolla Hybrid"
+    ],
+    "file": "corolla-hybrid.jpg",
+    "article": null,
+    "commons_file": "2020 Toyota Corolla Hybrid front NYIAS 2019.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2020_Toyota_Corolla_Hybrid_front_NYIAS_2019.jpg",
+    "author": "Kevauto",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "A 2020 Toyota Corolla Hybrid photographed during the 2019 New York International Auto Show, in Hudson Yards, Manhattan, NYC"
+  },
+  "corolla-hatchback": {
+    "names": [
+      "Corolla Hatchback"
+    ],
+    "file": "corolla-hatchback.jpg",
+    "article": null,
+    "commons_file": "2020 Toyota Corolla Hatchback XSE in Blizzard Pearl, Front Left, 09-02-2023.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2020_Toyota_Corolla_Hatchback_XSE_in_Blizzard_Pearl,_Front_Left,_09-02-2023.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2020 Toyota Corolla Hatchback XSE photographed in Batchawana Bay, Ontario, Canada."
+  },
+  "corolla-cross-hybrid": {
+    "names": [
+      "Corolla Cross Hybrid"
+    ],
+    "file": "corolla-cross-hybrid.jpg",
+    "article": null,
+    "commons_file": "Toyota Corolla Cross Hybrid 1X7A1861.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_Corolla_Cross_Hybrid_1X7A1861.jpg",
+    "author": "Alexander-93",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota Corolla Cross Hybrid in Stuttgart"
+  },
+  "grand-highlander-hybrid": {
+    "names": [
+      "Grand Highlander Hybrid"
+    ],
+    "file": "grand-highlander-hybrid.jpg",
+    "article": null,
+    "commons_file": "24 Toyota Grand Highlander Hybrid MAX Platinum.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:24_Toyota_Grand_Highlander_Hybrid_MAX_Platinum.jpg",
+    "author": "HJUdall",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "description": "24 Toyota Grand Highlander Hybrid MAX Platinum - Shot at Earnhardt Chandler Cadillac in Chandler AZ"
+  },
+  "highlander-hybrid": {
+    "names": [
+      "Highlander Hybrid"
+    ],
+    "file": "highlander-hybrid.jpg",
+    "article": null,
+    "commons_file": "2022 Toyota Highlander Hybrid Bronze Edition front.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2022_Toyota_Highlander_Hybrid_Bronze_Edition_front.jpg",
+    "author": "DestinationFearFan",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota Highlander Hybrid"
+  },
+  "rav4-hybrid": {
+    "names": [
+      "RAV4 Hybrid"
+    ],
+    "file": "rav4-hybrid.jpg",
+    "article": null,
+    "commons_file": "2022 Toyota RAV4 Hybrid LE in Midnight Black Metallic, front left.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2022_Toyota_RAV4_Hybrid_LE_in_Midnight_Black_Metallic,_front_left.jpg",
+    "author": "Mr.choppers",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "description": "2022 Toyota RAV4 Hybrid LE in Midnight Black Metallic (218) with Black interior and 17\" five-spoke alloys in Silver. Order date February 2022. A25A-FXS, 3NM+4NM(Ni) hybrid engine and a CVT, built by T"
+  },
+  "tacoma-hybrid": {
+    "names": [
+      "Tacoma Hybrid"
+    ],
+    "file": "tacoma-hybrid.jpg",
+    "article": null,
+    "commons_file": "25 Toyota Tacoma TRD Off-Road HV.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:25_Toyota_Tacoma_TRD_Off-Road_HV.jpg",
+    "author": "HJUdall",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "description": "25 Toyota Tacoma TRD Off-Road HV - Shot at Earnhardt Toyota in Mesa AZ"
+  },
+  "tundra-hybrid": {
+    "names": [
+      "Tundra Hybrid"
+    ],
+    "file": "tundra-hybrid.jpg",
+    "article": null,
+    "commons_file": "23 Toyota Tundra Limited iForce Max.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:23_Toyota_Tundra_Limited_iForce_Max.jpg",
+    "author": "HJUdall",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "description": "23 Toyota Tundra Limited iForce Max - Shot at Earnhardt Chrysler Dodge Jeep Ram in Gilbert AZ"
   }
 }

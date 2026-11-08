@@ -98,15 +98,7 @@ export function VehicleDetailPage() {
                 </label>
               )}
 
-              <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-line bg-line">
-                <Stat
-                  label={v.fuel_type === "Electric" ? "Efficiency" : "Combined"}
-                  value={v.fuel_type === "Electric" ? mpgRange(v.mpge, null, "") : mpgRange(v.mpg.combined, v.mpg.combined_high, "")}
-                  unit={v.fuel_type === "Electric" ? (v.mpge ? "MPGe" : "") : v.mpg.combined ? "mpg" : ""}
-                />
-                <Stat label="Fuel" value={v.fuel_type ?? NA} />
-                <Stat label="Category" value={v.category ?? NA} />
-              </div>
+              <HeroStats v={v} />
               {v.epa?.note ? <p className="mt-3 text-xs text-muted">{v.epa.note}</p> : null}
 
               <div className="mt-7 flex flex-wrap gap-3">
@@ -202,6 +194,32 @@ export function VehicleDetailPage() {
   );
 }
 
+/** Headline figures; any without data are left out rather than shown as "Not available". */
+function HeroStats({ v }: { v: VehicleRecord }) {
+  const efficiency = v.fuel_type === "Electric" ? v.mpge : v.mpg.combined;
+  const stats: { label: string; value: string; unit?: string }[] = [];
+  if (efficiency != null) {
+    stats.push(
+      v.fuel_type === "Electric"
+        ? { label: "Efficiency", value: mpgRange(v.mpge, null, ""), unit: "MPGe" }
+        : { label: "Combined", value: mpgRange(v.mpg.combined, v.mpg.combined_high, ""), unit: "mpg" }
+    );
+  }
+  if (v.fuel_type) stats.push({ label: "Fuel", value: v.fuel_type });
+  if (v.category) stats.push({ label: "Category", value: v.category });
+  if (!stats.length) return null;
+  return (
+    <div
+      className="mt-6 grid gap-px overflow-hidden rounded-2xl border border-line bg-line"
+      style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}
+    >
+      {stats.map((s) => (
+        <Stat key={s.label} {...s} />
+      ))}
+    </div>
+  );
+}
+
 function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
     <div className="bg-paper p-4">
@@ -215,18 +233,7 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
 
 function SpecCard({ title, rows }: { title: string; rows: [string, string | null | undefined][] }) {
   const filled = rows.filter(([, val]) => val && val !== NA);
-  if (!filled.length) {
-    return (
-      <Reveal className="card p-6">
-        <h2 className="font-semibold">{title}</h2>
-        <p className="mt-3 text-sm text-muted">
-          {title === "Dimensions"
-            ? "NHTSA and EPA do not publish exterior measurements for this model."
-            : "No verified figures from NHTSA or EPA for these fields."}
-        </p>
-      </Reveal>
-    );
-  }
+  if (!filled.length) return null;
   return (
     <Reveal className="card p-6">
       <h2 className="font-semibold">{title}</h2>

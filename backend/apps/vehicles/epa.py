@@ -7,14 +7,15 @@ Does not publish horsepower, seating, or exterior dimensions.
 from __future__ import annotations
 
 import logging
-from typing import Any
+import re
+from typing import Any, Iterable
 from urllib.parse import quote
 
 from django.conf import settings
 from django.core.cache import caches
 
 from .http import ProviderError, ProviderNotFound, request_json
-from .matching import base_nameplate
+from .matching import canonical, normalize
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +23,81 @@ TTL_MENU = 60 * 60 * 24
 TTL_VEHICLE = 60 * 60 * 24
 MAX_CONFIGS = 12
 
+# EPA tests these powertrain/body variants under their own model names. Most specific first.
+# A name matching a family belongs to the catalog entry of that family (a lineup variant or an
+# NHTSA model such as "RAV4 Prime (PHEV)"); if the year has no such entry it falls back to the
+# base nameplate by prefix.
+FAMILY_RULES: list[tuple[str, re.Pattern[str]]] = [
+    (family, re.compile(pattern))
+    for family, pattern in [
+        ("Corolla Cross Hybrid", r"^corolla cross hybrid\b"),
+        ("Corolla Hatchback", r"^corolla hatchback\b"),
+        ("Corolla Hybrid", r"^corolla hybrid\b"),
+        ("Camry Hybrid", r"^camry (hybrid|hev)\b"),
+        ("RAV4 Plug-in Hybrid", r"^rav4 (prime|phev|plug)\b"),
+        ("RAV4 Hybrid", r"^rav4 hybrid\b"),
+        ("Prius Plug-in Hybrid", r"^prius (prime|phev|plug)\b"),
+        ("Grand Highlander Hybrid", r"^grand highlander hybrid\b"),
+        ("Highlander Hybrid", r"^highlander hybrid\b"),
+        ("Tacoma Hybrid", r"^tacoma hybrid\b"),
+        ("Tundra Hybrid", r"^tundra hybrid\b"),
+        ("4Runner Hybrid", r"^4runner hybrid\b"),
+    ]
+]
+_PARENS = re.compile(r"\([^)]*\)")
+_TIRE = re.compile(r"\b\d{3}/\d{2}r\d{2}\b|\b\d{2} ?inch\b", re.I)
+
+
+def _key(name: str) -> str:
+    return canonical(_TIRE.sub(" ", _PARENS.sub(" ", name or "")))
+
+
+def family_of(name: str) -> str | None:
+    text = re.sub(r"\s+", " ", _PARENS.sub(" ", name or "").lower()).strip()
+    for family, pattern in FAMILY_RULES:
+        if pattern.search(text):
+            return family
+    return None
+
+
+def owner(epa_name: str, candidates: Iterable[str]) -> str | None:
+    """The catalog entry an EPA model name belongs to, or None if no candidate covers it."""
+    candidates = list(candidates)
+    family = family_of(epa_name)
+    if family:
+        for candidate in candidates:
+            if family_of(candidate) == family:
+                return candidate
+    # Every leading run of words, spelling-canonicalized ("c hr awd" -> {"chr", "chr awd", ...}).
+    words = normalize(_TIRE.sub(" ", _PARENS.sub(" ", epa_name or ""))).split()
+    prefixes = {canonical(" ".join(words[:i])): i for i in range(1, len(words) + 1)}
+    best: str | None = None
+    best_len = 0
+    for candidate in candidates:
+        if family_of(candidate):
+            continue  # Family entries only take names of their own family.
+        length = prefixes.get(_key(candidate), 0)
+        if length > best_len:
+            best, best_len = candidate, length
+    return best
+
 
 class FuelEconomyService:
     def __init__(self) -> None:
         self.base = settings.EPA_FUELECONOMY_BASE_URL.rstrip("/")
         self.cache = caches["vehicles"]
 
-    def for_model(self, year: int, nhtsa_model: str) -> dict | None:
+    def model_names(self, year: int) -> list[str]:
+        return self._toyota_models(year)
+
+    def for_model(self, year: int, nhtsa_model: str, candidates: Iterable[str] | None = None) -> dict | None:
+        """EPA figures for one catalog entry. `candidates` is every entry in that year's lineup,
+        so a base model like RAV4 does not absorb RAV4 Hybrid or RAV4 Prime tests."""
+        pool = list(candidates or []) or [nhtsa_model]
+        if nhtsa_model not in pool:
+            pool.append(nhtsa_model)
         names = self._toyota_models(year)
-        matched = [name for name in names if base_nameplate(name) == base_nameplate(nhtsa_model)]
+        matched = [name for name in names if owner(name, pool) == nhtsa_model]
         if not matched:
             return None
         configs: list[dict] = []

@@ -124,7 +124,7 @@ class CatalogRecordTests(SimpleTestCase):
         from .photos import photo_for
 
         self.assertTrue(photo_for("RAV4 Prime (PHEV)")["url"].endswith("rav4.jpg"))
-        self.assertTrue(photo_for("Camry Hybrid")["url"].endswith("camry.jpg"))
+        self.assertTrue(photo_for("RAV4 Hybrid")["url"].endswith("rav4-hybrid.jpg"))
         self.assertTrue(photo_for("GR86")["url"].endswith("86.jpg"))
 
     def test_similar_names_do_not_share_photos(self):
@@ -148,6 +148,56 @@ class CatalogRecordTests(SimpleTestCase):
         for slug, entry in manifest.items():
             for key in ("author", "license", "source_page", "file"):
                 self.assertTrue(entry.get(key), f"{slug} is missing {key}")
+
+
+class LineupTests(SimpleTestCase):
+    NHTSA_2026 = [{"year": 2026, "make": "Toyota", "model": m, "make_id": 448, "model_id": i}
+                  for i, m in enumerate(["Corolla", "Camry", "RAV4", "RAV4 Prime (PHEV)", "C-HR", "Tundra"])]
+    EPA_2026 = [
+        "Corolla", "Corolla (1-mode TM)", "Corolla Hatchback", "Corolla Hatchback XSE", "Corolla Hybrid AWD",
+        "Camry HEV AWD LE", "Camry HEV FF SE/XLE/XSE",
+        "RAV4", "RAV4 AWD XLE", "RAV4 Hybrid AWD Woodland Edition", "RAV4 Prime 4WD",
+        "C-HR AWD 18inch", "Tundra 4WD TRD Perf", "Tundra Hybrid 4WD PRO",
+    ]
+
+    def _lineup(self):
+        from unittest import mock
+
+        from . import catalog
+
+        with mock.patch.object(catalog.nhtsa, "models_for_year", return_value=self.NHTSA_2026),                 mock.patch.object(catalog.fueleconomy, "model_names", return_value=self.EPA_2026):
+            return catalog.lineup(2026)
+
+    def test_variants_follow_their_base_model(self):
+        names = [row["model"] for row in self._lineup()]
+        self.assertEqual(
+            names,
+            ["Corolla", "Corolla Hatchback", "Corolla Hybrid", "Camry", "RAV4", "RAV4 Hybrid",
+             "RAV4 Prime (PHEV)", "C-HR", "Tundra", "Tundra Hybrid"],
+        )
+
+    def test_all_hybrid_year_does_not_duplicate_the_base_model(self):
+        names = [row["model"] for row in self._lineup()]
+        self.assertNotIn("Camry Hybrid", names)  # every 2026 Camry EPA test is a hybrid
+
+    def test_variant_rows_point_at_their_nameplate(self):
+        rows = {row["model"]: row for row in self._lineup()}
+        self.assertEqual(rows["Tundra Hybrid"]["variant_of"], "Tundra")
+        self.assertIsNone(rows["Tundra"].get("variant_of"))
+
+    def test_epa_names_are_not_double_counted(self):
+        from .epa import owner
+
+        pool = [row["model"] for row in self._lineup()]
+        owned = {name: owner(name, pool) for name in self.EPA_2026}
+        self.assertEqual(owned["RAV4 Hybrid AWD Woodland Edition"], "RAV4 Hybrid")
+        self.assertEqual(owned["RAV4 Prime 4WD"], "RAV4 Prime (PHEV)")
+        self.assertEqual(owned["RAV4 AWD XLE"], "RAV4")
+        self.assertEqual(owned["Corolla Hatchback XSE"], "Corolla Hatchback")
+        self.assertEqual(owned["Corolla (1-mode TM)"], "Corolla")
+        self.assertEqual(owned["C-HR AWD 18inch"], "C-HR")
+        self.assertEqual(owned["Camry HEV AWD LE"], "Camry")  # no Camry Hybrid entry this year
+        self.assertEqual(owned["Tundra Hybrid 4WD PRO"], "Tundra Hybrid")
 
 
 class AuthRedirectTests(SimpleTestCase):

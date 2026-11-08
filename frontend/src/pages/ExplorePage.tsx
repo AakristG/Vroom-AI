@@ -133,7 +133,12 @@ export function ExplorePage() {
   const categories = status?.categories ?? [];
   const heroImage = category ? CATEGORY_IMAGE[categoryKey(category, fuel)] : fuel === "Electric" ? CATEGORY_IMAGE.electric : fuel ? CATEGORY_IMAGE.hybrids : CATEGORY_IMAGE.trucks;
   const fuels = status?.fuel_types ?? [];
-  const seatOptions = ["2", "4", "5", "7", "8"];
+  const loaded = active.state === "ready" ? active.data : [];
+  // Seats and horsepower are not in NHTSA/EPA data, so their controls only appear when some vehicle has them.
+  const seatOptions = [...new Set(loaded.flatMap((v) => (v.seating != null ? [String(v.seating)] : [])))].sort((a, b) => +a - +b);
+  const sortOptions = (Object.keys(SORTS) as SortKey[]).filter(
+    (k) => (k !== "hp" || loaded.some((v) => v.horsepower != null)) && (k !== "seats" || loaded.some((v) => v.seating != null))
+  );
 
   return (
     <main className="pb-28">
@@ -177,12 +182,14 @@ export function ExplorePage() {
           <Select label="Model year" value={String(year || "")} onChange={(v) => set("year", v)} options={years.map((y) => [String(y), String(y)])} />
           <Select label="Model" value={model} onChange={(v) => set("model", v)} options={[["", "All models"], ...models.map((m) => [m, m] as [string, string])]} />
           <Select label="Fuel type" value={fuel} onChange={(v) => set("fuel", v)} options={[["", "Any fuel"], ...fuels.map((f) => [f, f] as [string, string])]} />
-          <Select label="Seats" value={seats} onChange={(v) => set("seats", v)} options={[["", "Any seats"], ...seatOptions.map((n) => [n, `${n} seats`] as [string, string])]} />
+          {seatOptions.length > 0 && (
+            <Select label="Seats" value={seats} onChange={(v) => set("seats", v)} options={[["", "Any seats"], ...seatOptions.map((n) => [n, `${n} seats`] as [string, string])]} />
+          )}
           <Select
             label="Sort"
             value={sort}
             onChange={(v) => set("sort", v)}
-            options={Object.entries(SORTS).map(([k, s]) => [k, s.label] as [string, string])}
+            options={sortOptions.map((k) => [k, SORTS[k].label] as [string, string])}
             icon
           />
         </div>

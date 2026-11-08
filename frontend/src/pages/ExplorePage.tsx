@@ -16,7 +16,6 @@ import {
 } from "../api/vehicles";
 import { CompareTray } from "../components/vehicles/CompareTray";
 import { VehicleCard } from "../components/vehicles/VehicleCard";
-import { SignInGate } from "../components/SignInGate";
 import { EmptyState, ErrorState, Skeleton, SourceBanner } from "../components/ui/kit";
 import { EASE, Stagger, StaggerItem } from "../components/ui/motion";
 import { CATEGORY_IMAGE, categoryKey } from "../media/vehicleImages";
@@ -44,7 +43,7 @@ type SortKey = keyof typeof SORTS;
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T; source: DataSource; fallback: string | null };
 
 export function ExplorePage() {
-  const { profile, account, ready } = useAuth();
+  const { account } = useAuth();
   const [params, setParams] = useSearchParams();
   const [status, setStatus] = useState<CatalogStatus | null>(null);
   const [years, setYears] = useState<number[]>([]);
@@ -52,7 +51,7 @@ export function ExplorePage() {
   const [trimCards, setTrimCards] = useState<Load<VehicleRecord[]> | null>(null);
   const [reload, setReload] = useState(0);
 
-  const preferredYear = years.includes(2026) ? 2026 : years[0] || 0;
+  const preferredYear = (status?.default_year && years.includes(status.default_year) ? status.default_year : years[0]) || 0;
   const year = Number(params.get("year")) || preferredYear;
   const model = params.get("model") ?? "";
   const category = params.get("category") ?? "";
@@ -130,7 +129,7 @@ export function ExplorePage() {
       .filter((v) => !category || v.category === category)
       .filter((v) => !seats || String(v.seating ?? "") === seats)
       .filter((v) => !fuel || v.fuel_type === fuel)
-      .filter((v) => !needle || `${v.model} ${v.trim ?? ""} ${v.category}`.toLowerCase().includes(needle))
+      .filter((v) => !needle || `${v.model} ${v.trim ?? ""} ${v.category ?? ""}`.toLowerCase().includes(needle))
       .sort(SORTS[sort].fn);
   }, [active, category, fuel, q, seats, sort]);
 
@@ -143,9 +142,6 @@ export function ExplorePage() {
   const heroImage = category ? CATEGORY_IMAGE[categoryKey(category, fuel)] : fuel === "Electric" ? CATEGORY_IMAGE.electric : fuel ? CATEGORY_IMAGE.hybrids : CATEGORY_IMAGE.trucks;
   const fuels = status?.fuel_types ?? [];
   const seatOptions = ["2", "4", "5", "7", "8"];
-
-  if (!ready) return <main className="min-h-[50vh] pt-32" />;
-  if (!profile) return <SignInGate next="/vehicles" title="Sign in to see Toyota models." />;
 
   return (
     <main className="pb-28">
@@ -251,7 +247,7 @@ export function ExplorePage() {
           ) : active.state === "error" ? (
             <ErrorState message={active.message} onRetry={() => setReload((n) => n + 1)} />
           ) : shown.length === 0 ? (
-            <EmptyState title="No vehicles match those filters.">Try a different category, fuel type, or search.</EmptyState>
+            <EmptyState title="No matching Toyota models were found for this selection.">Try a different category, fuel type, or search.</EmptyState>
           ) : (
             <Stagger key={`${year}-${model}-${category}-${seats}-${fuel}-${sort}-${safePage}`} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {pageItems.map((v) => (
@@ -285,7 +281,7 @@ export function ExplorePage() {
 
 function recommend(list: VehicleRecord[], life: string) {
   const priced = list.filter((v) => v.msrp.value != null).sort((a, b) => (a.msrp.value ?? 0) - (b.msrp.value ?? 0));
-  if (!priced.length) return null;
+  if (!priced.length) return null; // NHTSA does not supply MSRP, so this stays empty.
   const text = life.toLowerCase();
   const trade = priced[0];
   let situation = priced[Math.floor(priced.length / 2)];
@@ -298,8 +294,8 @@ function recommend(list: VehicleRecord[], life: string) {
     trade,
     situation,
     reason: life
-      ? `Based on what you told us: “${life}”. Prices are CarsXE base MSRP, not a financing offer.`
-      : "Based on the payment and vehicle on your account. Prices are CarsXE base MSRP, not a financing offer.",
+      ? `Based on what you told us: “${life}”. Verified pricing is not currently connected.`
+      : "Based on the payment and vehicle on your account. Verified pricing is not currently connected.",
   };
 }
 

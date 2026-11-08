@@ -1,4 +1,4 @@
-import { AlertTriangle, Database, FlaskConical, RefreshCw } from "lucide-react";
+import { AlertTriangle, Database, RefreshCw } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import type { DataSource } from "../../api/vehicles";
@@ -24,16 +24,9 @@ export function PageIntro({ eyebrow, title, children, aside }: { eyebrow: string
 }
 
 export function SourceBadge({ source, className }: { source: DataSource; className?: string }) {
-  return source === "carsxe" ? (
+  return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full bg-go/10 px-2.5 py-1 text-[11px] font-semibold text-go", className)}>
-      <Database className="h-3 w-3" /> CarsXE data
-    </span>
-  ) : (
-    <span
-      className={cn("inline-flex items-center gap-1.5 rounded-full bg-sodium/20 px-2.5 py-1 text-[11px] font-semibold text-caution", className)}
-      title="Demo reference data compiled for this prototype. Not from CarsXE and not verified."
-    >
-      <FlaskConical className="h-3 w-3" /> Demo data
+      <Database className="h-3 w-3" /> NHTSA
     </span>
   );
 }
@@ -47,20 +40,12 @@ export function SimulatedBadge({ className }: { className?: string }) {
 }
 
 export function SourceBanner({ source, fallbackReason }: { source: DataSource; fallbackReason?: string | null }) {
-  if (source === "carsxe")
-    return (
-      <p className="flex items-center gap-2 text-sm text-muted">
-        <SourceBadge source="carsxe" /> Live specifications from CarsXE. MSRP is the original base price for that model year.
-      </p>
-    );
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-sodium/40 bg-sodium/10 px-4 py-3 text-sm">
-      <SourceBadge source="demo" />
-      <span className="text-ink/80">
-        {fallbackReason ? `CarsXE is unavailable (${fallbackReason}). ` : "CarsXE is not connected. "}
-        Showing hand-compiled demo reference figures that are not verified. Missing values read "Not available".
-      </span>
-    </div>
+    <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
+      <SourceBadge source={source} /> Model list from NHTSA vPIC. Images from CarImagesAPI when a catalog match exists.
+      Verified pricing is not currently connected.
+      {fallbackReason ? ` ${fallbackReason}` : ""}
+    </p>
   );
 }
 

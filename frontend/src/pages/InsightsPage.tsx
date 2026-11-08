@@ -17,7 +17,6 @@ import {
   YAxis,
 } from "recharts";
 import { LoanSimulator } from "../components/insights/LoanSimulator";
-import { SignInGate } from "../components/SignInGate";
 import { AccountHero } from "../components/AccountHero";
 import { NewAccountView } from "../components/NewAccountView";
 import { isNewAccount } from "../lib/sessionProfile";
@@ -40,7 +39,7 @@ const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day
 export function InsightsPage() {
   const { profile } = useAuth();
   usePageContext("insights");
-  if (!profile) return <SignInGate next="/insights" title="Sign in to see your financial insights." />;
+  if (!profile) return null;
   if (isNewAccount(profile)) return <NewAccountView key={profile.customer.customer_id} p={profile} eyebrow="Financial insights" />;
   return <Dashboard key={profile.customer.customer_id} p={profile} />;
 }

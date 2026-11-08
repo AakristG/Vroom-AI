@@ -14,5 +14,7 @@ export function efficiency(v: VehicleRecord) {
 
 export const vehicleName = (v: { year: number; model: string; trim: string | null }) => `${v.year} ${v.model}${v.trim ? ` ${v.trim}` : ""}`;
 
+export const categoryLabel = (v: { category: string | null }) => v.category || "Unclassified";
+
 /** Score used for sorting by efficiency: MPGe for EVs, combined MPG otherwise. */
 export const efficiencyScore = (v: VehicleRecord) => (v.fuel_type === "Electric" ? v.mpge : v.mpg.combined) ?? null;

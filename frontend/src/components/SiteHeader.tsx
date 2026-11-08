@@ -160,7 +160,10 @@ export function SiteHeader() {
               <UserRound className="h-4 w-4" /> Sign in
             </Link>
           )}
-          <button onClick={() => setAssistantOpen(true)} className="btn-primary hidden px-4 py-2.5 md:inline-flex">
+          <button
+            onClick={() => (profile ? setAssistantOpen(true) : navigate("/signin?next=/assistant"))}
+            className="btn-primary hidden px-4 py-2.5 md:inline-flex"
+          >
             <Sparkles className="h-4 w-4" /> Ask AI
           </button>
           <button
@@ -202,7 +205,8 @@ export function SiteHeader() {
                 <button
                   onClick={() => {
                     setOpen(false);
-                    setAssistantOpen(true);
+                    if (profile) setAssistantOpen(true);
+                    else navigate("/signin?next=/assistant");
                   }}
                   className="btn-primary"
                 >
@@ -268,7 +272,7 @@ export function SiteFooter() {
             <li>Synthetic customers only</li>
             <li>Not an official Toyota site</li>
             <li>No credit report is pulled</li>
-            <li>Vehicle data: CarsXE or labeled demo data</li>
+            <li>Vehicle data: NHTSA and CarImagesAPI</li>
           </ul>
         </div>
       </div>

@@ -17,7 +17,7 @@ export function SiteHeader({
     <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3 md:px-8">
         <button onClick={() => onHome()} className="flex items-center gap-2 text-ink">
-          <ToyotaMark className="h-7 w-11" />
+          <ToyotaMark className="h-9 w-auto" />
           <span className="text-left leading-tight">
             <span className="block text-[11px] font-semibold tracking-[0.22em]">TOYOTA</span>
             <span className="block text-xs text-muted">Financial Services</span>
@@ -72,7 +72,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 md:grid-cols-4 md:px-8">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2">
-            <ToyotaMark className="h-6 w-9" />
+            <ToyotaMark className="h-8 w-auto" />
             <span className="text-sm font-semibold tracking-[0.18em]">TOYOTA</span>
           </div>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">

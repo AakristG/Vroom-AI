@@ -135,6 +135,13 @@ NIM_ENABLE_THINKING = env_bool("NIM_ENABLE_THINKING", False)
 
 RETELL_API_KEY = os.environ.get("RETELL_API_KEY", "")
 RETELL_AGENT_ID = os.environ.get("RETELL_AGENT_ID", "")
+RETELL_FROM_NUMBER = os.environ.get("RETELL_FROM_NUMBER", "")
+
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
+
+CARSXE_API_KEY = os.environ.get("CARSXE_API_KEY", "")
 
 SPACETIMEDB_URL = os.environ.get("SPACETIMEDB_URL", "http://127.0.0.1:3000")
 SPACETIMEDB_MODULE_NAME = os.environ.get("SPACETIMEDB_MODULE_NAME", "toyota-fs-dev")

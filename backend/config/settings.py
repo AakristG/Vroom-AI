@@ -138,8 +138,13 @@ REST_FRAMEWORK = {
 # Third-party integrations (see backend/.env.example)
 # ---------------------------------------------------------------------------
 NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY") or os.environ.get("NVIDIA_API_KEY") or ""
+# Chat completions. The Brev instance serves Nemotron 3 Nano NVFP4 through vLLM
+# as the model name "nemotron" on port 5000. After `brev port-forward` maps that
+# port, set this to http://127.0.0.1:5000/v1 and NIM_MODEL to nemotron.
 NIM_BASE_URL = os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_MODEL = os.environ.get("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+# Embeddings stay on the cloud Retriever NIM. vLLM on the GPU box is chat only.
+NIM_EMBED_BASE_URL = os.environ.get("NIM_EMBED_BASE_URL", "https://integrate.api.nvidia.com/v1")
 # NeMo Retriever Embedding NIM. Native size is 2048. Do not combine a reduced
 # dimension with embedding_type; this model rejects every dimension except 2048.
 NIM_EMBED_MODEL = os.environ.get("NIM_EMBED_MODEL", "nvidia/nemotron-3-embed-1b")

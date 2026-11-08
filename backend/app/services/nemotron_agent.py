@@ -85,7 +85,10 @@ async def run_nemotron_agent_turn(customer_id: str, conversation_history: List[D
         return {"reply": bundle["error"], "ui_state": None}
 
     api_key = os.getenv("NVIDIA_NIM_API_KEY") or os.getenv("NVIDIA_API_KEY") or ""
-    if not api_key or api_key == "nvapi-your-key-here":
+    base_url = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
+    # A local vLLM server does not need the cloud key. The cloud catalog does.
+    cloud = "api.nvidia.com" in base_url
+    if cloud and (not api_key or api_key == "nvapi-your-key-here"):
         eligible_opts = [o for o in bundle["verified_options"] if o["eligible"]]
         best = next((o for o in eligible_opts if o["option_id"] != "KEEP"), eligible_opts[0] if eligible_opts else bundle["verified_options"][0])
         alts = [o for o in eligible_opts if o["option_id"] != best["option_id"]][:2]

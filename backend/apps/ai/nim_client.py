@@ -18,13 +18,14 @@ from openai import OpenAI
 from .prompts import SYSTEM_PROMPT
 
 _client: OpenAI | None = None
+_embed_client: OpenAI | None = None
 
 # Reasoning models may emit their chain of thought inline; it must never be spoken to a caller.
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 def get_client() -> OpenAI:
-    """Official OpenAI SDK pointed at NVIDIA's OpenAI-compatible Nemotron endpoint."""
+    """Chat client. This is the Brev vLLM server once NIM_BASE_URL points at it."""
     global _client
     if _client is None:
         _client = OpenAI(
@@ -32,6 +33,17 @@ def get_client() -> OpenAI:
             api_key=settings.NVIDIA_NIM_API_KEY or "not-set",
         )
     return _client
+
+
+def get_embed_client() -> OpenAI:
+    """Embedding client. Always the cloud Retriever NIM, never the chat GPU."""
+    global _embed_client
+    if _embed_client is None:
+        _embed_client = OpenAI(
+            base_url=settings.NIM_EMBED_BASE_URL,
+            api_key=settings.NVIDIA_NIM_API_KEY or "not-set",
+        )
+    return _embed_client
 
 
 def _extra_body() -> dict:
@@ -88,7 +100,7 @@ def embed(
     elif dimensions == _NATIVE_DIMENSIONS:
         kwargs["dimensions"] = _NATIVE_DIMENSIONS
 
-    response = get_client().embeddings.create(
+    response = get_embed_client().embeddings.create(
         input=texts,
         model=settings.NIM_EMBED_MODEL,
         extra_body=extra,

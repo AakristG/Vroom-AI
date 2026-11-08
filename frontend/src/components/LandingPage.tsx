@@ -9,6 +9,7 @@ import { CATEGORY_IMAGE, IMAGE_NOTE, modelImage, type CategoryKey } from "../med
 import { useAuth } from "../state/auth";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { CountUp, EASE, Parallax, Reveal, Stagger, StaggerItem } from "./ui/motion";
+import { TundraOffroadSection } from "./TundraOffroadSection";
 import { VideoHero } from "./VideoHero";
 
 const steps = [
@@ -152,6 +153,8 @@ export function LandingPage() {
       </VideoHero>
 
       <CategoryExplorer />
+
+      <TundraOffroadSection />
 
       {/* Synthetic scenario, kept from the original landing page */}
       <section id="scenario" className="relative scroll-mt-24 bg-mist">

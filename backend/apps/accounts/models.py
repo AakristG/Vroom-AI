@@ -7,6 +7,7 @@ class CustomerAccount(models.Model):
     username = models.CharField(max_length=80, unique=True)
     password = models.CharField(max_length=256)
     token = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
     first_name = models.CharField(max_length=80)
     last_name = models.CharField(max_length=80, blank=True)
     email = models.EmailField(blank=True)
@@ -19,6 +20,8 @@ class CustomerAccount(models.Model):
     current_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     vehicle_model = models.CharField(max_length=80, blank=True)
     vehicle_year = models.PositiveIntegerField(null=True, blank=True)
+    # Loan or lease terms the customer typed in. Self-reported and never treated as a verified agreement.
+    agreement = models.JSONField(default=dict, blank=True)
     recommendation_key = models.CharField(max_length=64, blank=True)
     recommendation = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -28,7 +31,7 @@ class CustomerAccount(models.Model):
 
 
 class ToyotaSpec(models.Model):
-    """CarsXE year/make/model snapshot so the catalog is not refetched on every page."""
+    """Cached Toyota nameplate snapshot from the unified vehicle catalog."""
 
     year = models.PositiveIntegerField()
     model_name = models.CharField(max_length=80)

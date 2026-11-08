@@ -9,6 +9,17 @@ from django.contrib.auth.hashers import check_password, make_password
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from .authz import (
+    account_from_request,
+    attach_session_cookie,
+    clear_login_attempts,
+    clear_session,
+    clear_session_cookie,
+    issue_session,
+    login_rate_limited,
+    login_required_api,
+    record_login_attempt,
+)
 from .catalog import catalog_page, model_detail
 from .models import CustomerAccount
 from .seed import seed_demo_accounts
@@ -17,14 +28,6 @@ _EXAMPLE = (
     "I'm starting a new job, but my monthly expenses are increasing by $400. "
     "What should I do about my $580 Toyota payment?"
 )
-
-
-def account_from_request(request) -> CustomerAccount | None:
-    header = request.headers.get("Authorization", "")
-    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
-    if not token:
-        return None
-    return CustomerAccount.objects.filter(token=token).first()
 
 
 def public_account(account: CustomerAccount) -> dict:
@@ -44,18 +47,13 @@ def public_account(account: CustomerAccount) -> dict:
         "current_payment": float(payment) if payment is not None else None,
         "vehicle_model": account.vehicle_model,
         "vehicle_year": account.vehicle_year,
+        "agreement": account.agreement or {},
         "example_life_change": _EXAMPLE,
     }
 
 
 def _password_ok(account: CustomerAccount, raw: str) -> bool:
-    candidate = raw.strip()
-    return check_password(candidate, account.password) or check_password(candidate.lower(), account.password)
-
-
-def _issue_token(account: CustomerAccount) -> None:
-    account.token = secrets.token_urlsafe(32)
-    account.save(update_fields=["token"])
+    return check_password(raw.strip(), account.password)
 
 
 @api_view(["POST"])
@@ -94,27 +92,37 @@ def signup(request):
     )
     account.customer_id = f"N{account.id:03d}"
     account.save(update_fields=["customer_id"])
-    _issue_token(account)
-    return Response(public_account(account))
+    issue_session(account)
+    return attach_session_cookie(Response(public_account(account)), account)
 
 
 @api_view(["POST"])
 def login(request):
     seed_demo_accounts()
+    if login_rate_limited(request):
+        return Response({"detail": "Too many sign-in attempts. Wait a few minutes and try again."}, status=429)
     username = str(request.data.get("username") or "").strip().lower()
     password = str(request.data.get("password") or "")
     account = CustomerAccount.objects.filter(username=username).first()
+    record_login_attempt(request)
     if not account or not _password_ok(account, password):
         return Response({"detail": "That sign-in doesn't match an account."}, status=400)
-    _issue_token(account)
-    return Response(public_account(account))
+    clear_login_attempts(request)
+    issue_session(account)
+    return attach_session_cookie(Response(public_account(account)), account)
+
+
+@api_view(["POST"])
+def logout(request):
+    account = account_from_request(request)
+    clear_session(account)
+    return clear_session_cookie(Response({"ok": True}))
 
 
 @api_view(["GET", "PATCH"])
+@login_required_api
 def me(request):
-    account = account_from_request(request)
-    if not account:
-        return Response({"detail": "Sign in to continue."}, status=401)
+    account = request.account
     if request.method == "PATCH":
         if "life_change" in request.data:
             account.life_change = str(request.data.get("life_change") or "").strip()
@@ -126,15 +134,67 @@ def me(request):
             account.phone = str(request.data.get("phone") or "").strip()
         if "current_payment" in request.data:
             account.current_payment = _decimal(request.data.get("current_payment"))
+        if "agreement" in request.data:
+            agreement, error = clean_agreement(request.data.get("agreement"), account.current_payment)
+            if error:
+                return Response({"detail": error}, status=400)
+            account.agreement = agreement
         account.save()
     return Response(public_account(account))
 
 
+def _number(raw: dict, key: str, label: str, low: float, high: float, required: bool) -> tuple[float | None, str | None]:
+    value = _decimal(raw.get(key))
+    if value is None:
+        return None, (f"Add your {label}." if required else None)
+    if not low <= float(value) <= high:
+        return None, f"Your {label} should be between {low:,.0f} and {high:,.0f}."
+    return float(value), None
+
+
+def clean_agreement(raw, monthly_payment: Decimal | None) -> tuple[dict, str | None]:
+    """Validate self-reported loan or lease terms. An empty value clears them."""
+    if not raw:
+        return {}, None
+    if not isinstance(raw, dict):
+        return {}, "Those agreement details could not be read."
+    kind = raw.get("contract_type")
+    if kind not in ("loan", "lease"):
+        return {}, "Choose loan or lease."
+    payment = float(monthly_payment or 0)
+    if payment <= 0:
+        return {}, "Add your monthly payment."
+
+    due, error = _number(raw, "payment_due_day", "payment due day", 1, 28, False)
+    if error:
+        return {}, error
+    out: dict = {"contract_type": kind, "payment_due_day": int(due or 1)}
+
+    if kind == "loan":
+        fields = [("current_balance", "loan balance", 1, 500_000, True), ("apr", "APR", 0, 40, True)]
+    else:
+        fields = [
+            ("months_remaining", "months left on the lease", 1, 72, True),
+            ("residual_value", "residual (buyout) value", 0, 500_000, False),
+            ("mileage_allowance_total", "total mileage allowance", 0, 300_000, False),
+            ("odometer_now", "odometer reading", 0, 500_000, False),
+        ]
+    for key, label, low, high, required in fields:
+        value, error = _number(raw, key, label, low, high, required)
+        if error:
+            return {}, error
+        if value is not None:
+            out[key] = int(value) if key in ("months_remaining", "mileage_allowance_total", "odometer_now") else round(value, 2)
+
+    if kind == "loan" and payment <= out["current_balance"] * out["apr"] / 1200:
+        return {}, "That payment doesn't cover the monthly interest at this APR. Check the balance, APR, and payment."
+    return out, None
+
+
 @api_view(["GET"])
+@login_required_api
 def models(request):
-    account = account_from_request(request)
-    if not account:
-        return Response({"detail": "Sign in to see Toyota models."}, status=401)
+    account = request.account
     try:
         page = max(1, int(request.query_params.get("page") or 1))
     except ValueError:
@@ -151,16 +211,14 @@ def models(request):
 
 
 @api_view(["GET"])
+@login_required_api
 def model_detail_view(request):
-    account = account_from_request(request)
-    if not account:
-        return Response({"detail": "Sign in to see this Toyota."}, status=401)
     name = str(request.query_params.get("model") or "").strip()
     if not name:
         return Response({"detail": "Choose a model."}, status=400)
     payload = model_detail(name)
     if payload is None:
-        return Response({"detail": "That model is not in the CarsXE catalog yet."}, status=404)
+        return Response({"detail": "That model is not in the NHTSA catalog for the current year."}, status=404)
     return Response(payload)
 
 

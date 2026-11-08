@@ -36,10 +36,11 @@ const ROWS: { group: string; rows: Row[] }[] = [
   {
     group: "Overview",
     rows: [
-      { label: "Original base MSRP", value: (v) => v.msrp.value, format: (v) => (v.msrp.value == null ? NA : money(v.msrp.value)), better: "low" },
+      { label: "Verified pricing", value: (v) => v.msrp.value, format: () => "Verified pricing is not currently connected." },
       { label: "Vehicle type", value: (v) => v.category },
       { label: "Fuel type", value: (v) => v.fuel_type },
-      { label: "Data source", value: (v) => (v.source === "carsxe" ? "CarsXE" : "Demo reference") },
+      { label: "Data source", value: (v) => "NHTSA" },
+      { label: "Safety rating", value: (v) => (v.safety_rating_available ? v.safety_rating ?? null : null), format: (v) => (v.safety_rating_available && v.safety_rating != null ? `${v.safety_rating} / 5` : "Safety rating unavailable") },
     ],
   },
   {
@@ -76,7 +77,7 @@ const ROWS: { group: string; rows: Row[] }[] = [
   {
     group: "Safety & features",
     rows: [
-      { label: "Safety items listed", value: (v) => (v.safety?.length ? v.safety.slice(0, 5).join(", ") : null) },
+      { label: "Safety items listed", value: (v) => (Array.isArray(v.safety) && v.safety.length ? v.safety.slice(0, 5).join(", ") : null) },
       { label: "Highlighted features", value: (v) => (v.features?.length ? v.features.slice(0, 5).join(", ") : null) },
     ],
   },
@@ -488,7 +489,7 @@ function years(vs: VehicleRecord[]) {
   return [...new Set(vs.map((v) => v.year))].join(", ");
 }
 function sources(vs: VehicleRecord[]) {
-  return [...new Set(vs.map((v) => (v.source === "carsxe" ? "CarsXE" : "demo reference data")))].join(" and ");
+  return [...new Set(vs.map(() => "NHTSA"))].join(" and ");
 }
 
 function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {

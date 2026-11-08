@@ -25,10 +25,7 @@ _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 def get_client() -> OpenAI:
-<<<<<<< HEAD
-=======
     """Chat client. This is the Brev vLLM server once NIM_BASE_URL points at it."""
->>>>>>> 18a21bf495cf20a645a9bf0406a319cfe878595c
     global _client
     if _client is None:
         _client = OpenAI(
@@ -67,8 +64,6 @@ def with_system_prompt(messages: Iterable[dict], extra_system: str = "", base: s
     return [{"role": "system", "content": content}, *messages]
 
 
-<<<<<<< HEAD
-=======
 _EMBED_TYPES = {"float", "int8", "uint8", "binary", "ubinary"}
 _NATIVE_DIMENSIONS = 2048
 
@@ -115,7 +110,6 @@ def embed(
     return [list(item.embedding) for item in ordered]
 
 
->>>>>>> 18a21bf495cf20a645a9bf0406a319cfe878595c
 def clean(content: str | None) -> str:
     return _THINK_BLOCK_RE.sub("", content or "").strip()
 

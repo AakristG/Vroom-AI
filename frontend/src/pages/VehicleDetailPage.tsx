@@ -1,18 +1,15 @@
 import { ArrowLeft, Check, ChevronDown, Plus, Sparkles } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { apiClient } from "../api/client";
-import { apiErrorMessage, getTrims, getVehicle, vehiclePath, type VehicleRecord } from "../api/vehicles";
+import { apiErrorMessage, decodeVin, getTrims, getVehicle, vehiclePath, type VehicleRecord } from "../api/vehicles";
 import { CompareTray } from "../components/vehicles/CompareTray";
 import { VehicleMedia } from "../components/vehicles/VehicleCard";
 import { ErrorState, Skeleton, SourceBadge } from "../components/ui/kit";
 import { Reveal } from "../components/ui/motion";
-import { cn, money } from "../lib/format";
+import { cn } from "../lib/format";
 import { msrp, NA, num, vehicleName } from "../lib/spec";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { useCompare } from "../state/compare";
-import { useAuth } from "../state/auth";
-import { SignInGate } from "../components/SignInGate";
 
 export function VehicleDetailPage() {
   const params = useParams();
@@ -25,7 +22,6 @@ export function VehicleDetailPage() {
   const [reload, setReload] = useState(0);
   const compare = useCompare();
   const { ask } = useAssistant();
-  const { profile, ready } = useAuth();
 
   usePageContext("vehicle-detail", state.v ? [state.v.id] : []);
 
@@ -44,10 +40,6 @@ export function VehicleDetailPage() {
   }, [year, model, trim, reload]);
 
   const v = state.v;
-  if (!ready) return <main className="min-h-[50vh] pt-32" />;
-  if (!profile) {
-    return <SignInGate next={`/vehicles/${year}/${encodeURIComponent(model)}`} title="Sign in to see this Toyota." />;
-  }
 
   return (
     <main className="pb-28 pt-16 md:pt-[72px]">
@@ -117,9 +109,9 @@ export function VehicleDetailPage() {
               </div>
 
               <div className="mt-6">
-                <div className="text-xs uppercase tracking-wider text-muted">Original base MSRP ({v.year})</div>
+                <div className="text-xs uppercase tracking-wider text-muted">Verified pricing</div>
                 <div className="text-3xl font-semibold tracking-tight">{msrp(v)}</div>
-                <p className="mt-1 text-xs text-muted">Historical manufacturer price for this model year. Not today's price and not an offer.</p>
+                <p className="mt-1 text-xs text-muted">Verified pricing is not currently connected. NHTSA and CarImagesAPI do not publish retail prices.</p>
               </div>
 
               <div className="mt-7 flex flex-wrap gap-3">
@@ -179,17 +171,12 @@ export function VehicleDetailPage() {
             />
           </section>
 
-          {(v.safety?.length || v.features?.length) ? (
-            <section className="mx-auto mt-5 grid max-w-7xl gap-5 px-5 md:grid-cols-2 md:px-8">
-              <ListCard title="Safety" items={v.safety ?? []} />
-              <ListCard title="Highlighted features" items={v.features ?? []} />
-            </section>
-          ) : null}
+          <SafetyAndRecalls v={v} />
 
           {v.spec_groups && v.spec_groups.length > 0 && <AllSpecs groups={v.spec_groups} />}
 
           <section className="mx-auto mt-5 grid max-w-7xl gap-5 px-5 md:grid-cols-[1.2fr_0.8fr] md:px-8">
-            <MarketValue />
+            <VinDecode year={v.year} />
             <div className="card p-6 text-sm leading-relaxed text-muted">
               <h2 className="text-base font-semibold text-ink">Where this comes from</h2>
               <p className="mt-2">{v.source_note}</p>
@@ -230,32 +217,13 @@ function SpecCard({ title, rows }: { title: string; rows: [string, string][] }) 
   );
 }
 
-function ListCard({ title, items }: { title: string; items: string[] }) {
-  return (
-    <Reveal className="card p-6">
-      <h2 className="font-semibold">{title}</h2>
-      {items.length ? (
-        <ul className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          {items.map((i) => (
-            <li key={i} className="flex gap-2 capitalize">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-signal" /> {i}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-3 text-sm text-muted">{NA}</p>
-      )}
-    </Reveal>
-  );
-}
-
 function AllSpecs({ groups }: { groups: NonNullable<VehicleRecord["spec_groups"]> }) {
   const [open, setOpen] = useState(false);
   return (
     <section className="mx-auto mt-5 max-w-7xl px-5 md:px-8">
       <div className="card p-6">
         <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center justify-between font-semibold">
-          All CarsXE specifications ({groups.reduce((n, g) => n + g.items.length, 0)})
+          All listed specifications ({groups.reduce((n, g) => n + g.items.length, 0)})
           <ChevronDown className={cn("h-5 w-5 transition-transform", open && "rotate-180")} />
         </button>
         {open && (
@@ -280,41 +248,63 @@ function AllSpecs({ groups }: { groups: NonNullable<VehicleRecord["spec_groups"]
   );
 }
 
-function MarketValue() {
+function SafetyAndRecalls({ v }: { v: VehicleRecord }) {
+  const rating = v.safety_rating_available ? v.safety_rating : null;
+  const recallCount = v.recall_count;
+  const recallNote =
+    typeof v.recalls === "object" && v.recalls && "note" in v.recalls ? String(v.recalls.note || "") : "";
+  return (
+    <section className="mx-auto mt-5 grid max-w-7xl gap-5 px-5 md:grid-cols-2 md:px-8">
+      <div className="card p-6">
+        <h2 className="font-semibold">NHTSA safety rating</h2>
+        <p className="mt-3 text-3xl font-semibold">{rating != null ? `${rating} / 5` : "Safety rating unavailable"}</p>
+        <p className="mt-2 text-sm text-muted">
+          {rating != null
+            ? "Overall NHTSA rating for the only published crash-tested variant of this model year."
+            : "NHTSA has not published a single overall rating we can show for this model year, or more than one variant exists."}
+        </p>
+      </div>
+      <div className="card p-6">
+        <h2 className="font-semibold">NHTSA recalls</h2>
+        <p className="mt-3 text-3xl font-semibold">{recallCount == null ? NA : recallCount}</p>
+        <p className="mt-2 text-sm text-muted">
+          {recallNote || "Model-year campaigns from NHTSA. This is not proof that a specific VIN has an open recall."}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function VinDecode({ year }: { year: number }) {
   const [vin, setVin] = useState("");
-  const [mileage, setMileage] = useState("");
   const [result, setResult] = useState<{ busy?: boolean; text?: string; error?: string }>({});
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setResult({ busy: true });
     try {
-      const { data } = await apiClient.get("/api/vehicles/value/", { params: { vin: vin.trim(), mileage: mileage || undefined }, timeout: 30000 });
-      if (!data.available) setResult({ error: data.detail });
+      const data = await decodeVin(vin.trim(), year);
+      if (!data.decode_ok) setResult({ error: data.error_text || "NHTSA could not decode that VIN." });
       else
         setResult({
-          text: `Estimated trade-in (clean): ${money(Number(data.trade_in_clean))}. Estimated retail (clean): ${money(Number(data.retail_clean))}. ${data.note}`,
+          text: `NHTSA decoded ending ${data.vin_last4} as ${data.model_year ?? ""} ${data.make ?? ""} ${data.model ?? ""}. ${data.body_class ?? ""} ${data.fuel ? `Fuel: ${data.fuel}.` : ""}`.replace(/\s+/g, " ").trim(),
         });
     } catch (err) {
-      setResult({ error: apiErrorMessage(err, "The market value lookup failed.") });
+      setResult({ error: apiErrorMessage(err, "VIN decode is unavailable right now.") });
     }
   }
 
   return (
     <form onSubmit={submit} className="card p-6">
-      <h2 className="font-semibold">Estimate a specific vehicle's market value</h2>
-      <p className="mt-1 text-sm text-muted">Uses the CarsXE Market Value API with a 17-character VIN. This is an estimate, not a guaranteed trade-in offer.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_9rem_auto]">
+      <h2 className="font-semibold">Decode a VIN</h2>
+      <p className="mt-1 text-sm text-muted">Uses NHTSA vPIC. The full VIN is sent only to our backend, then to NHTSA. It is not a market-value estimate.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
         <label>
           <span className="sr-only">VIN</span>
           <input value={vin} onChange={(e) => setVin(e.target.value.toUpperCase())} maxLength={17} placeholder="VIN (17 characters)" className="field font-mono" />
         </label>
-        <label>
-          <span className="sr-only">Mileage</span>
-          <input value={mileage} onChange={(e) => setMileage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Mileage" className="field" />
-        </label>
         <button disabled={vin.trim().length !== 17 || result.busy} className="btn-primary disabled:opacity-40">
-          {result.busy ? "Checking…" : "Estimate"}
+          {result.busy ? "Checking…" : "Decode"}
         </button>
       </div>
       {result.text && <p className="mt-3 rounded-2xl bg-go/10 px-4 py-3 text-sm">{result.text}</p>}

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import math
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -17,7 +18,7 @@ from apps.vehicles.catalog import provider
 from apps.vehicles.views import lookup
 
 from . import finance
-from .account_context import _profiles
+from .account_context import _profiles, self_reported_profile
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ KWH_PER_GALLON_EQUIVALENT = 33.7
 
 
 def _profile(customer_id: str | None) -> dict | None:
-    return _profiles().get(customer_id or "")
+    return _profiles().get(customer_id or "") or self_reported_profile(customer_id)
 
 
 def customer_profile(customer_id: str) -> dict:
@@ -36,6 +37,7 @@ def customer_profile(customer_id: str) -> dict:
         return {"error": f"No account found for {customer_id}."}
     c, v, a = p["customer"], p["vehicle"], p["account"]
     return {
+        **({"source": "Entered by the customer. Not a verified Toyota Financial Services agreement."} if p.get("self_reported") else {}),
         "customer": {"first_name": c["first_name"], "city": c["city"], "annual_miles_est": v.get("annual_miles_est")},
         "vehicle": f"{v['model_year']} Toyota {v['model']} {v['trim']}",
         "estimated_vehicle_value": v.get("est_market_value_now"),
@@ -47,8 +49,8 @@ def customer_profile(customer_id: str) -> dict:
         "current_balance": a.get("current_balance"),
         "payoff_quote": a.get("payoff_quote"),
         "residual_value": a.get("residual_value"),
-        "months_remaining": a["months_remaining"],
-        "term_months": a["term_months"],
+        "months_remaining": math.ceil(a["months_remaining"]),
+        "term_months": math.ceil(a["term_months"]),
         "contract_end": a["contract_end"],
         "payment_due_day": a["payment_due_day"],
         "missed_payments_12m": a["missed_payments_12m"],
@@ -76,7 +78,7 @@ def payment_breakdown(customer_id: str) -> dict:
         "next_payment_interest": split["interest"],
         "next_payment_principal": split["principal"],
         "remaining_interest_if_kept": keep["total_interest"],
-        "months_remaining": a["months_remaining"],
+        "months_remaining": math.ceil(a["months_remaining"]),
     }
 
 
@@ -143,7 +145,11 @@ def _vehicle_brief(record: dict) -> dict:
     keys = ("id", "year", "model", "trim", "category", "fuel_type", "engine", "horsepower", "drivetrain",
             "mpg", "mpge", "ev_range_mi", "seating", "cargo_cu_ft", "source")
     brief = {k: record.get(k) for k in keys}
-    brief["historical_base_msrp"] = (record.get("msrp") or {}).get("value")
+    brief["historical_base_msrp"] = None
+    brief["msrp_note"] = "Verified pricing is not currently connected."
+    brief["safety_rating"] = record.get("safety_rating")
+    brief["recall_count"] = record.get("recall_count")
+    brief["image_match"] = record.get("image_match")
     return brief
 
 

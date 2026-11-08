@@ -20,7 +20,16 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 def env_list(name: str, default: str = "") -> list[str]:
     raw = os.environ.get(name, default)
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    items: list[str] = []
+    for item in raw.split(","):
+        value = item.strip()
+        if not value:
+            continue
+        # django-cors-headers rejects origins that include a path, including a trailing slash.
+        if "://" in value:
+            value = value.rstrip("/")
+        items.append(value)
+    return items
 
 
 # ---------------------------------------------------------------------------
@@ -119,22 +128,24 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS (frontend dev server)
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+AUTH_TOKEN_TTL_SECONDS = int(os.environ.get("AUTH_TOKEN_TTL_SECONDS", str(60 * 60 * 12)))
+AUTH_COOKIE_NAME = "tfs_session"
 
 # ---------------------------------------------------------------------------
 # DRF
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
 }
 
 # ---------------------------------------------------------------------------
 # Third-party integrations (see backend/.env.example)
 # ---------------------------------------------------------------------------
-<<<<<<< HEAD
-NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
-NIM_BASE_URL = os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
-NIM_MODEL = os.environ.get("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
-=======
 NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY") or os.environ.get("NVIDIA_API_KEY") or ""
 # Chat completions. The Brev instance serves Nemotron 3 Nano NVFP4 through vLLM
 # as the model name "nemotron" on port 5000. After `brev port-forward` maps that
@@ -147,7 +158,6 @@ NIM_EMBED_BASE_URL = os.environ.get("NIM_EMBED_BASE_URL", "https://integrate.api
 # dimension with embedding_type; this model rejects every dimension except 2048.
 NIM_EMBED_MODEL = os.environ.get("NIM_EMBED_MODEL", "nvidia/nemotron-3-embed-1b")
 NIM_EMBED_TYPE = os.environ.get("NIM_EMBED_TYPE", "float")
->>>>>>> 18a21bf495cf20a645a9bf0406a319cfe878595c
 NIM_ENABLE_THINKING = env_bool("NIM_ENABLE_THINKING", False)
 # Native OpenAI-style tool calls need the NIM container started with
 # --enable-auto-tool-choice --tool-call-parser qwen3_coder. Without it, the assistant runs
@@ -162,18 +172,21 @@ TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
 
-CARSXE_API_KEY = os.environ.get("CARSXE_API_KEY", "")
-CARSXE_BASE_URL = os.environ.get("CARSXE_BASE_URL", "https://api.carsxe.com")
-# CarsXE bills per call, so responses are kept on disk across restarts.
-CARSXE_CACHE_SECONDS = int(os.environ.get("CARSXE_CACHE_SECONDS", str(60 * 60 * 24 * 7)))
+CARIMAGES_API_KEY = os.environ.get("CARIMAGES_API_KEY", "")
+CARIMAGES_API_SECRET = os.environ.get("CARIMAGES_API_SECRET", "")
+CARIMAGES_BASE_URL = os.environ.get("CARIMAGES_BASE_URL", "https://carimagesapi.com")
+CARIMAGES_SIGNED_URL_TTL = int(os.environ.get("CARIMAGES_SIGNED_URL_TTL", str(60 * 60)))
+
+NHTSA_VPIC_BASE_URL = os.environ.get("NHTSA_VPIC_BASE_URL", "https://vpic.nhtsa.dot.gov/api")
+NHTSA_DATA_BASE_URL = os.environ.get("NHTSA_DATA_BASE_URL", "https://api.nhtsa.gov")
 
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
-    "carsxe": {
+    "vehicles": {
         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-        "LOCATION": BASE_DIR / ".cache" / "carsxe",
-        "TIMEOUT": CARSXE_CACHE_SECONDS,
-        "OPTIONS": {"MAX_ENTRIES": 5000},
+        "LOCATION": BASE_DIR / ".cache" / "vehicles",
+        "TIMEOUT": 60 * 60 * 24,
+        "OPTIONS": {"MAX_ENTRIES": 8000},
     },
 }
 

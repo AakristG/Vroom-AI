@@ -1,15 +1,13 @@
 import { useInView } from "motion/react";
-import { Check, Plus } from "lucide-react";
+import { Check, ImageOff, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getVehicleImage, vehiclePath, type VehicleImage, type VehicleRecord } from "../../api/vehicles";
 import { cn } from "../../lib/format";
-import { efficiency, msrp, NA, num } from "../../lib/spec";
+import { categoryLabel, efficiency, msrp, NA, num } from "../../lib/spec";
 import { COMPARE_LIMIT, useCompare } from "../../state/compare";
 import { SourceBadge } from "../ui/kit";
-import { VehicleArt } from "../VehicleArt";
 
-/** Licensed CarsXE photo when available, otherwise the body-style illustration. */
 export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord; className?: string; eager?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "200px" });
@@ -17,7 +15,7 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (v.source !== "carsxe" || image || !(inView || eager)) return;
+    if (image?.url || !(inView || eager)) return;
     let live = true;
     getVehicleImage(v.year, v.model, v.trim)
       .then((img) => live && setImage(img))
@@ -27,31 +25,34 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
     };
   }, [v, image, inView, eager]);
 
+  const url = image?.url;
+  const match = image?.match || v.image_match;
+
   return (
     <div ref={ref} className={cn("relative grid place-items-center overflow-hidden bg-gradient-to-b from-[#f1f1ef] to-[#e4e4e1]", className)}>
-      {image && !failed ? (
+      {url && !failed ? (
         <>
           <img
-            src={image.url}
+            src={url}
             alt={`${v.year} Toyota ${v.model}`}
             loading={eager ? "eager" : "lazy"}
             onError={() => setFailed(true)}
             className="h-full w-full object-cover"
           />
-          {image.source_page && (
-            <a
-              href={image.source_page}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur hover:bg-black/70"
-              title={image.license_note}
-            >
-              Image source
-            </a>
+          {match === "generation" && (
+            <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur">
+              Closest generation image
+            </span>
           )}
+          <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
+            CarImagesAPI
+          </span>
         </>
       ) : (
-        <VehicleArt category={v.category} className="w-[82%] transition-transform duration-700 ease-[var(--ease-premium)] group-hover:translate-x-2" />
+        <div className="flex flex-col items-center gap-2 px-6 text-center text-muted">
+          <ImageOff className="h-8 w-8" />
+          <p className="text-sm">Image unavailable</p>
+        </div>
       )}
     </div>
   );
@@ -63,7 +64,7 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
   const blocked = !inCompare && compare.full;
 
   return (
-    <article className="group card flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-500 ease-[var(--ease-premium)] hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
+    <article className="group card card-hover flex h-full flex-col overflow-hidden">
       <Link to={vehiclePath(v)} className="block" aria-label={`${v.year} ${v.model} ${v.trim ?? ""} details`}>
         <VehicleMedia v={v} className="aspect-[16/9]" />
       </Link>
@@ -71,7 +72,7 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium text-muted">
-              {v.year} · {v.category}
+              {v.year} · {categoryLabel(v)}
               {v.fuel_type ? ` · ${v.fuel_type}` : ""}
             </p>
             <h3 className="mt-1 text-xl font-semibold tracking-tight">
@@ -93,8 +94,9 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
 
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-4">
           <div>
-            <div className="text-[11px] uppercase tracking-wider text-muted">Original base MSRP</div>
+            <div className="text-[11px] uppercase tracking-wider text-muted">Verified pricing</div>
             <div className="text-lg font-semibold">{msrp(v)}</div>
+            <div className="text-[11px] text-muted">Not currently connected</div>
           </div>
           <button
             onClick={() => compare.toggle(v.id)}

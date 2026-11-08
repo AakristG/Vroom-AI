@@ -5,13 +5,17 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from . import nim_client
-from .account_context import account_context
+from apps.accounts.authz import login_required_api
+
+from .account_context import account_context, bind_signed_in
+from .retrieve import relevant_account_context
 from .serializers import ChatRequestSerializer
 
 logger = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
+@login_required_api
 def chat(request):
     """Nemotron chat for the signed-in customer. POST
     {"customer_id": "C002", "messages": [{"role": "user", "content": "..."}]}.
@@ -20,10 +24,16 @@ def chat(request):
     serializer = ChatRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    customer_id = str(request.data.get("customer_id") or "").strip()
+    account = request.account
+    bind_signed_in(account)
+    customer_id = account.customer_id
+    question = next(
+        (m.get("content", "") for m in reversed(serializer.validated_data["messages"]) if m.get("role") == "user"),
+        "",
+    )
     extra = ""
     if customer_id:
-        extra = account_context(customer_id) or (
+        extra = relevant_account_context(customer_id, question) or (
             f"No Toyota Financial Services record was found for {customer_id}. "
             "Say so. Do not invent an account."
         )

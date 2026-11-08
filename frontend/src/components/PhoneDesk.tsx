@@ -76,13 +76,12 @@ export function PhoneDesk({ p }: { p: Profile }) {
           state: p.customer.state,
         },
       });
-      if (data.source === "not_configured") {
-        setVehicleNote(`CarsXE is not connected. The account estimate is ${money(p.vehicle.est_market_value_now)}, and it is not a guaranteed trade-in.`);
-      } else if (data.trade_in) {
-        setVehicleNote(`CarsXE trade-in value, clean condition: ${money(Number(data.trade_in))}. Retail: ${money(Number(data.retail))}. This is a market figure, not an offer from Toyota.`);
+      if (data.specs?.name) {
+        setVehicleNote(
+          `${data.specs.name}. ${data.trade_in_note || "Verified pricing is not currently connected."} Account figure on file: ${money(p.vehicle.est_market_value_now)} (not a trade-in offer).`
+        );
       } else {
-        const name = data.specs?.name ? ` CarsXE matched ${data.specs.name}.` : "";
-        setVehicleNote(`${data.trade_in_note || "No trade-in price came back."}${name} Account estimate: ${money(p.vehicle.est_market_value_now)}.`);
+        setVehicleNote(data.detail || data.trade_in_note || "Verified pricing is not currently connected.");
       }
     } catch {
       setVehicleNote("The vehicle lookup did not respond. Your account estimate is still on this page.");

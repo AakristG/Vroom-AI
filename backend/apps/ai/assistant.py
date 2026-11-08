@@ -10,8 +10,11 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from apps.accounts.authz import login_required_api
+
 from . import nim_client, tools
-from .account_context import account_context
+from .account_context import account_context, bind_signed_in
+from .retrieve import relevant_account_context
 from .prompts import ASSISTANT_PROMPT
 from .serializers import ChatRequestSerializer
 
@@ -54,12 +57,15 @@ def _grounded(messages: list[dict], customer_id: str | None, context: dict) -> t
         results.append({"name": name, "args": args, "result": tools.run_tool(name, args, customer_id)})
     extra = _context_text(context, customer_id)
     if customer_id:
-        extra += "\n" + (account_context(customer_id) or f"No record was found for {customer_id}. Say so.")
+        extra += "\n" + (relevant_account_context(customer_id, question) or f"No record was found for {customer_id}. Say so.")
     if results:
         extra += "\nTOOL RESULTS (computed by the backend; quote these figures, do not change them):\n"
         extra += "\n".join(f"- {r['name']}: {json.dumps(r['result'], default=str)}" for r in results)
-        if '"source": "demo"' in extra:
-            extra += "\nThe vehicle figures above are DEMO reference data, not CarsXE. Say so in one short clause."
+        if '"source": "nhtsa"' in extra:
+            extra += (
+                "\nVehicle figures come from NHTSA (and CarImagesAPI for photos). "
+                "Do not invent MSRP, horsepower, MPG, or payments. If a field is null, say it is unavailable."
+            )
     reply = nim_client.generate_reply(messages, extra_system=extra, base=ASSISTANT_PROMPT)
     return reply, results
 
@@ -67,7 +73,8 @@ def _grounded(messages: list[dict], customer_id: str | None, context: dict) -> t
 def _native(messages: list[dict], customer_id: str | None, context: dict) -> tuple[str, list[dict]]:
     system = ASSISTANT_PROMPT + "\n\n" + _context_text(context, customer_id)
     if customer_id:
-        system += "\nVERIFIED ACCOUNT:\n" + (account_context(customer_id) or "No record found.")
+        question = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+        system += "\nVERIFIED ACCOUNT:\n" + (relevant_account_context(customer_id, question) or "No record found.")
     convo: list[dict] = [{"role": "system", "content": system}, *[m for m in messages if m["role"] != "system"]]
     results: list[dict] = []
     for _ in range(_TOOL_ROUNDS):
@@ -87,12 +94,15 @@ def _native(messages: list[dict], customer_id: str | None, context: dict) -> tup
 
 
 @api_view(["POST"])
+@login_required_api
 def assistant(request):
     """POST {"messages": [...], "customer_id": "C002"?, "context": {"page": "compare", "vehicles": ["2025|Camry|LE"]}}"""
     serializer = ChatRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     messages = serializer.validated_data["messages"]
-    customer_id = str(request.data.get("customer_id") or "").strip() or None
+    account = request.account
+    bind_signed_in(account)
+    customer_id = account.customer_id
     context = request.data.get("context") if isinstance(request.data.get("context"), dict) else {}
 
     try:

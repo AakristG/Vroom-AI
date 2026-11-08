@@ -53,8 +53,8 @@ export function AppointmentsPanel() {
   }, [refresh]);
 
   return (
-    <section id="appointments" className="rounded-3xl border border-line bg-paper p-6 md:p-8">
-      <h2 className="text-2xl font-semibold tracking-tight">Requests and appointments</h2>
+    <section id="appointments" className="card scroll-mt-36 rounded-md p-6 md:p-8">
+      <h2 className="text-xl font-semibold tracking-tight">Requests and appointments</h2>
       <p className="mt-2 max-w-2xl text-sm text-muted">
         Recorded specialist requests from chat, browser voice, and phone. A pending request is never shown as a confirmed calendar booking.
       </p>
@@ -78,7 +78,7 @@ export function AppointmentsPanel() {
       {appointments.length > 0 ? (
         <ul className="mt-4 space-y-3">
           {appointments.map((item) => (
-            <li key={item.appointment_id} className="rounded-2xl border border-line px-4 py-3 text-sm">
+            <li key={item.appointment_id} className="rounded-md border border-line px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="font-semibold">{item.category}</div>
                 <span className="rounded-full bg-mist px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink/70">

@@ -17,7 +17,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { requestCallback, sendAssistantMessage, type AssistantAction, type AssistantTool, type PendingActionCard } from "../../api/client";
 import { parseVehicleId } from "../../api/vehicles";
@@ -30,7 +30,7 @@ import { useAssistant, type Turn } from "../../state/assistant";
 import { useAuth } from "../../state/auth";
 import { useVoiceSession } from "../../state/voiceSession";
 import { ConfirmActionCard } from "../ConfirmActionCard";
-import { VoiceWidget } from "../VoiceWidget";
+const VoiceWidget = lazy(() => import("../VoiceWidget").then((m) => ({ default: m.VoiceWidget })));
 
 const TOOL_LABEL: Record<string, string> = {
   customer_profile: "Your account",
@@ -267,7 +267,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
             {vehicleName(parseVehicleId(id))}
           </span>
         ))}
-        <span className="rounded-full bg-mist px-2 py-0.5">{profile ? `Account: ${profile.customer.first_name} (simulated)` : "Not signed in"}</span>
+        <span className="rounded-full bg-mist px-2 py-0.5">{profile ? `Account: ${profile.customer.first_name}` : "Not signed in"}</span>
         {turns.length > 0 && (
           <button onClick={() => setTurns([])} className="ml-auto flex items-center gap-1 hover:text-ink" aria-label="Clear conversation">
             <Trash2 className="h-3 w-3" /> Clear
@@ -283,7 +283,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted">
               {profile
-                ? "I answer from your simulated account and the vehicle catalog, checked by backend tools. I can't change your contract, and anything that needs a decision waits for your confirmation."
+                ? "I answer from your account and the vehicle catalog, checked by backend tools. I can't change your contract, and anything that needs a decision waits for your confirmation."
                 : "Ask about models, fuel costs, or how financing works. Sign in to ask about your own account."}
             </p>
             <div className={cn("mt-5 grid gap-2", !compact && "sm:grid-cols-2")}>
@@ -370,7 +370,9 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         {profile && (
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
             <span>Prefer to talk? Live captions appear in this chat.</span>
-            <VoiceWidget variant="light" customerId={profile.customer.customer_id} />
+            <Suspense fallback={<span className="h-9 w-28 animate-pulse rounded-full bg-mist" aria-hidden />}>
+              <VoiceWidget variant="light" customerId={profile.customer.customer_id} />
+            </Suspense>
           </div>
         )}
       </div>
@@ -489,7 +491,7 @@ function ToolTrace({ tools, openByDefault = false }: { tools: AssistantTool[]; o
           >
             <p className="mt-2 text-[11px] text-muted">
               Sources: {tools.map((t) => TOOL_LABEL[t.name] ?? t.name.replace(/_/g, " ")).join(", ")}. Figures come from deterministic backend calculations on the
-              simulated account and vehicle catalog, not from the language model.
+              account and vehicle catalog, not from the language model.
             </p>
             <div className="mt-2 space-y-2">
               {tools.map((t, i) => (

@@ -1,0 +1,373 @@
+{
+  "4runner": {
+    "names": [
+      "4Runner"
+    ],
+    "file": "4runner.jpg",
+    "article": "Toyota 4Runner",
+    "commons_file": "2025_Toyota_4Runner_TRD_Sport_in_Wind_Chill_Pearl,_front_right,_2025-05-18.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2025_Toyota_4Runner_TRD_Sport_in_Wind_Chill_Pearl,_front_right,_2025-05-18.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2025 Toyota 4Runner TRD Sport photographed in Sault Ste. Marie, Ontario, Canada."
+  },
+  "86": {
+    "names": [
+      "86",
+      "GR86"
+    ],
+    "file": "86.jpg",
+    "article": "Toyota 86",
+    "commons_file": "2022_Toyota_GR86_Premium_in_Halo,_Front_Right,_04-10-2022.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2022_Toyota_GR86_Premium_in_Halo,_Front_Right,_04-10-2022.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2022 Toyota GR86 Premium photographed in Sault Ste. Marie, Ontario, Canada. 2.4L Boxer 4, 6-speed automatic, built in Gunma, Japan."
+  },
+  "avalon": {
+    "names": [
+      "Avalon",
+      "Avalon Hybrid"
+    ],
+    "file": "avalon.jpg",
+    "article": "Toyota Avalon",
+    "commons_file": "2019_Toyota_Avalon_XSE_in_Ruby_Flare_Pearl,_Front_Right,_09-05-2022.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2019_Toyota_Avalon_XSE_in_Ruby_Flare_Pearl,_Front_Right,_09-05-2022.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2019 Toyota Avalon XSE photographed in London, Ontario, Canada."
+  },
+  "c-hr": {
+    "names": [
+      "C-HR"
+    ],
+    "file": "c-hr.jpg",
+    "article": "Toyota C-HR",
+    "commons_file": "Toyota_C-HR_Hybrid_(AX20)_DSC_7239.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_C-HR_Hybrid_(AX20)_DSC_7239.jpg",
+    "author": "Alexander Migl",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota C-HR Hybrid (AX20) in Filderstadt"
+  },
+  "camry": {
+    "names": [
+      "Camry",
+      "Camry Hybrid"
+    ],
+    "file": "camry.jpg",
+    "article": "Toyota Camry",
+    "commons_file": "2018_Toyota_Camry_(ASV70R)_Ascent_sedan_(2018-08-27)_01.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2018_Toyota_Camry_(ASV70R)_Ascent_sedan_(2018-08-27)_01.jpg",
+    "author": "EurovisionNim",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2018 Toyota Camry (ASV70R) Ascent sedan. Photographed in Fremantle, Western Australia., Australia. Built in Thailand"
+  },
+  "corolla": {
+    "names": [
+      "Corolla",
+      "Corolla Hybrid"
+    ],
+    "file": "corolla.jpg",
+    "article": "Toyota Corolla",
+    "commons_file": "Toyota_Corolla_Hybrid_(E210)_IMG_4338.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_Corolla_Hybrid_(E210)_IMG_4338.jpg",
+    "author": "Alexander Migl",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota_Corolla_Hybrid_(E210) in Stuttgart-Vaihingen"
+  },
+  "corolla-cross": {
+    "names": [
+      "Corolla Cross",
+      "Corolla Cross Hybrid"
+    ],
+    "file": "corolla-cross.jpg",
+    "article": "Toyota Corolla Cross",
+    "commons_file": "2023_Toyota_Corolla_Cross_XLE_4WD_in_Wind_Chill_Pearl,_front_left.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2023_Toyota_Corolla_Cross_XLE_4WD_in_Wind_Chill_Pearl,_front_left.jpg",
+    "author": "Mr.choppers",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "description": "A 2023 Toyota Corolla Cross XLE 4WD in Wind Chill Pearl."
+  },
+  "corolla-im": {
+    "names": [
+      "Corolla iM"
+    ],
+    "file": "corolla-im.jpg",
+    "article": "Toyota Auris",
+    "commons_file": "Toyota_Auris_2.0_D-4D_Executive_(II)_–_Frontansicht,_1._Juni_2013,_Düsseldorf.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_Auris_2.0_D-4D_Executive_(II)_%E2%80%93_Frontansicht,_1._Juni_2013,_D%C3%BCsseldorf.jpg",
+    "author": "M 93",
+    "license": "CC BY-SA 3.0 de",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en",
+    "description": "Toyota Auris 2.0 D-4D Executive (II)"
+  },
+  "crown": {
+    "names": [
+      "Crown"
+    ],
+    "file": "crown.jpg",
+    "article": null,
+    "commons_file": "2023 Toyota Crown Crossover G in Black, front left.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2023_Toyota_Crown_Crossover_G_in_Black,_front_left.jpg",
+    "author": "Mr.choppers",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2023 Toyota Crown Crossover G (6AA-AZSH35) in Black."
+  },
+  "crown-signia": {
+    "names": [
+      "Crown Signia"
+    ],
+    "file": "crown-signia.jpg",
+    "article": null,
+    "commons_file": "2025 Toyota Crown Signia Limited in Storm Cloud, front right, 2025-04-14.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2025_Toyota_Crown_Signia_Limited_in_Storm_Cloud,_front_right,_2025-04-14.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2025 Toyota Crown Signia Limited photographed in Sault Ste. Marie, Ontario, Canada."
+  },
+  "gr-corolla": {
+    "names": [
+      "GR Corolla"
+    ],
+    "file": "gr-corolla.jpg",
+    "article": "Toyota GR Corolla",
+    "commons_file": "2024_Toyota_GR_Corolla_Circuit_Edition_in_Blue_Flame,_front_right,_2024-06-30.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2024_Toyota_GR_Corolla_Circuit_Edition_in_Blue_Flame,_front_right,_2024-06-30.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2024 Toyota GR Corolla Circuit Edition photographed in Sault Ste. Marie, Ontario, Canada."
+  },
+  "grand-highlander": {
+    "names": [
+      "Grand Highlander",
+      "Grand Highlander Hybrid"
+    ],
+    "file": "grand-highlander.jpg",
+    "article": "Toyota Grand Highlander",
+    "commons_file": "2026_Toyota_Grand_Highlander_Hybrid_XLE_in_Wind_Chill_Pearl,_front_left,_07-10-2026.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2026_Toyota_Grand_Highlander_Hybrid_XLE_in_Wind_Chill_Pearl,_front_left,_07-10-2026.jpg",
+    "author": "Cutlass",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "description": "2026 Toyota Grand Highlander photographed in White River Junction, Vermont."
+  },
+  "highlander": {
+    "names": [
+      "Highlander",
+      "Highlander Hybrid"
+    ],
+    "file": "highlander.jpg",
+    "article": "Toyota Highlander",
+    "commons_file": "Toyota_Highlander_Hybrid_(XU70)_1X7A6356.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_Highlander_Hybrid_(XU70)_1X7A6356.jpg",
+    "author": "Alexander Migl",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota Highlander Hybrid (XU70) in Esslingen"
+  },
+  "land-cruiser": {
+    "names": [
+      "Land Cruiser"
+    ],
+    "file": "land-cruiser.jpg",
+    "article": "Toyota Land Cruiser Prado",
+    "commons_file": "2024_Toyota_Land_Cruiser_250_VX_in_Platinum_White_Pearl_Mica,_front_left.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2024_Toyota_Land_Cruiser_250_VX_in_Platinum_White_Pearl_Mica,_front_left.jpg",
+    "author": "Mr.choppers",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2024 Toyota Land Cruiser 250 VX in Platinum White Pearl Mica."
+  },
+  "mirai": {
+    "names": [
+      "Mirai"
+    ],
+    "file": "mirai.jpg",
+    "article": "Toyota Mirai",
+    "commons_file": "Toyota_Mirai_(JPD20)_IMG_5303.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_Mirai_(JPD20)_IMG_5303.jpg",
+    "author": "Alexander Migl",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota Mirai (JPD20) in Stuttgart-Vaihingen"
+  },
+  "prius": {
+    "names": [
+      "Prius",
+      "Prius Prime",
+      "Prius Prime (PHEV)",
+      "Prius Plug-in Hybrid"
+    ],
+    "file": "prius.jpg",
+    "article": "Toyota Prius",
+    "commons_file": "Toyota_Prius_2.0_HEV_Limited_(V)_–_f_18112022.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_Prius_2.0_HEV_Limited_(V)_%E2%80%93_f_18112022.jpg",
+    "author": "M 93",
+    "license": "CC BY-SA 3.0 de",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en",
+    "description": "Toyota Prius 2.0 HEV Limited (V)"
+  },
+  "prius-c": {
+    "names": [
+      "Prius C",
+      "Prius c"
+    ],
+    "file": "prius-c.jpg",
+    "article": "Toyota Aqua",
+    "commons_file": "2017-2021_Toyota_Aqua.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2017-2021_Toyota_Aqua.jpg",
+    "author": "TTTNIS",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "description": "2017-2021 Toyota Aqua"
+  },
+  "rav4": {
+    "names": [
+      "RAV4",
+      "RAV4 Hybrid",
+      "RAV4 Prime",
+      "RAV4 Prime (PHEV)",
+      "RAV4 Plug-in Hybrid"
+    ],
+    "file": "rav4.jpg",
+    "article": "Toyota RAV4",
+    "commons_file": "2024_Toyota_RAV4_Prime_XSE_Premium_in_Silver_Sky_with_Midnight_Black_roof,_front_left.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2024_Toyota_RAV4_Prime_XSE_Premium_in_Silver_Sky_with_Midnight_Black_roof,_front_left.jpg",
+    "author": "Mr.choppers",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "A 2024 Toyota RAV4 Prime XSE Premium in Silver Sky Metallic w/ Midnight Black Metallic roof in Long Island City, NY. Built in Nagakusa, Japan."
+  },
+  "sequoia": {
+    "names": [
+      "Sequoia"
+    ],
+    "file": "sequoia.jpg",
+    "article": "Toyota Sequoia",
+    "commons_file": "2023_Toyota_Sequoia_Limited_in_Wind_Chill_Pearl,_Front_Right,_01-16-2023.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2023_Toyota_Sequoia_Limited_in_Wind_Chill_Pearl,_Front_Right,_01-16-2023.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2023 Toyota Sequoia Limited photographed in Sault Ste. Marie, Ontario, Canada."
+  },
+  "sienna": {
+    "names": [
+      "Sienna"
+    ],
+    "file": "sienna.jpg",
+    "article": "Toyota Sienna",
+    "commons_file": "2021_Toyota_Sienna_XLE_Hybrid,_front_12.21.21.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2021_Toyota_Sienna_XLE_Hybrid,_front_12.21.21.jpg",
+    "author": "Kevauto",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "A 2021 Toyota Sienna XLE Hybrid photographed in Oakland Gardens, Queens, New York, USA"
+  },
+  "tacoma": {
+    "names": [
+      "Tacoma",
+      "Tacoma Hybrid"
+    ],
+    "file": "tacoma.jpg",
+    "article": "Toyota Tacoma",
+    "commons_file": "Toyota_Tacoma_(N300)_TRD_1X7A2438.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_Tacoma_(N300)_TRD_1X7A2438.jpg",
+    "author": "Alexander-93",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota Tacoma (N300) TRD in Stuttgart"
+  },
+  "tundra": {
+    "names": [
+      "Tundra",
+      "Tundra Hybrid"
+    ],
+    "file": "tundra.jpg",
+    "article": "Toyota Tundra",
+    "commons_file": "2022_Toyota_Tundra_Limited_CrewMax_Short_Bed_4x4_with_TRD_Off-Road_Package,_front_left,_11-01-2022.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2022_Toyota_Tundra_Limited_CrewMax_Short_Bed_4x4_with_TRD_Off-Road_Package,_front_left,_11-01-2022.jpg",
+    "author": "MercurySable99",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2022 Toyota Tundra Limited CrewMax Short Bed 4x4 with TRD Off-Road Package photographed in New Castle, Pennsylvania. Finished in Lunar Rock."
+  },
+  "venza": {
+    "names": [
+      "Venza"
+    ],
+    "file": "venza.jpg",
+    "article": "Toyota Venza",
+    "commons_file": "2021_Toyota_Venza_LE,_Front_Left,_06-20-2021.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2021_Toyota_Venza_LE,_Front_Left,_06-20-2021.jpg",
+    "author": "SsmIntrigue",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2021 Toyota Venza LE photographed in Sault Ste. Marie, Ontario, Canada"
+  },
+  "yaris": {
+    "names": [
+      "Yaris",
+      "Yaris iA"
+    ],
+    "file": "yaris.jpg",
+    "article": "Toyota Yaris",
+    "commons_file": "2020_Toyota_Yaris_Design_HEV_CVT_1.5_Front.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2020_Toyota_Yaris_Design_HEV_CVT_1.5_Front.jpg",
+    "author": "Vauxford",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2020 Toyota Yaris Design HEV CVT 1.5 Front Taken in Stratford-upon-Avon"
+  },
+  "bz4x": {
+    "names": [
+      "bZ4X",
+      "bZ"
+    ],
+    "file": "bz4x.jpg",
+    "article": "Toyota bZ4X",
+    "commons_file": "Toyota_bZ4X_Automesse_Ludwigsburg_2022_1X7A5895.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Toyota_bZ4X_Automesse_Ludwigsburg_2022_1X7A5895.jpg",
+    "author": "Alexander Migl",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "Toyota bZ4X at Automesse Ludwigsburg 2022"
+  },
+  "bz-woodland": {
+    "names": [
+      "bZ Woodland"
+    ],
+    "file": "bz-woodland.jpg",
+    "article": null,
+    "commons_file": "2026 Toyota bZ Woodland au SIAM 2026.JPG",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2026_Toyota_bZ_Woodland_au_SIAM_2026.JPG",
+    "author": "Bull-Doser",
+    "license": "Public domain",
+    "license_url": null,
+    "description": "2026 Toyota bZ Woodland photographed in Montréal, Québec , Canada at the 2026 Montréal International Auto Show."
+  },
+  "supra": {
+    "names": [
+      "Supra",
+      "GR Supra"
+    ],
+    "file": "supra.jpg",
+    "article": null,
+    "commons_file": "2023 Toyota GR Supra 3.0 in Cu Later, Front Left, 04-23-2023.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:2023_Toyota_GR_Supra_3.0_in_Cu_Later,_Front_Left,_04-23-2023.jpg",
+    "author": "Elise240SX",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "description": "2023 Toyota GR Supra 3.0 photographed in Sault Ste. Marie, Ontario, Canada."
+  }
+}

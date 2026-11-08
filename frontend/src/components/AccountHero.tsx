@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import type { Profile } from "../data/types";
-import { IMAGE_NOTE, modelImage } from "../media/vehicleImages";
+import { modelImage, modelImageNote } from "../media/vehicleImages";
 import { EASE } from "./ui/motion";
 
 /** Dark page header for signed-in pages: greeting, the customer's vehicle, and a strip of account figures. */
@@ -27,7 +27,7 @@ export function AccountHero({
         src={modelImage(p.vehicle.model)}
         alt=""
         aria-hidden
-        title={IMAGE_NOTE}
+        title={modelImageNote(p.vehicle.model)}
         className="absolute inset-y-0 right-0 -z-10 h-full w-full object-cover opacity-60 md:w-[62%] md:opacity-95"
       />
       <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-charcoal via-charcoal/90 to-charcoal/20 md:via-charcoal/75" />

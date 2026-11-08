@@ -1,4 +1,4 @@
-"""Shared HTTP helper for NHTSA and CarImagesAPI: timeouts, retries, and classified errors."""
+"""Shared HTTP helper for NHTSA and EPA: timeouts, retries, and classified errors."""
 
 from __future__ import annotations
 

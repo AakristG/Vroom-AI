@@ -175,7 +175,24 @@ export function VehicleDetailPage() {
             <div className="card p-6 text-sm leading-relaxed text-muted">
               <h2 className="text-base font-semibold text-ink">Where this comes from</h2>
               <p className="mt-2">{v.source_note}</p>
-              {v.image && <p className="mt-2">{v.image.license_note}</p>}
+              {v.image && (
+                <p className="mt-2">
+                  {v.image.license_note}{" "}
+                  {v.image.source_page && (
+                    <a href={v.image.source_page} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-ink">
+                      View photo source
+                    </a>
+                  )}
+                  {v.image.license_url && (
+                    <>
+                      {" · "}
+                      <a href={v.image.license_url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-ink">
+                        {v.image.license}
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           </section>
         </>

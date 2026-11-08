@@ -108,20 +108,46 @@ class EpaHelperTests(SimpleTestCase):
 
 
 class CatalogRecordTests(SimpleTestCase):
-    def test_tundra_gets_local_footage_without_carimages(self):
-        from .catalog import _local_image, _record
+    def test_tundra_gets_its_own_licensed_photo(self):
+        from .catalog import _images_for, _record
 
         row = {"year": 2026, "make": "Toyota", "model": "Tundra", "make_id": 448, "model_id": 1}
-        record = _record(row, {"tundra": "Truck"}, _local_image("Tundra"))
+        image = _images_for(["Tundra"], 2026)["Tundra"]
+        record = _record(row, {"tundra": "Truck"}, image)
         self.assertEqual(record["category"], "Truck")
-        self.assertEqual(record["image"]["provider"], "local")
-        self.assertTrue(record["image"]["url"].endswith("tundra-trd-pro-poster.jpg"))
+        self.assertEqual(record["image"]["provider"], "Wikimedia Commons")
+        self.assertEqual(record["sources"]["images"], "Wikimedia Commons")
+        self.assertTrue(record["image"]["url"].endswith("/media/models/tundra.jpg"))
         self.assertIsNone(record["msrp"]["value"])
 
-    def test_camry_is_not_given_tundra_footage(self):
-        from .catalog import _local_image
+    def test_powertrain_variants_use_the_same_nameplate_photo(self):
+        from .photos import photo_for
 
-        self.assertIsNone(_local_image("Camry"))
+        self.assertTrue(photo_for("RAV4 Prime (PHEV)")["url"].endswith("rav4.jpg"))
+        self.assertTrue(photo_for("Camry Hybrid")["url"].endswith("camry.jpg"))
+        self.assertTrue(photo_for("GR86")["url"].endswith("86.jpg"))
+
+    def test_similar_names_do_not_share_photos(self):
+        from .photos import photo_for
+
+        self.assertTrue(photo_for("Corolla Cross")["url"].endswith("corolla-cross.jpg"))
+        self.assertTrue(photo_for("Corolla")["url"].endswith("corolla.jpg"))
+        self.assertTrue(photo_for("Grand Highlander")["url"].endswith("grand-highlander.jpg"))
+        self.assertTrue(photo_for("Crown Signia")["url"].endswith("crown-signia.jpg"))
+
+    def test_unknown_model_gets_no_photo(self):
+        from .catalog import _images_for
+
+        self.assertEqual(_images_for(["Matrix"], 2010), {})
+
+    def test_every_photo_is_credited(self):
+        import json
+        from pathlib import Path
+
+        manifest = json.loads(Path(__file__).with_name("model_photos.json").read_text(encoding="utf-8"))
+        for slug, entry in manifest.items():
+            for key in ("author", "license", "source_page", "file"):
+                self.assertTrue(entry.get(key), f"{slug} is missing {key}")
 
 
 class AuthRedirectTests(SimpleTestCase):

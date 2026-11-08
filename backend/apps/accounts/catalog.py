@@ -1,4 +1,4 @@
-"""Signed-in Toyota model listing, backed by the NHTSA + CarImagesAPI catalog."""
+"""Signed-in Toyota model listing, backed by the NHTSA catalog with Wikimedia Commons photos."""
 
 from __future__ import annotations
 

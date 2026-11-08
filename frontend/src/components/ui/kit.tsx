@@ -42,7 +42,7 @@ export function SimulatedBadge({ className }: { className?: string }) {
 export function SourceBanner({ source, fallbackReason }: { source: DataSource; fallbackReason?: string | null }) {
   return (
     <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
-      <SourceBadge source={source} /> Model list from NHTSA vPIC. Images from CarImagesAPI when a catalog match exists. Fuel economy on vehicle pages from EPA FuelEconomy.gov.
+      <SourceBadge source={source} /> Model list from NHTSA vPIC. Photos from Wikimedia Commons (representative; generation may differ). Fuel economy on vehicle pages from EPA FuelEconomy.gov.
       {fallbackReason ? ` ${fallbackReason}` : ""}
     </p>
   );

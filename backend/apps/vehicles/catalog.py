@@ -1,4 +1,4 @@
-"""Unified Toyota catalog: NHTSA for models, CarImagesAPI for pictures.
+"""Unified Toyota catalog: NHTSA for models, bundled Wikimedia Commons photos for pictures.
 
 Every numeric specification is either returned by a provider or left null.
 MSRP and monthly payment are never filled — neither provider supplies them.
@@ -10,17 +10,18 @@ import datetime as dt
 import logging
 from typing import Any
 
-from .carimages import carimages
 from .epa import fueleconomy
 from .http import ProviderError
 from .matching import canonical
 from .nhtsa import nhtsa
+from .photos import PROVIDER as PHOTO_PROVIDER, photo_for
 
 logger = logging.getLogger(__name__)
 
 MAKE = "Toyota"
 SOURCE_NOTE = (
-    "Model list from NHTSA vPIC. Images from CarImagesAPI when a catalog match exists. "
+    "Model list from NHTSA vPIC. Photos are freely licensed Wikimedia Commons images of each nameplate "
+    "and may show a different generation than the selected year. "
     "Fuel economy and tested configurations from EPA FuelEconomy.gov when published. "
     "None of these sources provide horsepower, seating, exterior dimensions, or retail pricing."
 )
@@ -187,39 +188,14 @@ def _type_index(year: int) -> dict[str, str]:
 
 
 def _images_for(models: list[str], year: int) -> dict[str, dict]:
-    remote: dict[str, dict] = {}
-    try:
-        remote = carimages.images_for(models, year)
-    except Exception:
-        logger.warning("CarImagesAPI batch image lookup failed for %s", year)
+    """Bundled per-nameplate photos. Models without one are left out, never given another car's photo."""
+    del year  # Photos are matched by nameplate, not model year.
     out: dict[str, dict] = {}
     for name in models:
-        payload = remote.get(name) or _local_image(name)
-        if payload and payload.get("url"):
+        payload = photo_for(name)
+        if payload:
             out[name] = payload
     return out
-
-
-def _local_image(model: str) -> dict | None:
-    """Verified in-repo footage for a nameplate. Never used as a stand-in for a different model."""
-    if canonical(model) != canonical("Tundra"):
-        return None
-    url = "/media/hero/tundra-trd-pro-poster.jpg"
-    return {
-        "url": url,
-        "thumbnail": url,
-        "views": {"front34": url},
-        "match": "generation",
-        "matched_name": "Tundra",
-        "provider": "local",
-        "source_page": None,
-        "license_filter": None,
-        "license_note": (
-            "Product footage bundled with this app, not a CarImagesAPI studio still "
-            "and not an official Toyota catalog photograph."
-        ),
-        "expires_at": None,
-    }
 
 
 def _find_model(rows: list[dict], model: str) -> dict | None:
@@ -279,13 +255,7 @@ def _record(row: dict, type_index: dict[str, str], image_payload: dict | None) -
         "source_note": SOURCE_NOTE,
         "sources": {
             "vehicleData": "NHTSA",
-            "images": (
-                "CarImagesAPI"
-                if (image_payload or {}).get("provider") == "CarImagesAPI"
-                else "local"
-                if (image_payload or {}).get("provider") == "local"
-                else None
-            ),
+            "images": PHOTO_PROVIDER if image_payload else None,
             "safety": None,
             "recalls": None,
             "efficiency": None,

@@ -598,7 +598,7 @@ function CostCharts({ vs, assume }: { vs: VehicleRecord[]; assume: Assumptions }
       </ChartCard>
       <ChartCard
         title="Estimated five-year fuel and other costs"
-        note={`Five years of fuel${assume.other ? ` + $${assume.other.toLocaleString("en-US")}/yr other costs` : ""}. Vehicle purchase price is not included — NHTSA and CarImagesAPI do not publish MSRP.`}
+        note={`Five years of fuel${assume.other ? ` + $${assume.other.toLocaleString("en-US")}/yr other costs` : ""}. Vehicle purchase price is not included — NHTSA and EPA do not publish MSRP.`}
         missing={rows.filter((r) => r.fiveYear == null).map((r) => `${shortName(r.v)} (needs ${r.fuel.missing})`)}
       >
         <SingleBar rows={rows.flatMap((r) => (r.fiveYear == null ? [] : [{ name: shortName(r.v), value: Math.round(r.fiveYear), color: r.color }]))} unit="" format={usd} />

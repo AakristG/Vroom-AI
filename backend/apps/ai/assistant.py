@@ -63,7 +63,7 @@ def _grounded(messages: list[dict], customer_id: str | None, context: dict) -> t
         extra += "\n".join(f"- {r['name']}: {json.dumps(r['result'], default=str)}" for r in results)
         if '"source": "nhtsa"' in extra:
             extra += (
-                "\nVehicle figures come from NHTSA (and CarImagesAPI for photos). "
+                "\nVehicle figures come from NHTSA (photos are representative Wikimedia Commons images). "
                 "Do not invent MSRP, horsepower, MPG, or payments. If a field is null, say it is unavailable."
             )
     reply = nim_client.generate_reply(messages, extra_system=extra, base=ASSISTANT_PROMPT)

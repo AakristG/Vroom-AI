@@ -4,7 +4,7 @@ import { AssistantChat } from "../components/assistant/AssistantChat";
 import { Reveal } from "../components/ui/motion";
 import { money } from "../lib/format";
 import { isNewAccount } from "../lib/sessionProfile";
-import { CATEGORY_IMAGE, modelImage } from "../media/vehicleImages";
+import { CATEGORY_IMAGE, modelImage, modelImageNote } from "../media/vehicleImages";
 import { usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
 
@@ -44,7 +44,7 @@ export function AssistantPage() {
           {p ? (
             <div className="card overflow-hidden p-0">
               <div className="relative aspect-[16/9]">
-                <img src={modelImage(p.vehicle.model)} alt="" aria-hidden className="h-full w-full object-cover" />
+                <img src={modelImage(p.vehicle.model)} alt="" aria-hidden title={modelImageNote(p.vehicle.model)} className="h-full w-full object-cover" />
                 <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                 <div className="absolute inset-x-4 bottom-3 text-white">
                   <p className="text-[11px] uppercase tracking-wider text-white/70">The AI is reading</p>

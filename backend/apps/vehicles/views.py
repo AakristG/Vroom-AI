@@ -1,4 +1,4 @@
-"""Toyota vehicle catalog API. NHTSA + CarImagesAPI. Authentication required."""
+"""Toyota vehicle catalog API. NHTSA + bundled Wikimedia Commons photos. Authentication required."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from apps.accounts.authz import login_required_api
 
 from . import catalog as catalog_service
-from .carimages import carimages
 from .http import ProviderError
 from .nhtsa import VIN_RE, nhtsa
 
@@ -27,7 +26,7 @@ def _year(request) -> int | None:
 def status(request):
     return Response(
         {
-            "carimages_configured": carimages.configured(),
+            "images": "Wikimedia Commons",
             "source": "nhtsa",
             "categories": catalog_service.CATEGORIES,
             "fuel_types": catalog_service.FUEL_TYPES,
@@ -201,7 +200,7 @@ def market_value(request):
     return Response(
         {
             "available": False,
-            "detail": "Verified pricing is not currently connected. NHTSA and CarImagesAPI do not provide market values.",
+            "detail": "Verified pricing is not currently connected. NHTSA does not provide market values.",
         }
     )
 

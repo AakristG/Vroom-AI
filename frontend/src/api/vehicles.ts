@@ -13,6 +13,9 @@ export interface VehicleImage {
   provider: string;
   license_filter: string | null;
   license_note: string;
+  author?: string | null;
+  license?: string | null;
+  license_url?: string | null;
   expires_at?: number | null;
 }
 
@@ -71,7 +74,7 @@ export interface VehicleRecord {
   model_id?: number | null;
   sources?: {
     vehicleData: "NHTSA";
-    images: "CarImagesAPI" | "local" | null;
+    images: "Wikimedia Commons" | null;
     safety: "NHTSA" | null;
     recalls: "NHTSA" | null;
     efficiency?: "EPA" | null;
@@ -85,7 +88,7 @@ interface Listing<T> {
 }
 
 export interface CatalogStatus {
-  carimages_configured: boolean;
+  images: "Wikimedia Commons";
   source: DataSource;
   categories: string[];
   fuel_types: string[];

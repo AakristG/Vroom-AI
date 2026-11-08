@@ -33,8 +33,7 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
   const url = image?.url;
   const match = image?.match || v.image_match;
   const provider = image?.provider || v.sources?.images;
-  const credit =
-    provider === "CarImagesAPI" ? "CarImagesAPI" : provider === "local" ? "Product footage" : null;
+  const credit = provider === "Wikimedia Commons" ? (image?.author ? `© ${image.author}` : "Wikimedia Commons") : null;
 
   return (
     <div ref={ref} className={cn("relative grid place-items-center overflow-hidden bg-gradient-to-b from-[#f1f1ef] to-[#e4e4e1]", className)}>
@@ -48,12 +47,12 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
             className="h-full w-full object-cover"
           />
           {match === "generation" && (
-            <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur">
-              Closest generation image
+            <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
+              Representative photo
             </span>
           )}
           {credit && (
-            <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
+            <span className="absolute bottom-2 right-2 max-w-[55%] truncate rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur" title={image?.license_note}>
               {credit}
             </span>
           )}

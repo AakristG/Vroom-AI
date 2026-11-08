@@ -272,7 +272,7 @@ export function SiteFooter() {
             <li>Synthetic customers only</li>
             <li>Not an official Toyota site</li>
             <li>No credit report is pulled</li>
-            <li>Vehicle data: NHTSA and CarImagesAPI</li>
+            <li>Vehicle data: NHTSA and EPA. Photos: Wikimedia Commons</li>
           </ul>
         </div>
       </div>

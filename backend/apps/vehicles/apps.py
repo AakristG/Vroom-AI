@@ -12,7 +12,5 @@ class VehiclesConfig(AppConfig):
     label = "vehicles"
 
     def ready(self) -> None:
-        if not (settings.CARIMAGES_API_KEY and settings.CARIMAGES_API_SECRET):
-            logger.warning("CARIMAGES_API_KEY / CARIMAGES_API_SECRET are not set. Vehicle images will show as unavailable.")
         if "vpic.nhtsa.dot.gov" not in settings.NHTSA_VPIC_BASE_URL:
             logger.warning("NHTSA_VPIC_BASE_URL is not the official vPIC host.")

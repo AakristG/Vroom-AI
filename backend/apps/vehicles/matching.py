@@ -1,4 +1,4 @@
-"""Deterministic Toyota model-name matching between NHTSA and CarImagesAPI.
+"""Deterministic Toyota model-name matching between NHTSA and the bundled photo manifest.
 
 Never silently attach a Camry image to a Corolla. Powertrain suffixes (Hybrid, Prime)
 are treated as a generation-level match of the same nameplate, not an exact trim match.
@@ -78,7 +78,7 @@ class Match:
 
 
 def match_model(nhtsa_name: str, catalog: Iterable[dict]) -> Match:
-    """catalog items are {slug, name} from CarImagesAPI."""
+    """catalog items are {slug, name} entries."""
     wanted = canonical(nhtsa_name)
     if not wanted:
         return Match(None, None, "unavailable")

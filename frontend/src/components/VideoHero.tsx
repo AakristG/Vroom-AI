@@ -62,7 +62,7 @@ export function VideoHero({ children }: { clips?: HeroClip[]; children: ReactNod
         {!reduce && videoOk && (
           <video
             ref={videoRef}
-            className="absolute inset-0 h-full w-full object-cover object-[62%_center] md:object-center brightness-125"
+            className="absolute inset-0 h-full w-full object-cover object-[62%_center] md:object-center brightness-115"
             autoPlay={active}
             muted
             playsInline
@@ -110,4 +110,5 @@ export function VideoHero({ children }: { clips?: HeroClip[]; children: ReactNod
     </section>
   );
 }
+
 

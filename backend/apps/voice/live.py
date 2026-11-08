@@ -4,7 +4,8 @@ Every call is written three ways:
 - SpacetimeDB (`call_owner`, `call_session`, `call_message`) so every open browser for that
   customer sees the transcript live,
 - the Django database (`CallLog`) so the conversation is saved durably, and
-- a small in-memory snapshot for the polling endpoint /api/voice/live/.
+- a small in-memory snapshot for the polling endpoint /api/voice/live/ and authenticated
+  caption WebSocket `/ws/captions/<call_id>/`.
 """
 
 from __future__ import annotations
@@ -20,15 +21,56 @@ logger = logging.getLogger(__name__)
 
 _lock = Lock()
 _calls: dict[str, dict[str, Any]] = {}
+_calls_by_id: dict[str, dict[str, Any]] = {}
 _appointments: list[dict[str, Any]] = []
 _published: set[str] = set()
 _owners: dict[str, str] = {}
 # Agent replies already published by append_agent, waiting to be matched to their transcript turn.
 _pending_agent: dict[str, list[str]] = {}
+_seq: dict[str, int] = {}
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def caption_group(call_id: str) -> str:
+    return f"captions_{call_id}"
+
+
+def _broadcast(call_id: str, payload: dict[str, Any]) -> None:
+    """Push a caption snapshot to browsers subscribed to this verified call."""
+    if not call_id:
+        return
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        layer = get_channel_layer()
+        if layer is None:
+            return
+        async_to_sync(layer.group_send)(caption_group(call_id), {"type": "caption.message", "payload": payload})
+    except Exception:
+        logger.exception("Could not broadcast captions for %s", call_id)
+
+
+def _store_session(customer_id: str | None, call_id: str, *, status: str, turns: list[dict]) -> dict[str, Any]:
+    seq = _seq.get(call_id, 0) + 1
+    _seq[call_id] = seq
+    session = {"call_id": call_id, "status": status, "turns": list(turns), "sequence": seq}
+    if customer_id:
+        _calls[customer_id] = session
+    _calls_by_id[call_id] = session
+    _broadcast(
+        call_id,
+        {
+            "call_id": call_id,
+            "status": status,
+            "turns": session["turns"],
+            "sequence": seq,
+        },
+    )
+    return session
 
 
 def set_owner(call_id: str, customer_id: str | None, *, channel: str, from_number: str = "") -> None:
@@ -92,14 +134,26 @@ def _turns(call_id: str, transcript: list[dict]) -> list[dict]:
     return turns
 
 
+def _with_pending_agent(call_id: str, turns: list[dict]) -> list[dict]:
+    """Keep Nemotron replies visible before Retell echoes them into the transcript."""
+    pending = list(_pending_agent.get(call_id) or [])
+    if not pending:
+        return turns
+    merged = list(turns)
+    for content in pending:
+        if any(t["role"] == "agent" and t["content"] == content for t in merged):
+            continue
+        merged.append({"id": f"{call_id}-pending-{len(merged)}", "role": "agent", "content": content})
+    return merged
+
+
 def sync_transcript(customer_id: str | None, call_id: str, transcript: list[dict], *, settled: bool = False) -> None:
     """Retell sends the whole transcript so far. Publish turns not sent yet, and save the lot.
     `settled` means the caller finished speaking (a reply is due), so their last turn is final."""
-    turns = _turns(call_id, transcript)
+    turns = _with_pending_agent(call_id, _turns(call_id, transcript))
     customer_id = customer_id or _owners.get(call_id)
-    if customer_id:
-        with _lock:
-            _calls[customer_id] = {"call_id": call_id, "status": "live", "turns": turns}
+    with _lock:
+        _store_session(customer_id, call_id, status="live", turns=turns)
     publish_session(call_id, "live", last_speaker=turns[-1]["role"] if turns else "")
     for turn in turns:
         # Retell revises the last turn while the caller is still talking; only publish settled turns.
@@ -110,14 +164,12 @@ def sync_transcript(customer_id: str | None, call_id: str, transcript: list[dict
 
 def finish(customer_id: str | None, call_id: str, transcript: list[dict] | None = None) -> None:
     """The call hung up: publish the caller's last turn and mark the call ended."""
-    turns = _turns(call_id, transcript or [])
+    turns = _with_pending_agent(call_id, _turns(call_id, transcript or []))
     for turn in turns:
         publish_turn(call_id, turn["role"], turn["content"], turn["id"])
     customer_id = customer_id or _owners.get(call_id)
-    if customer_id:
-        with _lock:
-            if customer_id in _calls:
-                _calls[customer_id]["status"] = "ended"
+    with _lock:
+        _store_session(customer_id, call_id, status="ended", turns=turns)
     publish_session(call_id, "ended", last_speaker=turns[-1]["role"] if turns else "agent")
     if turns:
         _save(call_id, transcript=[{"role": t["role"], "content": t["content"]} for t in turns])
@@ -127,16 +179,18 @@ def append_agent(customer_id: str | None, call_id: str, content: str, response_i
     if not content:
         return
     turn_id = f"{call_id}-reply-{response_id}"
+    text = content.strip()
     customer_id = customer_id or _owners.get(call_id)
-    if customer_id:
-        with _lock:
-            session = _calls.setdefault(customer_id, {"call_id": call_id, "status": "live", "turns": []})
-            session["turns"].append({"id": turn_id, "role": "agent", "content": content})
-            session["status"] = "live"
+    with _lock:
+        session = _calls_by_id.get(call_id) or ( _calls.get(customer_id) if customer_id else None)
+        turns = list(session["turns"]) if session and session.get("call_id") == call_id else []
+        if not any(t.get("id") == turn_id or (t.get("role") == "agent" and t.get("content") == text) for t in turns):
+            turns.append({"id": turn_id, "role": "agent", "content": text})
+        _store_session(customer_id, call_id, status="live", turns=turns)
     publish_session(call_id, "live", last_speaker="agent")
-    publish_turn(call_id, "agent", content, turn_id)
+    publish_turn(call_id, "agent", text, turn_id)
     if turn_id in _published:
-        _pending_agent.setdefault(call_id, []).append(content.strip())
+        _pending_agent.setdefault(call_id, []).append(text)
 
 
 def _save(call_id: str, *, transcript: list[dict] | None = None, status: str | None = None,
@@ -168,7 +222,25 @@ def snapshot(customer_id: str) -> dict[str, Any]:
         session = _calls.get(customer_id)
         if not session:
             return {"status": "idle", "turns": []}
-        return {"status": session["status"], "call_id": session["call_id"], "turns": list(session["turns"])}
+        return {
+            "status": session["status"],
+            "call_id": session["call_id"],
+            "turns": list(session["turns"]),
+            "sequence": session.get("sequence", 0),
+        }
+
+
+def snapshot_for_call(call_id: str) -> dict[str, Any] | None:
+    with _lock:
+        session = _calls_by_id.get(call_id)
+        if not session:
+            return None
+        return {
+            "status": session["status"],
+            "call_id": session["call_id"],
+            "turns": list(session["turns"]),
+            "sequence": session.get("sequence", 0),
+        }
 
 
 def save_appointment(record: dict[str, Any]) -> dict[str, Any]:

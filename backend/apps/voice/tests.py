@@ -121,3 +121,21 @@ class LiveTranscriptTests(TestCase):
         live.set_owner("c2", "C002", channel="phone", from_number="+15551234567")
         owner = next(a for n, a in self.calls if n == "set_call_owner")
         self.assertEqual((owner["callId"], owner["customerId"], owner["channel"]), ("c2", "C002", "phone"))
+
+    def test_append_agent_is_visible_in_snapshot_before_retell_echo(self):
+        live.set_owner("c3", "C003", channel="web")
+        live.append_agent("C003", "c3", "Hi from Nemotron", 0)
+        snap = live.snapshot("C003")
+        self.assertEqual(snap["status"], "live")
+        self.assertEqual(snap["turns"][0]["content"], "Hi from Nemotron")
+        by_call = live.snapshot_for_call("c3")
+        self.assertIsNotNone(by_call)
+        self.assertEqual(by_call["turns"][0]["content"], "Hi from Nemotron")
+
+    def test_pending_agent_survives_partial_transcript_sync(self):
+        live.set_owner("c4", "C004", channel="web")
+        live.append_agent("C004", "c4", "Full answer from Nemotron", 1)
+        live.sync_transcript("C004", "c4", [{"role": "user", "content": "Hello"}])
+        contents = [t["content"] for t in live.snapshot("C004")["turns"]]
+        self.assertIn("Hello", contents)
+        self.assertIn("Full answer from Nemotron", contents)

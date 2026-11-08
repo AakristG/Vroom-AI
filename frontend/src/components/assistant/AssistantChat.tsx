@@ -26,11 +26,12 @@ import { parseVehicleId } from "../../api/vehicles";
 import { cn } from "../../lib/format";
 import { journeyFor } from "../../lib/journey";
 import { vehicleName } from "../../lib/spec";
+import type { VoiceCaption } from "../../lib/voiceCaptions";
 import { useAssistant, type Turn } from "../../state/assistant";
 import { useAuth } from "../../state/auth";
+import { useVoiceSession } from "../../state/voiceSession";
 import { ConfirmActionCard } from "../ConfirmActionCard";
-import { useLatestCustomerCall } from "../../spacetime/client";
-import { VoiceWidget, type VoiceStatus, type VoiceTurn } from "../VoiceWidget";
+import { VoiceWidget } from "../VoiceWidget";
 
 const TOOL_LABEL: Record<string, string> = {
   customer_profile: "Your account",
@@ -135,61 +136,71 @@ function Prose({ text, muted }: { text: string; muted?: boolean }) {
 export function AssistantChat({ compact = false }: { compact?: boolean }) {
   const { profile } = useAuth();
   const { context, pending, clearPending, turns, setTurns } = useAssistant();
+  const voice = useVoiceSession();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
   const customerId = profile?.customer.customer_id ?? null;
   const journey = profile ? journeyFor(profile) : null;
-  const [voice, setVoice] = useState<{ status: VoiceStatus; callId: string | null; turns: VoiceTurn[] }>({ status: "idle", callId: null, turns: [] });
-  // Phone calls (and browser calls, as a fallback) arrive live through SpacetimeDB.
-  const liveCall = useLatestCustomerCall(customerId);
-  const phoneLive = liveCall.call?.channel === "phone" && liveCall.session?.status !== "ended" && liveCall.session?.status !== "analyzed";
   const voiceActive = voice.status === "connecting" || voice.status === "live";
-  const spokenFromDb: VoiceTurn[] = liveCall.rows.map((r) => ({ role: r.role === "user" ? "user" : "agent", content: r.content }));
-  const liveTurns: VoiceTurn[] = voiceActive
-    ? voice.turns.length
-      ? voice.turns
-      : liveCall.call?.callId === voice.callId
-        ? spokenFromDb
-        : []
-    : phoneLive
-      ? spokenFromDb
-      : [];
+  const liveCaptions = voice.captions.filter((c) => (voice.callId ? c.callId === voice.callId : true));
+  const committedVoiceIds = useRef<Set<string>>(new Set());
 
-  function onVoiceTranscript(spoken: VoiceTurn[], callId: string | null) {
-    setVoice((v) => ({ ...v, callId, turns: spoken }));
-  }
-
-  function onVoiceStatus(status: VoiceStatus, callId: string | null) {
-    setVoice((v) => {
-      if ((status === "ended" || status === "error") && (v.status === "live" || v.status === "connecting")) {
-        const spoken = v.turns.length ? v.turns : liveCall.call?.callId === callId ? spokenFromDb : [];
-        // Keep the spoken conversation in the chat so typed follow-ups have its context.
-        if (spoken.length)
-          setTurns((cur) => [
-            ...cur,
-            ...spoken.map((t, i) => ({ id: `v-${callId}-${i}`, role: t.role === "user" ? ("user" as const) : ("assistant" as const), content: t.content, voice: true })),
-          ]);
-        return { status, callId, turns: [] };
+  // When a call ends, fold finalized captions into the durable chat turns (no second text-chat request).
+  const prevStatus = useRef(voice.status);
+  useEffect(() => {
+    const wasLive = prevStatus.current === "live" || prevStatus.current === "connecting";
+    prevStatus.current = voice.status;
+    if (!wasLive || (voice.status !== "ended" && voice.status !== "error")) return;
+    const callId = voice.callId;
+    const spoken = voice.captions.filter((c) => (!callId || c.callId === callId) && c.text.trim());
+    if (!spoken.length) return;
+    setTurns((cur) => {
+      const extras: Turn[] = [];
+      for (const c of spoken) {
+        if (committedVoiceIds.current.has(c.id)) continue;
+        committedVoiceIds.current.add(c.id);
+        extras.push({
+          id: c.id,
+          role: c.role,
+          content: c.text,
+          voice: true,
+          voiceInterrupted: c.interrupted,
+        });
       }
-      return { ...v, status, callId };
+      return extras.length ? [...cur, ...extras] : cur;
     });
-  }
+  }, [voice.status, voice.callId, voice.captions, setTurns]);
 
   useEffect(() => {
-    if (turns.length === 0 && !busy && liveTurns.length === 0) return;
+    const el = scroller.current;
+    if (!el) return;
+    const onScroll = () => {
+      stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!stickToBottom.current) return;
+    if (turns.length === 0 && !busy && liveCaptions.length === 0 && !voiceActive) return;
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
-  }, [turns, busy, liveTurns.length]);
+  }, [turns, busy, liveCaptions, voiceActive, voice.agentSpeaking, voice.userListening]);
 
   // A different signed-in customer must not see the previous customer's conversation.
   const owner = useRef(customerId);
+  const clearVoiceSession = voice.clearVoiceSession;
   useEffect(() => {
     if (owner.current !== customerId) {
       setTurns([]);
+      committedVoiceIds.current.clear();
+      clearVoiceSession();
       owner.current = customerId;
     }
-  }, [customerId, setTurns]);
+  }, [customerId, setTurns, clearVoiceSession]);
 
   async function send(text: string, { retry = false } = {}) {
     const content = text.trim();
@@ -266,7 +277,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
       </div>
 
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5" aria-live="polite">
-        {turns.length === 0 && liveTurns.length === 0 && !voiceActive && (
+        {turns.length === 0 && liveCaptions.length === 0 && !voiceActive && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-signal text-white">
               <Sparkles className="h-4 w-4" />
@@ -299,15 +310,26 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         {turns.map((t) => (
           <Message key={t.id} turn={t} customerId={customerId} name={profile?.customer.first_name ?? ""} />
         ))}
-        {(voiceActive || phoneLive) && (
-          <div className="space-y-3 rounded-2xl border border-signal/20 bg-signal/[0.03] p-3" aria-live="polite">
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-signal">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-signal" />
-              {phoneLive && !voiceActive ? "Phone call in progress" : voice.status === "connecting" ? "Connecting voice call…" : "Voice call · live transcript"}
+        {voiceActive && (
+          <div className="space-y-3" aria-live="polite">
+            <p className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-signal">
+              <span className="h-2 w-2 motion-safe:animate-pulse rounded-full bg-signal" />
+              {voice.status === "connecting"
+                ? "Connecting voice call…"
+                : voice.userListening
+                  ? "Listening…"
+                  : voice.agentSpeaking
+                    ? "Toyota AI speaking"
+                    : "Voice call live"}
+              {voice.captionsUnavailable && (
+                <span className="rounded-full bg-mist px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted">Live captions unavailable</span>
+              )}
             </p>
-            {liveTurns.length === 0 && <p className="text-xs text-muted">Start talking. What you and the agent say appears here.</p>}
-            {liveTurns.map((t, i) => (
-              <Message key={`live-${i}`} turn={{ id: `live-${i}`, role: t.role === "user" ? "user" : "assistant", content: t.content, voice: true }} customerId={customerId} name={profile?.customer.first_name ?? ""} />
+            {liveCaptions.length === 0 && !voice.captionsUnavailable && (
+              <p className="text-xs text-muted">Captions appear here as you and Toyota AI speak.</p>
+            )}
+            {liveCaptions.map((c) => (
+              <VoiceCaptionBubble key={c.id} caption={c} />
             ))}
           </div>
         )}
@@ -357,10 +379,59 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         </form>
         {profile && (
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
-            <span>Prefer to talk? Your words and the agent's replies show up here.</span>
-            <VoiceWidget variant="light" customerId={profile.customer.customer_id} onTranscript={onVoiceTranscript} onStatus={onVoiceStatus} />
+            <span>Prefer to talk? Live captions appear in this chat.</span>
+            <VoiceWidget variant="light" customerId={profile.customer.customer_id} />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function VoiceWave({ active }: { active: boolean }) {
+  return (
+    <span className="inline-flex h-3 items-end gap-0.5" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className={cn(
+            "w-0.5 rounded-full bg-current",
+            active ? "motion-safe:animate-pulse" : "opacity-50",
+            i === 1 ? "h-3" : "h-2"
+          )}
+          style={active ? { animationDelay: `${i * 120}ms` } : undefined}
+        />
+      ))}
+    </span>
+  );
+}
+
+function VoiceCaptionBubble({ caption }: { caption: VoiceCaption }) {
+  if (caption.role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-white">
+          <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/55">
+            <Mic className="h-3 w-3" aria-hidden />
+            You · Voice
+            {!caption.isFinal && <span className="normal-case tracking-normal text-white/45">· listening</span>}
+          </p>
+          <p className="text-sm leading-relaxed">{caption.text}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex gap-3">
+      <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
+        <Sparkles className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0 max-w-[85%] flex-1">
+        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Toyota AI · {caption.isSpeaking ? "Speaking" : caption.interrupted ? "Interrupted" : "Voice"}
+          {caption.isSpeaking && <VoiceWave active />}
+        </p>
+        <p className={cn("text-sm leading-relaxed", caption.interrupted && "text-ink/80")}>{caption.text}</p>
       </div>
     </div>
   );
@@ -370,9 +441,14 @@ function Message({ turn, customerId, name }: { turn: Turn; customerId: string | 
   if (turn.role === "user")
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-sm leading-relaxed text-white">
-          {turn.voice && <Mic className="mr-1.5 inline h-3 w-3 opacity-70" aria-label="Spoken" />}
-          {turn.content}
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-white">
+          {turn.voice && (
+            <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/55">
+              <Mic className="h-3 w-3" aria-hidden />
+              You · Voice
+            </p>
+          )}
+          <p className="text-sm leading-relaxed">{turn.content}</p>
         </div>
       </div>
     );
@@ -380,9 +456,14 @@ function Message({ turn, customerId, name }: { turn: Turn; customerId: string | 
     return (
       <div className="flex gap-3">
         <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
-          <Mic className="h-3.5 w-3.5" />
+          <Sparkles className="h-3.5 w-3.5" />
         </span>
-        <p className="min-w-0 flex-1 text-sm leading-relaxed">{turn.content}</p>
+        <div className="min-w-0 flex-1">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Toyota AI · {turn.voiceInterrupted ? "Interrupted" : "Voice"}
+          </p>
+          <p className="text-sm leading-relaxed">{turn.content}</p>
+        </div>
       </div>
     );
   return (

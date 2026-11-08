@@ -10,6 +10,8 @@ export interface Turn {
   offline?: boolean;
   /** Spoken in a voice call (browser or phone), shown as a transcript line. */
   voice?: boolean;
+  /** Voice caption stopped early because the customer interrupted. */
+  voiceInterrupted?: boolean;
 }
 
 interface Assistant {
@@ -76,6 +78,7 @@ export function AssistantLogoutListener() {
       setTurns([]);
       setOpen(false);
       clearPending();
+      window.dispatchEvent(new Event("tfs-voice-clear"));
     };
     window.addEventListener("tfs-auth-logout", onOut);
     return () => window.removeEventListener("tfs-auth-logout", onOut);

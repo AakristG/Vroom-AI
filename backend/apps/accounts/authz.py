@@ -21,11 +21,11 @@ LOGIN_WINDOW = 15 * 60
 LOGIN_MAX_ATTEMPTS = 8
 
 
-def account_from_request(request) -> CustomerAccount | None:
-    token = _token_from_request(request)
-    if not token:
+def account_from_token(token: str | None) -> CustomerAccount | None:
+    value = (token or "").strip()
+    if not value:
         return None
-    account = CustomerAccount.objects.filter(token=token).first()
+    account = CustomerAccount.objects.filter(token=value).first()
     if not account:
         return None
     expires = account.token_expires_at
@@ -35,6 +35,10 @@ def account_from_request(request) -> CustomerAccount | None:
         account.save(update_fields=["token", "token_expires_at"])
         return None
     return account
+
+
+def account_from_request(request) -> CustomerAccount | None:
+    return account_from_token(_token_from_request(request))
 
 
 def _token_from_request(request) -> str:

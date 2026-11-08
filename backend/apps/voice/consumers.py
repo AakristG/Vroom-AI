@@ -49,7 +49,8 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
         greeting = f"Hi {name}, thanks for calling Toyota Financial Services. How can I help you today?" if name else GREETING
         await self._send_json({"response_type": "response", "response_id": 0, "content": greeting, "content_complete": True})
         await sync_to_async(live.publish_session)(self.call_id, "ongoing", last_speaker="agent")
-        await sync_to_async(live.publish_turn)(self.call_id, "agent", greeting, f"{self.call_id}-greeting")
+        # Seed the in-memory caption snapshot so the browser can show the greeting immediately.
+        await sync_to_async(live.append_agent)(self.customer_id, self.call_id, greeting, 0)
 
     async def disconnect(self, close_code):
         await sync_to_async(live.finish)(self.customer_id, self.call_id, self.transcript)
@@ -119,3 +120,50 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
 
     async def _send_json(self, payload: dict):
         await self.send(text_data=json.dumps(payload))
+
+
+class CaptionRelayConsumer(AsyncWebsocketConsumer):
+    """Authenticated live captions for the customer who owns a VerifiedWebCall."""
+
+    async def connect(self):
+        self.call_id = self.scope["url_route"]["kwargs"]["call_id"]
+        self.group = live.caption_group(self.call_id)
+        account = await sync_to_async(self._account_for_scope)()
+        owner = await sync_to_async(resolve_verified_customer)(self.call_id)
+        if account is None or not owner or account.customer_id != owner:
+            await self.close(code=4403)
+            return
+        await self.channel_layer.group_add(self.group, self.channel_name)
+        await self.accept()
+        snapshot = await sync_to_async(live.snapshot_for_call)(self.call_id)
+        if snapshot:
+            await self.send(text_data=json.dumps({"type": "caption_snapshot", **snapshot}))
+
+    async def disconnect(self, close_code):
+        if getattr(self, "group", None):
+            await self.channel_layer.group_discard(self.group, self.channel_name)
+
+    async def caption_message(self, event):
+        payload = event.get("payload") or {}
+        await self.send(text_data=json.dumps({"type": "caption_snapshot", **payload}))
+
+    def _account_for_scope(self):
+        from urllib.parse import parse_qs
+
+        from apps.accounts.authz import COOKIE_NAME, account_from_token
+
+        query = parse_qs((self.scope.get("query_string") or b"").decode())
+        token = (query.get("token") or [""])[0]
+        if not token:
+            headers = {k.decode().lower(): v.decode() for k, v in (self.scope.get("headers") or [])}
+            auth = headers.get("authorization", "")
+            if auth.lower().startswith("bearer "):
+                token = auth[7:].strip()
+            if not token:
+                cookies = {}
+                for part in headers.get("cookie", "").split(";"):
+                    if "=" in part:
+                        name, value = part.split("=", 1)
+                        cookies[name.strip()] = value.strip()
+                token = cookies.get(COOKIE_NAME, "")
+        return account_from_token(token)

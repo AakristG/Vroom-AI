@@ -251,6 +251,17 @@ export async function confirmPendingAction(actionId: string, stage: "intent" | "
   return data.action;
 }
 
+/** Authenticated live caption snapshot for the signed-in customer's current verified call. */
+export async function fetchVoiceLiveSnapshot() {
+  const { data } = await apiClient.get<{
+    status: string;
+    call_id?: string;
+    turns: { id?: string; role: string; content: string }[];
+    sequence?: number;
+  }>("/api/voice/live/", { timeout: 8000 });
+  return data;
+}
+
 /** Server-minted Retell web call (v3). Keeps RETELL_API_KEY off the browser and marks the session verified. */
 export async function createVerifiedWebCall() {
   try {

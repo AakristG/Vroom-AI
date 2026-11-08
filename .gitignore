@@ -49,3 +49,5 @@ Thumbs.db
 # CarsXE response cache (paid API calls)
 backend/.cache/
 backend/data/carsxe/
+
+frontend/src/media/tundra.mp4.mkv

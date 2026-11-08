@@ -1,13 +1,37 @@
 import type { Profile } from "../data/types";
 import { profiles } from "../data/types";
-import type { AuthAccount } from "../api/client";
+import { hasAgreement, type AuthAccount } from "../api/client";
+import { schedule } from "./finance";
 
 export function knownProfile(account: AuthAccount): Profile | null {
   return profiles.find((profile) => profile.customer.customer_id === account.customer_id) ?? null;
 }
 
+/** True for a self-registered account: no Toyota Financial agreement is on file, only what the customer typed. */
+export const isNewAccount = (p: Profile) => !p.account.account_id;
+
 /** A profile shell for someone who signed up and is not in the Toyota data pack. */
 export function shellProfile(account: AuthAccount): Profile {
+  const profile = emptyProfile(account);
+  const ag = account.agreement;
+  if (!hasAgreement(ag)) return profile;
+  const a = profile.account;
+  a.contract_type = ag.contract_type;
+  a.payment_due_day = ag.payment_due_day;
+  if (ag.contract_type === "loan") {
+    a.current_balance = ag.current_balance;
+    a.apr = ag.apr;
+    a.months_remaining = schedule(ag.current_balance, ag.apr, a.monthly_payment).length;
+  } else {
+    a.months_remaining = ag.months_remaining;
+    a.residual_value = ag.residual_value ?? null;
+    a.mileage_allowance_total = ag.mileage_allowance_total ?? null;
+    profile.vehicle.odometer_now = ag.odometer_now ?? 0;
+  }
+  return profile;
+}
+
+function emptyProfile(account: AuthAccount): Profile {
   const payment = account.current_payment ?? 0;
   return {
     customer: {
@@ -36,7 +60,7 @@ export function shellProfile(account: AuthAccount): Profile {
       vehicle_id: "",
       customer_id: account.customer_id,
       model_year: account.vehicle_year ?? new Date().getFullYear(),
-      model: account.vehicle_model || "Toyota",
+      model: account.vehicle_model,
       trim: "",
       condition_at_purchase: "",
       purchase_price_or_msrp: 0,

@@ -7,14 +7,16 @@ import { cn } from "../../lib/format";
 import { efficiency, msrp, NA, num } from "../../lib/spec";
 import { COMPARE_LIMIT, useCompare } from "../../state/compare";
 import { SourceBadge } from "../ui/kit";
+import { CATEGORY_IMAGE, categoryKey, IMAGE_NOTE } from "../../media/vehicleImages";
 import { VehicleArt } from "../VehicleArt";
 
-/** Licensed CarsXE photo when available, otherwise the body-style illustration. */
+/** Licensed CarsXE photo when available, otherwise a labeled representative photo for the body style. */
 export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord; className?: string; eager?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "200px" });
   const [image, setImage] = useState<VehicleImage | null>(v.image);
   const [failed, setFailed] = useState(false);
+  const [repFailed, setRepFailed] = useState(false);
 
   useEffect(() => {
     if (v.source !== "carsxe" || image || !(inView || eager)) return;
@@ -50,8 +52,22 @@ export function VehicleMedia({ v, className, eager = false }: { v: VehicleRecord
             </a>
           )}
         </>
-      ) : (
+      ) : repFailed ? (
         <VehicleArt category={v.category} className="w-[82%] transition-transform duration-700 ease-[var(--ease-premium)] group-hover:translate-x-2" />
+      ) : (
+        <>
+          <img
+            src={CATEGORY_IMAGE[categoryKey(v.category, v.fuel_type)]}
+            alt={`Representative ${v.category.toLowerCase()} image for the ${v.year} Toyota ${v.model}`}
+            loading={eager ? "eager" : "lazy"}
+            decoding="async"
+            onError={() => setRepFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-500 ease-[var(--ease-premium)] group-hover:scale-[1.03]"
+          />
+          <span title={IMAGE_NOTE} className="absolute bottom-2 left-2 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-ink/70 backdrop-blur">
+            Representative image
+          </span>
+        </>
       )}
     </div>
   );
@@ -63,7 +79,7 @@ export function VehicleCard({ v }: { v: VehicleRecord }) {
   const blocked = !inCompare && compare.full;
 
   return (
-    <article className="group card flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-500 ease-[var(--ease-premium)] hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]">
+    <article className="group card card-hover flex h-full flex-col overflow-hidden">
       <Link to={vehiclePath(v)} className="block" aria-label={`${v.year} ${v.model} ${v.trim ?? ""} details`}>
         <VehicleMedia v={v} className="aspect-[16/9]" />
       </Link>

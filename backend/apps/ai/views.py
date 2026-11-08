@@ -5,7 +5,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from . import nim_client
-from .account_context import account_context
+from apps.accounts.views import account_from_request
+
+from .account_context import account_context, bind_signed_in
 from .serializers import ChatRequestSerializer
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,7 @@ def chat(request):
     serializer.is_valid(raise_exception=True)
 
     customer_id = str(request.data.get("customer_id") or "").strip()
+    bind_signed_in(account_from_request(request))
     extra = ""
     if customer_id:
         extra = account_context(customer_id) or (

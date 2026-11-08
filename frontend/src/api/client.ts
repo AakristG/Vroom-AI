@@ -31,7 +31,22 @@ export interface AuthAccount {
   current_payment: number | null;
   vehicle_model: string;
   vehicle_year: number | null;
+  /** Loan or lease terms the customer typed. Empty when none were entered. Never verified. */
+  agreement: SelfReportedAgreement | Record<string, never>;
 }
+
+export type SelfReportedAgreement =
+  | { contract_type: "loan"; payment_due_day: number; current_balance: number; apr: number }
+  | {
+      contract_type: "lease";
+      payment_due_day: number;
+      months_remaining: number;
+      residual_value?: number;
+      mileage_allowance_total?: number;
+      odometer_now?: number;
+    };
+
+export const hasAgreement = (a: AuthAccount["agreement"] | undefined): a is SelfReportedAgreement => Boolean(a && "contract_type" in a);
 
 export interface SignupInput {
   first_name: string;
@@ -68,7 +83,13 @@ export async function getMe() {
   return data;
 }
 
-export async function updateAccount(patch: Partial<Pick<AuthAccount, "life_change" | "preferences" | "city" | "phone">>) {
+export interface AccountPatch extends Partial<Pick<AuthAccount, "life_change" | "preferences" | "city" | "phone">> {
+  current_payment?: string;
+  /** Raw form values; the backend validates them. `null` clears the agreement. */
+  agreement?: Record<string, string> | null;
+}
+
+export async function updateAccount(patch: AccountPatch) {
   const { data } = await apiClient.patch<AuthAccount>("/api/auth/me/", patch);
   if (data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
   return data;

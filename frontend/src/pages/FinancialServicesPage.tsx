@@ -8,9 +8,5 @@ export function FinancialServicesPage() {
   usePageContext("financial-services");
   if (!ready) return <main className="min-h-[50vh] pt-32" />;
   if (!profile) return <SignInGate next="/financial-services" title="Sign in to use financial services." />;
-  return (
-    <div className="pt-16 md:pt-[72px]">
-      <AccountPage key={profile.customer.customer_id} p={profile} />
-    </div>
-  );
+  return <AccountPage key={profile.customer.customer_id} p={profile} />;
 }

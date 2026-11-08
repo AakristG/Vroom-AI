@@ -35,6 +35,12 @@
   --shadow-lift: 0 2px 4px rgba(16, 17, 20, 0.05), 0 28px 60px -24px rgba(16, 17, 20, 0.35);
   --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* Motion scale: button feedback, card interactions, panels, pages. */
+  --dur-press: 150ms;
+  --dur-card: 220ms;
+  --dur-panel: 300ms;
+  --dur-page: 350ms;
+
   --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
   --font-sans: "Inter Tight Variable", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
@@ -78,14 +84,59 @@
     box-shadow: var(--shadow-soft);
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-signal px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-300 hover:bg-signal-deep active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-signal px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-[var(--dur-press)] ease-[var(--ease-premium)] hover:-translate-y-px hover:bg-signal-deep active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none;
     box-shadow: 0 10px 30px -12px rgba(235, 10, 30, 0.6);
   }
+  .btn-primary:hover {
+    box-shadow: 0 14px 34px -12px rgba(235, 10, 30, 0.7);
+  }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 text-sm font-semibold transition-colors duration-300;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 text-sm font-semibold transition-[background-color,border-color,color,transform] duration-[var(--dur-press)] ease-[var(--ease-premium)] active:scale-[0.98];
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors duration-200;
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors duration-[var(--dur-press)];
+  }
+  .card-hover {
+    @apply transition-[transform,box-shadow] duration-[var(--dur-card)] ease-[var(--ease-premium)] hover:-translate-y-1 hover:shadow-[var(--shadow-lift)];
+  }
+
+  /* Range input with a filled track; set --pct inline to the current position. */
+  .range {
+    @apply h-6 cursor-pointer appearance-none bg-transparent;
+  }
+  .range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--color-signal) var(--pct, 0%), #e6e6e6 var(--pct, 0%));
+  }
+  .range::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: #e6e6e6;
+  }
+  .range::-moz-range-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-signal);
+  }
+  .range::-webkit-slider-thumb {
+    @apply appearance-none rounded-full bg-white;
+    width: 22px;
+    height: 22px;
+    margin-top: -8px;
+    border: 2px solid var(--color-signal);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    transition: transform var(--dur-press) var(--ease-premium);
+  }
+  .range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--color-signal);
+  }
+  .range:active::-webkit-slider-thumb {
+    transform: scale(1.12);
   }
   .field {
     @apply w-full rounded-2xl border border-line bg-paper px-4 py-3 text-sm outline-none transition-colors focus:border-ink;
@@ -113,6 +164,20 @@
 .trail-loop-late {
   animation: trail 7s cubic-bezier(0.55, 0, 0.2, 1) 2.4s infinite both;
 }
+/* Slow push-in on the hero still when no video is playing. */
+@keyframes kenburns {
+  from {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(-2.5%, -1%, 0);
+  }
+}
+.kenburns {
+  animation: kenburns 22s ease-out infinite alternate;
+  transform-origin: 70% 60%;
+}
+.paused .kenburns,
 .paused .drift,
 .paused .trail-loop,
 .paused .trail-loop-late {
@@ -138,6 +203,24 @@
 }
 .trail-late {
   animation: trail 2.8s cubic-bezier(0.55, 0, 0.2, 1) 0.9s 1 both;
+}
+
+/* Hero scroll cue: a dot travelling down a short rail. */
+@keyframes scroll-cue {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(260%);
+    opacity: 0;
+  }
+}
+.scroll-cue {
+  animation: scroll-cue 2.2s var(--ease-premium) infinite;
 }
 
 /* Live call "speaking" bars */

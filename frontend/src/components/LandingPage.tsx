@@ -1,12 +1,14 @@
-import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, Check, ChevronDown, MessageCircle, Phone, Shield, Sparkles } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowRight, ArrowUpRight, Check, MessageCircle, Phone, Shield, Sparkles } from "lucide-react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { profiles } from "../data/types";
+import { cn, money } from "../lib/format";
 import { heroClips } from "../media/heroClips";
+import { CATEGORY_IMAGE, IMAGE_NOTE, modelImage, type CategoryKey } from "../media/vehicleImages";
 import { useAuth } from "../state/auth";
 import { useAssistant, usePageContext } from "../state/assistant";
 import { CountUp, EASE, Parallax, Reveal, Stagger, StaggerItem } from "./ui/motion";
-import { VehicleArt } from "./VehicleArt";
 import { VideoHero } from "./VideoHero";
 
 const steps = [
@@ -32,14 +34,14 @@ const steps = [
   },
 ];
 
-const categories = [
-  { label: "Sedans", art: "Sedan", query: "category=Sedan" },
-  { label: "SUVs", art: "SUV", query: "category=SUV" },
-  { label: "Trucks", art: "Truck", query: "category=Truck" },
-  { label: "Hybrids", art: "Hatchback", query: "fuel=Hybrid" },
-  { label: "Electric", art: "SUV", query: "fuel=Electric" },
-  { label: "Minivans", art: "Minivan", query: "category=Minivan" },
-  { label: "Sports cars", art: "Sports car", query: "category=Sports car" },
+const categories: { label: string; key: CategoryKey; query: string; blurb: string; models: string[] }[] = [
+  { label: "Sedans", key: "sedans", query: "category=Sedan", blurb: "Efficient daily drivers with room for five.", models: ["Camry", "Corolla", "Crown"] },
+  { label: "SUVs", key: "suvs", query: "category=SUV", blurb: "Space, all-weather confidence, and a higher seat.", models: ["RAV4", "Highlander", "4Runner", "Grand Highlander"] },
+  { label: "Trucks", key: "trucks", query: "category=Truck", blurb: "Built to tow, haul, and leave the pavement.", models: ["Tacoma", "Tundra"] },
+  { label: "Hybrids", key: "hybrids", query: "fuel=Hybrid", blurb: "Lower fuel costs without changing how you drive.", models: ["Prius", "Camry", "RAV4 Hybrid", "Sienna"] },
+  { label: "Electric", key: "electric", query: "fuel=Electric", blurb: "Zero tailpipe emissions and charging at home.", models: ["bZ4X"] },
+  { label: "Minivans", key: "minivans", query: "category=Minivan", blurb: "Sliding doors, three rows, and standard hybrid power.", models: ["Sienna"] },
+  { label: "Sports cars", key: "sports-cars", query: "category=Sports car", blurb: "Rear-wheel drive and a reason to take the long way.", models: ["GR86", "GR Supra"] },
 ];
 
 const byId = (id: string) => profiles.find((p) => p.customer.customer_id === id)!;
@@ -54,6 +56,14 @@ const optionCount = profiles.reduce((n, p) => n + p.options.length, 0);
 const stepTypes = new Set(profiles.map((p) => p.golden.next_step_type));
 const lines = ["What's the smartest", "next move for you", "and your Toyota?"];
 
+/** Arrow-key navigation for a tablist; returns the next index. */
+function tabKey(e: KeyboardEvent, index: number, count: number) {
+  const next = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  if (next === undefined) return null;
+  e.preventDefault();
+  return (index + next + count) % count;
+}
+
 export function LandingPage() {
   usePageContext("home");
   const { profile } = useAuth();
@@ -62,58 +72,84 @@ export function LandingPage() {
   const optionsHref = profile ? "/insights" : "/signin?next=/insights";
 
   const rise = (delay: number) => ({
-    initial: reduce ? { opacity: 0 } : { opacity: 0, y: 24 },
+    initial: reduce ? { opacity: 0 } : { opacity: 0, y: 18 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.9, ease: EASE, delay },
+    transition: { duration: reduce ? 0.2 : 0.7, ease: EASE, delay: reduce ? 0 : delay },
   });
+
+  const journey = [
+    { n: "01", q: "What Toyota fits my needs?", to: "/vehicles", cta: "Explore vehicles" },
+    { n: "02", q: "What can I realistically afford?", to: profile ? "/insights#simulator" : "/signin?next=/insights%23simulator", cta: "Try the payment simulator" },
+    { n: "03", q: "What's my smartest move?", to: null, cta: "Ask Toyota AI" },
+  ];
 
   return (
     <main>
       <VideoHero clips={heroClips}>
-        <div className="mx-auto max-w-7xl px-5 pb-24 pt-[max(7rem,18svh)] md:px-8 md:pb-[max(6rem,14svh)]">
-          <motion.p {...rise(0.1)} className="flex items-center gap-2 text-sm font-medium tracking-wide text-white/80">
+        <div className="mx-auto max-w-7xl px-5 pb-10 pt-[max(7rem,16svh)] md:px-8">
+          <motion.p {...rise(0.05)} className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/85">
             <span className="h-px w-8 bg-signal" /> Toyota Financial Services
           </motion.p>
-          <h1 className="mt-5 max-w-[15ch] text-[clamp(2.5rem,min(7.2vw,11svh),6rem)] font-semibold leading-[0.98] tracking-[-0.035em]">
+          <h1 className="mt-5 max-w-[14ch] text-[clamp(2.5rem,min(6.6vw,10svh),5.5rem)] font-semibold leading-[0.98] tracking-[-0.035em] [text-shadow:0_2px_30px_rgba(0,0,0,0.35)]">
             {lines.map((line, i) => (
               <span key={line} className="block overflow-hidden pb-[0.08em]">
                 <motion.span
                   className="block"
                   initial={reduce ? { opacity: 0 } : { y: "105%" }}
                   animate={reduce ? { opacity: 1 } : { y: "0%" }}
-                  transition={{ duration: 1.05, ease: EASE, delay: 0.25 + i * 0.12 }}
+                  transition={{ duration: reduce ? 0.2 : 0.85, ease: EASE, delay: reduce ? 0 : 0.12 + i * 0.08 }}
                 >
                   {line}
                 </motion.span>
               </span>
             ))}
           </h1>
-          <motion.p {...rise(0.75)} className="mt-6 max-w-xl text-lg leading-relaxed text-white/80 md:text-xl">
+          <motion.p {...rise(0.4)} className="mt-6 max-w-[36ch] text-lg leading-relaxed text-white/85 md:text-xl">
             Your vehicle. Your finances. Your next move. All made simpler with AI.
           </motion.p>
-          <motion.div {...rise(0.9)} className="mt-9 flex flex-wrap gap-3">
-            <Link to={optionsHref} className="btn-primary px-7 py-3.5 text-base">
-              Explore Your Options <ArrowRight className="h-4 w-4" />
+          <motion.div {...rise(0.5)} className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link to={optionsHref} className="btn-primary group px-7 py-3.5 text-base">
+              Explore Your Options <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" />
             </Link>
             <button
               onClick={() => setOpen(true)}
-              className="btn-ghost border-white/30 bg-white/10 px-7 py-3.5 text-base text-white backdrop-blur-md hover:bg-white/20"
+              className="btn-ghost border-white/30 bg-white/10 px-7 py-3.5 text-base text-white backdrop-blur-md hover:border-white/50 hover:bg-white/20"
             >
               <Sparkles className="h-4 w-4" /> Talk to Toyota AI
             </button>
           </motion.div>
+
+          <motion.nav
+            {...rise(0.7)}
+            aria-label="Your journey"
+            className="mt-14 hidden overflow-hidden rounded-3xl border border-white/15 bg-white/[0.07] backdrop-blur-xl lg:grid lg:grid-cols-3"
+          >
+            {journey.map((j, i) => {
+              const inner = (
+                <>
+                  <span className="text-xs font-semibold tracking-[0.2em] text-signal">{j.n}</span>
+                  <span className="mt-2 block text-lg font-semibold leading-snug">{j.q}</span>
+                  <span className="mt-3 flex items-center gap-1.5 text-sm text-white/70 transition-colors duration-150 group-hover:text-white">
+                    {j.cta} <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </span>
+                </>
+              );
+              const cls = cn("group block p-6 text-left transition-colors duration-200 hover:bg-white/[0.08]", i > 0 && "border-l border-white/10");
+              return j.to ? (
+                <Link key={j.n} to={j.to} className={cls}>
+                  {inner}
+                </Link>
+              ) : (
+                <button key={j.n} onClick={() => setOpen(true)} className={cls}>
+                  {inner}
+                </button>
+              );
+            })}
+          </motion.nav>
         </div>
-        <motion.a
-          href="#scenario"
-          aria-label="Scroll to the example"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.6 }}
-          className="absolute bottom-7 left-1/2 hidden -translate-x-1/2 text-white/60 hover:text-white md:block"
-        >
-          <ChevronDown className="h-6 w-6 motion-safe:animate-bounce" />
-        </motion.a>
       </VideoHero>
+
+      <CategoryExplorer />
 
       {/* Synthetic scenario, kept from the original landing page */}
       <section id="scenario" className="relative scroll-mt-24 bg-mist">
@@ -184,65 +220,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Vehicle categories */}
-      <section className="mx-auto max-w-7xl px-5 py-24 md:px-8">
-        <Reveal className="flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <p className="eyebrow">Explore vehicles</p>
-            <h2 className="section-title mt-4 max-w-[20ch]">Every Toyota, with the numbers that matter.</h2>
-          </div>
-          <Link to="/vehicles" className="group inline-flex items-center gap-2 text-sm font-semibold">
-            Browse the lineup <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-        </Reveal>
-        <Stagger className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
-          {categories.map((c) => (
-            <StaggerItem key={c.label}>
-              <Link
-                to={`/vehicles?${c.query}`}
-                className="group card flex h-full flex-col justify-between p-4 transition-[transform,box-shadow] duration-500 ease-[var(--ease-premium)] hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
-              >
-                <VehicleArt category={c.art} className="w-full transition-transform duration-700 ease-[var(--ease-premium)] group-hover:translate-x-1.5" />
-                <span className="mt-3 flex items-center justify-between text-sm font-semibold">
-                  {c.label} <ArrowRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
-                </span>
-              </Link>
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </section>
-
-      {/* Personalized journeys */}
-      <section className="bg-mist">
-        <div className="mx-auto max-w-7xl px-5 py-24 md:px-8">
-          <Reveal>
-            <p className="eyebrow">Built around today</p>
-            <h2 className="section-title mt-4 max-w-[22ch]">The page changes with your situation.</h2>
-            <p className="mt-4 max-w-2xl text-lg text-muted">
-              Sign in as one of these fictional customers to see how the dashboard and assistant adapt. Their accounts are simulated.
-            </p>
-          </Reveal>
-          <Stagger className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {journeys.map(({ p, tag, line }) => (
-              <StaggerItem key={p.customer.customer_id}>
-                <Link
-                  to={`/signin?as=${p.customer.first_name}&next=/insights`}
-                  className="group card flex h-full flex-col p-6 transition-[transform,box-shadow] duration-500 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
-                >
-                  <span className="text-xs font-semibold uppercase tracking-wider text-signal">{tag}</span>
-                  <p className="mt-3 text-lg font-semibold leading-snug tracking-tight">{line}</p>
-                  <p className="mt-3 text-sm text-muted">
-                    {p.customer.first_name} · {p.vehicle.model_year} {p.vehicle.model} · {p.account.contract_type}
-                  </p>
-                  <span className="mt-auto flex items-center gap-2 pt-6 text-sm font-semibold">
-                    See {p.customer.first_name}'s next move <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </span>
-                </Link>
-              </StaggerItem>
-            ))}
-          </Stagger>
-        </div>
-      </section>
+      <PersonaSelector />
 
       <section id="how" className="relative mx-auto max-w-7xl scroll-mt-24 overflow-hidden px-5 py-24 md:px-8">
         <Parallax className="pointer-events-none absolute right-0 top-10 h-80 w-80 rounded-full bg-signal/10 blur-3xl" />
@@ -253,12 +231,12 @@ export function LandingPage() {
             Payment trouble, a lease that is ending, a car that no longer fits — you get the choices that belong to your agreement.
           </p>
         </Reveal>
-        <Stagger className="relative mt-12 grid gap-5 md:grid-cols-2">
+        <Stagger className="relative mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((s) => (
             <StaggerItem key={s.n}>
-              <div className="card h-full p-7">
-                <div className="text-sm font-semibold text-signal">{s.n}</div>
-                <h3 className="mt-3 text-xl font-semibold tracking-tight">{s.title}</h3>
+              <div className="card card-hover h-full p-7">
+                <div className="text-4xl font-semibold tracking-tight text-signal/90">{s.n}</div>
+                <h3 className="mt-6 text-xl font-semibold tracking-tight">{s.title}</h3>
                 <p className="mt-2 leading-relaxed text-muted">{s.body}</p>
               </div>
             </StaggerItem>
@@ -326,11 +304,13 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-mist">
-        <Reveal className="mx-auto flex max-w-7xl flex-col items-start gap-6 px-5 py-20 md:flex-row md:items-end md:justify-between md:px-8">
+      <section className="relative isolate overflow-hidden bg-charcoal text-white">
+        <img src="/media/hero/tundra-trd-pro-poster.jpg" alt="" aria-hidden loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-40" />
+        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-charcoal via-charcoal/80 to-charcoal/30" />
+        <Reveal className="mx-auto flex max-w-7xl flex-col items-start gap-6 px-5 py-24 md:flex-row md:items-end md:justify-between md:px-8">
           <div>
             <h2 className="section-title">Look at your own agreement.</h2>
-            <p className="mt-3 max-w-xl text-muted">
+            <p className="mt-3 max-w-xl text-white/70">
               Demo sign-in uses fictional Toyota Financial Services customers. After you sign in, you only see that one account.
             </p>
           </div>
@@ -340,6 +320,228 @@ export function LandingPage() {
         </Reveal>
       </section>
     </main>
+  );
+}
+
+function CategoryExplorer() {
+  const [active, setActive] = useState(0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const c = categories[active];
+
+  const select = (i: number) => {
+    setActive(i);
+    tabs.current[i]?.focus();
+  };
+
+  return (
+    <section className="bg-paper">
+      <div className="mx-auto max-w-7xl px-5 py-24 md:px-8">
+        <Reveal className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="eyebrow">Explore vehicles</p>
+            <h2 className="section-title mt-4 max-w-[20ch]">Every Toyota, with the numbers that matter.</h2>
+          </div>
+          <Link to="/vehicles" className="group inline-flex items-center gap-2 text-sm font-semibold">
+            Browse the lineup <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-1" />
+          </Link>
+        </Reveal>
+
+        <Reveal delay={0.05} className="mt-10 grid gap-5 lg:grid-cols-[16rem_1fr]">
+          <div role="tablist" aria-label="Vehicle categories" aria-orientation="vertical" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-col lg:px-0">
+            {categories.map((cat, i) => (
+              <button
+                key={cat.key}
+                ref={(el) => {
+                  tabs.current[i] = el;
+                }}
+                role="tab"
+                id={`cat-tab-${cat.key}`}
+                aria-selected={active === i}
+                aria-controls="cat-panel"
+                tabIndex={active === i ? 0 : -1}
+                onClick={() => setActive(i)}
+                onMouseEnter={() => setActive(i)}
+                onKeyDown={(e) => {
+                  const next = tabKey(e, i, categories.length);
+                  if (next !== null) select(next);
+                }}
+                className={cn(
+                  "relative flex shrink-0 items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left text-sm font-semibold transition-colors duration-200",
+                  active === i ? "text-white" : "text-ink/70 hover:bg-mist hover:text-ink"
+                )}
+              >
+                {active === i && <motion.span layoutId="cat-pill" className="absolute inset-0 rounded-2xl bg-ink" transition={{ duration: 0.3, ease: EASE }} />}
+                <span className="relative">{cat.label}</span>
+                <ArrowRight className={cn("relative hidden h-4 w-4 transition-opacity duration-200 lg:block", active === i ? "opacity-100" : "opacity-0")} />
+              </button>
+            ))}
+          </div>
+
+          <div
+            id="cat-panel"
+            role="tabpanel"
+            aria-labelledby={`cat-tab-${c.key}`}
+            className="relative isolate min-h-[22rem] overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#efeeec] to-[#dcdbd7] md:min-h-[30rem]"
+          >
+            <AnimatePresence initial={false}>
+              <motion.img
+                key={c.key}
+                src={CATEGORY_IMAGE[c.key]}
+                alt={`Representative Toyota ${c.label.toLowerCase()} image`}
+                title={IMAGE_NOTE}
+                initial={{ opacity: 0, scale: 1.04, x: 24 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5, ease: EASE }}
+                className="absolute inset-0 -z-10 h-full w-full object-cover"
+              />
+            </AnimatePresence>
+            <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-2/3 bg-gradient-to-t from-charcoal/90 via-charcoal/40 to-transparent" />
+            <span className="absolute right-4 top-4 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-medium text-ink/70 backdrop-blur">Representative AI image</span>
+
+            <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div key={c.key} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25, ease: EASE }}>
+                  <h3 className="text-3xl font-semibold tracking-tight md:text-5xl">{c.label}</h3>
+                  <p className="mt-2 max-w-md text-white/80">{c.blurb}</p>
+                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                    {c.models.map((m) => (
+                      <Link
+                        key={m}
+                        to={`/vehicles?q=${encodeURIComponent(m)}`}
+                        className="rounded-full border border-white/30 bg-white/10 px-3.5 py-1.5 text-sm font-medium backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-ink"
+                      >
+                        {m}
+                      </Link>
+                    ))}
+                    <Link to={`/vehicles?${c.query}`} className="btn-primary ml-auto px-5 py-2.5">
+                      See all {c.label.toLowerCase()} <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+function PersonaSelector() {
+  const { profile } = useAuth();
+  const signedIndex = journeys.findIndex((j) => j.p.customer.customer_id === profile?.customer.customer_id);
+  const [active, setActive] = useState(signedIndex >= 0 ? signedIndex : 0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const { p, tag, line } = journeys[active];
+  const a = p.account;
+  const current = profile?.customer.customer_id === p.customer.customer_id;
+
+  return (
+    <section className="relative overflow-hidden bg-charcoal text-white">
+      <div aria-hidden className="absolute -right-40 top-20 h-[30rem] w-[30rem] rounded-full bg-signal/15 blur-[140px]" />
+      <div className="relative mx-auto max-w-7xl px-5 py-24 md:px-8">
+        <Reveal className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="eyebrow">Built around today</p>
+            <h2 className="section-title mt-4 max-w-[22ch]">The page changes with your situation.</h2>
+            <p className="mt-4 max-w-2xl text-lg text-white/65">
+              Pick one of these fictional customers to see how the dashboard and assistant adapt. Their accounts are simulated.
+            </p>
+          </div>
+        </Reveal>
+
+        <Reveal delay={0.05}>
+          <div role="tablist" aria-label="Demo customers" className="mt-10 grid grid-cols-2 gap-2 md:grid-cols-4">
+            {journeys.map((j, i) => {
+              const signed = profile?.customer.customer_id === j.p.customer.customer_id;
+              return (
+                <button
+                  key={j.p.customer.customer_id}
+                  ref={(el) => {
+                    tabs.current[i] = el;
+                  }}
+                  role="tab"
+                  aria-selected={active === i}
+                  aria-controls="persona-panel"
+                  tabIndex={active === i ? 0 : -1}
+                  onClick={() => setActive(i)}
+                  onKeyDown={(e) => {
+                    const next = tabKey(e, i, journeys.length);
+                    if (next !== null) {
+                      setActive(next);
+                      tabs.current[next]?.focus();
+                    }
+                  }}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors duration-200",
+                    active === i ? "border-white/30 bg-white/10" : "border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
+                  )}
+                >
+                  <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-semibold", active === i ? "bg-signal" : "bg-white/10")}>
+                    {j.p.customer.first_name[0]}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 font-semibold">
+                      {j.p.customer.first_name}
+                      {signed && <Check className="h-3.5 w-3.5 text-signal" aria-label="signed in" />}
+                    </span>
+                    <span className="block truncate text-xs text-white/55">{j.tag}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div id="persona-panel" role="tabpanel" className="mt-4 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04]">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={p.customer.customer_id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="grid lg:grid-cols-[1.05fr_0.95fr]"
+              >
+                <div className="p-6 md:p-10">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-signal">{tag}</span>
+                    <span className="rounded-full bg-sodium/20 px-2.5 py-1 text-[11px] font-semibold text-sodium">{current ? "Signed in · simulated" : "Simulated account"}</span>
+                  </div>
+                  <p className="mt-4 text-3xl font-semibold leading-tight tracking-tight md:text-4xl">“{line}”</p>
+                  <p className="mt-3 text-white/60">
+                    {p.customer.first_name} · {p.customer.city}, {p.customer.state}
+                  </p>
+                  <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-4">
+                    {[
+                      ["Vehicle", `${p.vehicle.model_year} ${p.vehicle.model}`],
+                      ["Financing", a.contract_type === "lease" ? "Lease" : "Loan"],
+                      ["Payment", `${money(a.monthly_payment)}/mo`],
+                      ["Months left", String(a.months_remaining)],
+                    ].map(([k, v]) => (
+                      <div key={k} className="bg-charcoal/60 p-4">
+                        <dt className="text-xs text-white/50">{k}</dt>
+                        <dd className="mt-1 font-semibold">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="mt-6 text-sm text-white/65">
+                    <span className="font-semibold text-white">Suggested next move:</span> {p.golden.best_next_move}
+                  </p>
+                  <Link to={`/signin?as=${p.customer.first_name}&next=/insights`} className="btn-primary mt-8">
+                    {current ? "Open my insights" : `Sign in as ${p.customer.first_name}`} <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+                <div className="relative min-h-[16rem] bg-gradient-to-b from-[#efeeec] to-[#d9d8d4]">
+                  <img src={modelImage(p.vehicle.model)} alt={`Representative image of a Toyota ${p.vehicle.model}`} title={IMAGE_NOTE} className="absolute inset-0 h-full w-full object-cover" />
+                  <span className="absolute bottom-4 right-4 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-medium text-ink/70 backdrop-blur">Representative AI image</span>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </Reveal>
+      </div>
+    </section>
   );
 }
 

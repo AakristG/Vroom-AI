@@ -1,13 +1,17 @@
-"""Phone callback, representative appointments, and CarsXE vehicle lookup."""
+"""Phone callback, representative appointments, and NHTSA vehicle lookup."""
 
 from __future__ import annotations
 
 import logging
 
-import requests
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+
+from apps.accounts.authz import login_required_api
+from apps.vehicles.http import ProviderError
+from apps.vehicles.nhtsa import VIN_RE, nhtsa
+from apps.vehicles.views import lookup
 
 from .live import save_appointment, snapshot
 
@@ -15,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
+@login_required_api
 def live_call(request):
     customer_id = str(request.query_params.get("customer_id") or "").strip()
     if not customer_id:
@@ -23,6 +28,7 @@ def live_call(request):
 
 
 @api_view(["POST"])
+@login_required_api
 def book_appointment(request):
     customer_id = str(request.data.get("customer_id") or "").strip()
     topic = str(request.data.get("topic") or "").strip()
@@ -32,6 +38,8 @@ def book_appointment(request):
     allowed = {"Refinance", "Trade-in", "Vehicle information", "Payment help", "Lease end"}
     if topic not in allowed or not customer_id or not when or not phone:
         return Response({"detail": "Choose a topic, a time, and a phone number."}, status=400)
+    if customer_id != request.account.customer_id:
+        return Response({"detail": "You can only book a call for your own account."}, status=403)
 
     record = save_appointment(
         {"customer_id": customer_id, "name": name, "topic": topic, "when": when, "phone": phone, "sms": "not_configured"}
@@ -42,53 +50,35 @@ def book_appointment(request):
 
 
 @api_view(["GET"])
+@login_required_api
 def vehicle_lookup(request):
-    """Specs from CarsXE year/make/model. Trade-in value only when the customer supplies a VIN."""
-    year = str(request.query_params.get("year") or "")
-    model = str(request.query_params.get("model") or "")
-    trim = str(request.query_params.get("trim") or "")
+    """NHTSA model record, plus VIN decode when a VIN is supplied. No market value."""
+    year_raw = str(request.query_params.get("year") or "")
+    model = str(request.query_params.get("model") or "").strip()
+    trim = str(request.query_params.get("trim") or "").strip() or None
     vin = str(request.query_params.get("vin") or "").strip().upper()
-    mileage = request.query_params.get("mileage") or ""
-    state = str(request.query_params.get("state") or "TX")
-    key = settings.CARSXE_API_KEY
-    if not key:
-        return Response({"source": "not_configured", "detail": "Add CARSXE_API_KEY to look up live vehicle data."})
-
-    payload: dict = {"source": "carsxe"}
-    try:
-        specs = requests.get(
-            "https://api.carsxe.com/v1/ymm",
-            params={"key": key, "year": year, "make": "Toyota", "model": model, "trim": trim},
-            timeout=12,
-        )
-        payload["specs_status"] = specs.status_code
-        if specs.ok:
-            body = specs.json()
-            match = body.get("bestMatch") or {}
-            payload["specs"] = {
-                "name": match.get("name"),
-                "base_msrp": match.get("base_msrp"),
-                "seating": match.get("total_seating"),
-                "city_mpg": (match.get("mpg") or {}).get("city") if isinstance(match.get("mpg"), dict) else None,
-            }
-        if len(vin) == 17:
-            value = requests.get(
-                "https://api.carsxe.com/v2/marketvalue",
-                params={"key": key, "vin": vin, "mileage": mileage, "state": state, "condition": "clean"},
-                timeout=12,
-            )
-            payload["value_status"] = value.status_code
-            if value.ok:
-                data = value.json()
-                trade = data.get("trade_in_clean") or {}
-                retail = data.get("retail_clean") or {}
-                payload["trade_in"] = trade.get("adjusted_trade_in_clean") or trade.get("base_trade_in_clean")
-                payload["retail"] = retail.get("adjusted_retail_clean") or retail.get("base_retail_clean")
-        else:
-            payload["trade_in_note"] = "CarsXE prices a trade-in from a 17-character VIN. Without one, use the estimate already on the account."
-    except requests.RequestException:
-        logger.exception("CarsXE lookup failed")
-        return Response({"source": "carsxe", "detail": "CarsXE did not respond."}, status=502)
+    if not year_raw.isdigit() or not model:
+        return Response({"detail": "year and model are required."}, status=400)
+    year = int(year_raw)
+    record, error = lookup(year, model, trim)
+    if error:
+        return Response({"source": "nhtsa", "detail": error["detail"]}, status=error["status"])
+    payload: dict = {
+        "source": "nhtsa",
+        "specs": {
+            "name": f"{year} Toyota {record['model']}",
+            "base_msrp": None,
+            "vehicle_type": record.get("vehicle_type"),
+            "category": record.get("category"),
+            "fuel_type": record.get("fuel_type"),
+        },
+        "trade_in_note": "Verified pricing is not currently connected. NHTSA does not provide trade-in values.",
+    }
+    if VIN_RE.match(vin):
+        try:
+            payload["vin_decode"] = nhtsa.decode_vin(vin, year)
+        except ProviderError as exc:
+            payload["vin_decode_detail"] = str(exc)
     return Response(payload)
 
 

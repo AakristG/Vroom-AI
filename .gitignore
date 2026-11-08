@@ -46,6 +46,5 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# CarsXE response cache (paid API calls)
+# Provider response cache
 backend/.cache/
-backend/data/carsxe/

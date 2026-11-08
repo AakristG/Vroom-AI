@@ -145,7 +145,11 @@ def _vehicle_brief(record: dict) -> dict:
     keys = ("id", "year", "model", "trim", "category", "fuel_type", "engine", "horsepower", "drivetrain",
             "mpg", "mpge", "ev_range_mi", "seating", "cargo_cu_ft", "source")
     brief = {k: record.get(k) for k in keys}
-    brief["historical_base_msrp"] = (record.get("msrp") or {}).get("value")
+    brief["historical_base_msrp"] = None
+    brief["msrp_note"] = "Verified pricing is not currently connected."
+    brief["safety_rating"] = record.get("safety_rating")
+    brief["recall_count"] = record.get("recall_count")
+    brief["image_match"] = record.get("image_match")
     return brief
 
 

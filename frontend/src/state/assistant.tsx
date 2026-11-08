@@ -66,3 +66,17 @@ export function usePageContext(page: string, vehicles: string[] = []) {
     setContext({ page, vehicles: key ? key.split(",") : [] });
   }, [page, key, setContext]);
 }
+
+export function AssistantLogoutListener() {
+  const { setOpen, setTurns, clearPending } = useAssistant();
+  useEffect(() => {
+    const onOut = () => {
+      setTurns([]);
+      setOpen(false);
+      clearPending();
+    };
+    window.addEventListener("tfs-auth-logout", onOut);
+    return () => window.removeEventListener("tfs-auth-logout", onOut);
+  }, [setOpen, setTurns, clearPending]);
+  return null;
+}

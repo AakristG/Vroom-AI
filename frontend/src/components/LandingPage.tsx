@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Check, MessageCircle, Phone, Shield, Sparkles } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { profiles } from "../data/types";
 import { cn, money } from "../lib/format";
 import { heroClips } from "../media/heroClips";
@@ -68,6 +68,8 @@ export function LandingPage() {
   usePageContext("home");
   const { profile } = useAuth();
   const { setOpen } = useAssistant();
+  const navigate = useNavigate();
+  const talkToAi = () => (profile ? setOpen(true) : navigate("/signin?next=/assistant"));
   const reduce = useReducedMotion();
   const optionsHref = profile ? "/insights" : "/signin?next=/insights";
 
@@ -112,7 +114,7 @@ export function LandingPage() {
               Explore Your Options <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" />
             </Link>
             <button
-              onClick={() => setOpen(true)}
+              onClick={talkToAi}
               className="btn-ghost border-white/30 bg-white/10 px-7 py-3.5 text-base text-white backdrop-blur-md hover:border-white/50 hover:bg-white/20"
             >
               <Sparkles className="h-4 w-4" /> Talk to Toyota AI
@@ -140,7 +142,7 @@ export function LandingPage() {
                   {inner}
                 </Link>
               ) : (
-                <button key={j.n} onClick={() => setOpen(true)} className={cls}>
+                <button key={j.n} onClick={talkToAi} className={cls}>
                   {inner}
                 </button>
               );
@@ -296,7 +298,7 @@ export function LandingPage() {
                 <Phone className="h-4 w-4" />
                 You can call, or sign in and review everything on the page first.
               </div>
-              <button onClick={() => setOpen(true)} className="btn-primary relative mt-7">
+              <button onClick={talkToAi} className="btn-primary relative mt-7">
                 <Sparkles className="h-4 w-4" /> Ask Toyota NextMove AI
               </button>
             </div>
@@ -528,7 +530,7 @@ function PersonaSelector() {
                   <p className="mt-6 text-sm text-white/65">
                     <span className="font-semibold text-white">Suggested next move:</span> {p.golden.best_next_move}
                   </p>
-                  <Link to={`/signin?as=${p.customer.first_name}&next=/insights`} className="btn-primary mt-8">
+                  <Link to="/signin?next=/insights" className="btn-primary mt-8">
                     {current ? "Open my insights" : `Sign in as ${p.customer.first_name}`} <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>

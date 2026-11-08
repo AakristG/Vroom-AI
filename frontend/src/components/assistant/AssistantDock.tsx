@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Maximize2, Sparkles, X } from "lucide-react";
 import { lazy, Suspense, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAssistant } from "../../state/assistant";
+import { useAuth } from "../../state/auth";
 
 const AssistantChat = lazy(() => import("./AssistantChat").then((m) => ({ default: m.AssistantChat })));
 
@@ -18,6 +19,8 @@ const HINTS: Record<string, string> = {
 
 export function AssistantDock() {
   const { open, setOpen, context } = useAssistant();
+  const { account } = useAuth();
+  const navigate = useNavigate();
   const { pathname } = useLocation();
   const onAssistantPage = pathname === "/assistant";
   const hint = HINTS[context.page] ?? DEFAULT_HINT;
@@ -79,7 +82,7 @@ export function AssistantDock() {
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => setOpen(true)}
+            onClick={() => (account ? setOpen(true) : navigate("/signin?next=/assistant"))}
             aria-label={`Open Toyota NextMove AI. ${hint}`}
             className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[55] flex items-center gap-2.5 rounded-full bg-charcoal py-2.5 pl-2.5 pr-2.5 text-sm font-semibold text-white shadow-[0_18px_40px_-12px_rgba(0,0,0,0.55)] ring-1 ring-white/10 sm:pr-5 md:bottom-6 md:right-6"
           >

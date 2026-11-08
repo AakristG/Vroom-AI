@@ -7,6 +7,7 @@ class CustomerAccount(models.Model):
     username = models.CharField(max_length=80, unique=True)
     password = models.CharField(max_length=256)
     token = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
     first_name = models.CharField(max_length=80)
     last_name = models.CharField(max_length=80, blank=True)
     email = models.EmailField(blank=True)
@@ -30,7 +31,7 @@ class CustomerAccount(models.Model):
 
 
 class ToyotaSpec(models.Model):
-    """CarsXE year/make/model snapshot so the catalog is not refetched on every page."""
+    """Cached Toyota nameplate snapshot from the unified vehicle catalog."""
 
     year = models.PositiveIntegerField()
     model_name = models.CharField(max_length=80)

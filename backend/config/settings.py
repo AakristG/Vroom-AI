@@ -119,12 +119,19 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS (frontend dev server)
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+AUTH_TOKEN_TTL_SECONDS = int(os.environ.get("AUTH_TOKEN_TTL_SECONDS", str(60 * 60 * 12)))
+AUTH_COOKIE_NAME = "tfs_session"
 
 # ---------------------------------------------------------------------------
 # DRF
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
 }
 
 # ---------------------------------------------------------------------------
@@ -151,18 +158,21 @@ TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
 
-CARSXE_API_KEY = os.environ.get("CARSXE_API_KEY", "")
-CARSXE_BASE_URL = os.environ.get("CARSXE_BASE_URL", "https://api.carsxe.com")
-# CarsXE bills per call, so responses are kept on disk across restarts.
-CARSXE_CACHE_SECONDS = int(os.environ.get("CARSXE_CACHE_SECONDS", str(60 * 60 * 24 * 7)))
+CARIMAGES_API_KEY = os.environ.get("CARIMAGES_API_KEY", "")
+CARIMAGES_API_SECRET = os.environ.get("CARIMAGES_API_SECRET", "")
+CARIMAGES_BASE_URL = os.environ.get("CARIMAGES_BASE_URL", "https://carimagesapi.com")
+CARIMAGES_SIGNED_URL_TTL = int(os.environ.get("CARIMAGES_SIGNED_URL_TTL", str(60 * 60)))
+
+NHTSA_VPIC_BASE_URL = os.environ.get("NHTSA_VPIC_BASE_URL", "https://vpic.nhtsa.dot.gov/api")
+NHTSA_DATA_BASE_URL = os.environ.get("NHTSA_DATA_BASE_URL", "https://api.nhtsa.gov")
 
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
-    "carsxe": {
+    "vehicles": {
         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-        "LOCATION": BASE_DIR / ".cache" / "carsxe",
-        "TIMEOUT": CARSXE_CACHE_SECONDS,
-        "OPTIONS": {"MAX_ENTRIES": 5000},
+        "LOCATION": BASE_DIR / ".cache" / "vehicles",
+        "TIMEOUT": 60 * 60 * 24,
+        "OPTIONS": {"MAX_ENTRIES": 8000},
     },
 }
 

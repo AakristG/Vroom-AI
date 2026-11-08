@@ -1,14 +1,19 @@
 import { apiClient } from "./client";
 
-export type DataSource = "carsxe" | "demo";
+export type DataSource = "nhtsa";
+export type ImageMatch = "exact" | "generation" | "unavailable";
 
 export interface VehicleImage {
-  url: string;
+  url: string | null;
   thumbnail: string | null;
+  views?: Record<string, string>;
+  match?: ImageMatch;
+  matched_name?: string | null;
   source_page: string | null;
   provider: string;
-  license_filter: string;
+  license_filter: string | null;
   license_note: string;
+  expires_at?: number | null;
 }
 
 export interface VehicleRecord {
@@ -18,7 +23,8 @@ export interface VehicleRecord {
   model: string;
   trim: string | null;
   style_name: string | null;
-  category: string;
+  category: string | null;
+  vehicle_type?: string | null;
   fuel_type: string | null;
   engine: string | null;
   horsepower: number | null;
@@ -32,13 +38,26 @@ export interface VehicleRecord {
   cargo_cu_ft: number | null;
   dimensions: { length_in: number | null; width_in: number | null; height_in: number | null; wheelbase_in: number | null };
   curb_weight_lb: number | null;
-  msrp: { value: number | null; kind: "historical_base_msrp" };
-  safety?: string[];
+  msrp: { value: number | null; kind: "unavailable" | "historical_base_msrp" };
+  monthly_payment?: number | null;
+  safety?: string[] | Record<string, unknown>;
   features?: string[];
   spec_groups?: { category: string; items: { name: string; value: string | null }[] }[];
   image: VehicleImage | null;
+  image_match?: ImageMatch;
+  image_views?: Record<string, string>;
+  safety_rating?: number | null;
+  safety_rating_available?: boolean;
+  recall_count?: number | null;
+  recalls?: { count: number | null; note?: string; campaigns?: unknown[] };
   source: DataSource;
   source_note: string;
+  sources?: {
+    vehicleData: "NHTSA";
+    images: "CarImagesAPI" | null;
+    safety: "NHTSA" | null;
+    recalls: "NHTSA" | null;
+  };
 }
 
 interface Listing<T> {
@@ -48,13 +67,15 @@ interface Listing<T> {
 }
 
 export interface CatalogStatus {
-  carsxe_configured: boolean;
+  carimages_configured: boolean;
   source: DataSource;
   categories: string[];
   fuel_types: string[];
+  default_year: number;
+  pricing: string;
+  pricing_note: string;
 }
 
-// Identical requests made while one is in flight share a single promise; results stay cached for the session.
 const memo = new Map<string, Promise<unknown>>();
 function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   const hit = memo.get(key) as Promise<T> | undefined;
@@ -65,6 +86,10 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   });
   memo.set(key, p);
   return p;
+}
+
+export function clearVehicleCache() {
+  memo.clear();
 }
 
 const slow = { timeout: 45000 };
@@ -83,19 +108,19 @@ export const getCatalogStatus = () =>
 export const getYears = () =>
   cached("years", async () => {
     const { data } = await apiClient.get("/api/vehicles/years/", slow);
-    return { source: data.source, fallback_reason: data.fallback_reason, data: data.years as number[] } as Listing<number[]>;
+    return { source: data.source as DataSource, fallback_reason: data.fallback_reason, data: data.years as number[] } as Listing<number[]>;
   });
 
 export const getTrims = (year: number, model: string) =>
   cached(`trims:${year}:${model}`, async () => {
     const { data } = await apiClient.get("/api/vehicles/trims/", { params: { year, model }, ...slow });
-    return { source: data.source, fallback_reason: data.fallback_reason, data: data.trims as string[] } as Listing<string[]>;
+    return { source: data.source as DataSource, fallback_reason: data.fallback_reason, data: data.trims as string[] } as Listing<string[]>;
   });
 
 export const getCatalog = (year: number) =>
   cached(`catalog:${year}`, async () => {
     const { data } = await apiClient.get("/api/vehicles/catalog/", { params: { year }, timeout: 120000 });
-    return { source: data.source, fallback_reason: data.fallback_reason, data: data.vehicles as VehicleRecord[] } as Listing<VehicleRecord[]>;
+    return { source: data.source as DataSource, fallback_reason: data.fallback_reason, data: data.vehicles as VehicleRecord[] } as Listing<VehicleRecord[]>;
   });
 
 export const getVehicle = (year: number, model: string, trim?: string | null) =>
@@ -124,6 +149,27 @@ export async function compareVehicles(ids: string[]) {
     { timeout: 60000 }
   );
   return data;
+}
+
+export async function decodeVin(vin: string, year?: number) {
+  const { data } = await apiClient.post(
+    "/api/vehicles/decode-vin/",
+    { vin, year: year || undefined },
+    { timeout: 30000 }
+  );
+  return data as {
+    vin_last4: string;
+    make: string | null;
+    model: string | null;
+    model_year: number | null;
+    body_class: string | null;
+    vehicle_type: string | null;
+    drive_type: string | null;
+    fuel: string | null;
+    decode_ok: boolean;
+    error_text: string | null;
+    source: "NHTSA";
+  };
 }
 
 export function apiErrorMessage(err: unknown, fallback: string) {

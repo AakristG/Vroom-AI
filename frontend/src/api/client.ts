@@ -8,6 +8,7 @@ export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 8000,
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -15,6 +16,19 @@ apiClient.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url = String(error.config?.url || "");
+    const status = error.response?.status;
+    if (status === 401 && !url.includes("/api/auth/login") && !url.includes("/api/auth/signup")) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      window.dispatchEvent(new Event("tfs-auth-logout"));
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface AuthAccount {
   token: string;
@@ -81,6 +95,15 @@ export async function signup(input: SignupInput) {
 export async function getMe() {
   const { data } = await apiClient.get<AuthAccount>("/api/auth/me/");
   return data;
+}
+
+export async function logout() {
+  try {
+    await apiClient.post("/api/auth/logout/");
+  } catch {
+    /* Local state is still cleared by the caller. */
+  }
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 export interface AccountPatch extends Partial<Pick<AuthAccount, "life_change" | "preferences" | "city" | "phone">> {

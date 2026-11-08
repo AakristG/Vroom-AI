@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getMe, isUnauthorized, login, signup, TOKEN_KEY, updateAccount, type AccountPatch, type AuthAccount, type SignupInput } from "../api/client";
+import { getMe, isUnauthorized, login, logout, signup, TOKEN_KEY, updateAccount, type AccountPatch, type AuthAccount, type SignupInput } from "../api/client";
+import { clearVehicleCache } from "../api/vehicles";
 import type { Profile } from "../data/types";
 import { knownProfile, shellProfile } from "../lib/sessionProfile";
 
@@ -12,7 +13,7 @@ interface Auth {
   saveLifeChange: (value: string) => Promise<void>;
   /** Throws with the backend's message when the terms don't validate. */
   saveAgreement: (patch: Pick<AccountPatch, "current_payment" | "agreement">) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<Auth | null>(null);
@@ -22,18 +23,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      setReady(true);
-      return;
-    }
     getMe()
       .then(setAccount)
       .catch((error) => {
-        // A newer sign-in may have replaced this token while the request was in flight.
-        if (isUnauthorized(error) && sessionStorage.getItem(TOKEN_KEY) === token) sessionStorage.removeItem(TOKEN_KEY);
+        if (isUnauthorized(error)) sessionStorage.removeItem(TOKEN_KEY);
       })
       .finally(() => setReady(true));
+  }, []);
+
+  useEffect(() => {
+    const onLogout = () => {
+      sessionStorage.removeItem(TOKEN_KEY);
+      setAccount(null);
+      clearVehicleCache();
+    };
+    window.addEventListener("tfs-auth-logout", onLogout);
+    return () => window.removeEventListener("tfs-auth-logout", onLogout);
   }, []);
 
   const profile = useMemo(() => (account ? knownProfile(account) ?? shellProfile(account) : null), [account]);
@@ -65,9 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccount(await updateAccount(patch));
   }, []);
 
-  const signOut = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_KEY);
+  const signOut = useCallback(async () => {
+    await logout();
     setAccount(null);
+    clearVehicleCache();
+    window.dispatchEvent(new Event("tfs-auth-logout"));
+    window.location.replace("/");
   }, []);
 
   return (

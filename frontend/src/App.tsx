@@ -3,7 +3,9 @@ import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { AssistantDock } from "./components/assistant/AssistantDock";
 import { LandingPage } from "./components/LandingPage";
+import { RequireAuth } from "./components/RequireAuth";
 import { SiteFooter, SiteHeader } from "./components/SiteHeader";
+import { AssistantLogoutListener } from "./state/assistant";
 
 const ExplorePage = lazy(() => import("./pages/ExplorePage").then((m) => ({ default: m.ExplorePage })));
 const VehicleDetailPage = lazy(() => import("./pages/VehicleDetailPage").then((m) => ({ default: m.VehicleDetailPage })));
@@ -59,19 +61,20 @@ function App() {
       <a href="#content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-white">
         Skip to content
       </a>
+      <AssistantLogoutListener />
       <SiteHeader />
       <ScrollManager />
       <div id="content">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<Page><LandingPage /></Page>} />
-            <Route path="/vehicles" element={<Page><ExplorePage /></Page>} />
-            <Route path="/vehicles/:year/:model/:trim?" element={<Page><VehicleDetailPage /></Page>} />
-            <Route path="/compare" element={<Page><ComparePage /></Page>} />
-            <Route path="/my-toyota" element={<Page><MyToyotaPage /></Page>} />
-            <Route path="/financial-services" element={<Page><FinancialServicesPage /></Page>} />
-            <Route path="/insights" element={<Page><InsightsPage /></Page>} />
-            <Route path="/assistant" element={<Page><AssistantPage /></Page>} />
+            <Route path="/vehicles" element={<Page><RequireAuth><ExplorePage /></RequireAuth></Page>} />
+            <Route path="/vehicles/:year/:model/:trim?" element={<Page><RequireAuth><VehicleDetailPage /></RequireAuth></Page>} />
+            <Route path="/compare" element={<Page><RequireAuth><ComparePage /></RequireAuth></Page>} />
+            <Route path="/my-toyota" element={<Page><RequireAuth><MyToyotaPage /></RequireAuth></Page>} />
+            <Route path="/financial-services" element={<Page><RequireAuth><FinancialServicesPage /></RequireAuth></Page>} />
+            <Route path="/insights" element={<Page><RequireAuth><InsightsPage /></RequireAuth></Page>} />
+            <Route path="/assistant" element={<Page><RequireAuth><AssistantPage /></RequireAuth></Page>} />
             <Route path="/signin" element={<Page><SignInRoute /></Page>} />
             <Route path="/signup" element={<Page><div className="pt-16 md:pt-[72px]"><SignUpPage /></div></Page>} />
             <Route path="*" element={<Page><NotFound /></Page>} />

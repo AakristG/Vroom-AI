@@ -1,17 +1,18 @@
-"""Toyota vehicle catalog API. CarsXE when CARSXE_API_KEY is set, otherwise the labeled demo dataset."""
+"""Toyota vehicle catalog API. NHTSA + CarImagesAPI. Authentication required."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from typing import Any
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from . import carsxe
-from .catalog import CATEGORIES, FUEL_TYPES, DemoProvider, provider
-from .schemas import MarketValueResponse
+from apps.accounts.authz import login_required_api
+
+from . import catalog as catalog_service
+from .carimages import carimages
+from .http import ProviderError
+from .nhtsa import VIN_RE, nhtsa
 
 logger = logging.getLogger(__name__)
 
@@ -21,63 +22,93 @@ def _year(request) -> int | None:
     return int(raw) if raw.isdigit() else None
 
 
-def _with_fallback(fn: Callable[[Any], Any]) -> tuple[Any, str, str | None]:
-    """Run against the active provider. Listing calls fall back to demo data, labeled, if CarsXE fails."""
-    active = provider()
-    try:
-        return fn(active), active.source, None
-    except carsxe.CarsXEError as exc:
-        logger.warning("CarsXE listing failed (%s); serving demo data", exc.status)
-        return fn(DemoProvider()), "demo", str(exc)
-
-
 @api_view(["GET"])
+@login_required_api
 def status(request):
     return Response(
         {
-            "carsxe_configured": carsxe.is_configured(),
-            "source": provider().source,
-            "categories": CATEGORIES,
-            "fuel_types": FUEL_TYPES,
+            "carimages_configured": carimages.configured(),
+            "source": "nhtsa",
+            "categories": catalog_service.CATEGORIES,
+            "fuel_types": catalog_service.FUEL_TYPES,
+            "default_year": catalog_service.current_model_year(),
+            "pricing": "unavailable",
+            "pricing_note": "Verified pricing is not currently connected.",
         }
     )
 
 
 @api_view(["GET"])
+@login_required_api
 def years(request):
-    data, source, fallback = _with_fallback(lambda p: p.years())
-    return Response({"years": data, "source": source, "fallback_reason": fallback})
+    try:
+        data = catalog_service.years()
+    except ProviderError as exc:
+        return Response({"detail": str(exc), "years": [], "source": "nhtsa"}, status=exc.status)
+    return Response({"years": data, "source": "nhtsa", "fallback_reason": None, "default_year": catalog_service.current_model_year()})
 
 
 @api_view(["GET"])
+@login_required_api
 def models(request):
     year = _year(request)
     if not year:
         return Response({"detail": "year is required."}, status=400)
-    data, source, fallback = _with_fallback(lambda p: p.models(year))
-    return Response({"year": year, "models": data, "source": source, "fallback_reason": fallback})
+    try:
+        data = catalog_service.models(year)
+    except ProviderError as exc:
+        return Response({"detail": str(exc)}, status=exc.status)
+    return Response({"year": year, "models": data, "source": "nhtsa", "fallback_reason": None})
 
 
 @api_view(["GET"])
+@login_required_api
 def trims(request):
     year = _year(request)
     model = str(request.query_params.get("model") or "").strip()
     if not year or not model:
         return Response({"detail": "year and model are required."}, status=400)
-    data, source, fallback = _with_fallback(lambda p: p.trims(year, model))
-    return Response({"year": year, "model": model, "trims": data, "source": source, "fallback_reason": fallback})
+    return Response(
+        {
+            "year": year,
+            "model": model,
+            "trims": catalog_service.trims(year, model),
+            "source": "nhtsa",
+            "fallback_reason": None,
+            "note": "NHTSA vPIC does not publish trim lines for this listing.",
+        }
+    )
 
 
 @api_view(["GET"])
+@login_required_api
 def catalog(request):
     year = _year(request)
     if not year:
         return Response({"detail": "year is required."}, status=400)
-    data, source, fallback = _with_fallback(lambda p: p.catalog(year))
-    return Response({"year": year, "vehicles": [_summary(v) for v in data], "source": source, "fallback_reason": fallback})
+    category = str(request.query_params.get("category") or "").strip()
+    try:
+        data = catalog_service.catalog(year)
+    except ProviderError as exc:
+        logger.warning("Catalog failed for %s: %s", year, exc)
+        return Response({"detail": str(exc), "vehicles": [], "source": "nhtsa"}, status=exc.status)
+    if category:
+        data = [v for v in data if (v.get("category") or "") == category]
+    if not data:
+        return Response(
+            {
+                "year": year,
+                "vehicles": [],
+                "source": "nhtsa",
+                "fallback_reason": None,
+                "detail": "No matching Toyota models were found for this selection.",
+            }
+        )
+    return Response({"year": year, "vehicles": [_summary(v) for v in data], "source": "nhtsa", "fallback_reason": None})
 
 
 @api_view(["GET"])
+@login_required_api
 def detail(request):
     year = _year(request)
     model = str(request.query_params.get("model") or "").strip()
@@ -91,6 +122,7 @@ def detail(request):
 
 
 @api_view(["GET"])
+@login_required_api
 def image(request):
     year = _year(request)
     model = str(request.query_params.get("model") or "").strip()
@@ -98,15 +130,15 @@ def image(request):
     if not year or not model:
         return Response({"detail": "year and model are required."}, status=400)
     try:
-        found = provider().image(year, model, trim)
-    except carsxe.CarsXEError as exc:
-        return Response({"image": None, "detail": str(exc)}, status=200)
+        found = catalog_service.image(year, model, trim)
+    except ProviderError as exc:
+        return Response({"image": None, "detail": str(exc)})
     return Response({"image": found})
 
 
 @api_view(["GET"])
+@login_required_api
 def compare(request):
-    """?v=2025|Camry|LE&v=2025|RAV4|LE — up to three vehicles."""
     ids = request.query_params.getlist("v")[:3]
     out, errors = [], []
     for raw in ids:
@@ -123,53 +155,67 @@ def compare(request):
 
 
 @api_view(["GET"])
-def market_value(request):
-    """VIN-based market value from CarsXE. Estimates only, never an offer."""
-    vin = str(request.query_params.get("vin") or "").strip().upper()
-    if len(vin) != 17:
-        return Response({"detail": "A 17-character VIN is required."}, status=400)
-    params = {
-        "vin": vin,
-        "mileage": request.query_params.get("mileage"),
-        "state": request.query_params.get("state") or "TX",
-        "condition": "clean",
-    }
+@login_required_api
+def safety(request):
+    year = _year(request)
+    model = str(request.query_params.get("model") or "").strip()
+    if not year or not model:
+        return Response({"detail": "year and model are required."}, status=400)
     try:
-        body = carsxe.client.get("/v2/marketvalue", params, MarketValueResponse, ttl=60 * 60 * 24)
-    except carsxe.CarsXENotFound:
-        return Response({"available": False, "detail": "CarsXE has no market value for that VIN."})
-    except carsxe.CarsXEError as exc:
-        return Response({"available": False, "detail": str(exc)}, status=502)
-    trade = (body.trade_in_clean.model_dump() if body.trade_in_clean else {}) or {}
-    retail = (body.retail_clean.model_dump() if body.retail_clean else {}) or {}
+        return Response(nhtsa.safety(model, year))
+    except ProviderError as exc:
+        return Response({"detail": str(exc), "available": False, "overall_rating": None}, status=exc.status)
+
+
+@api_view(["GET"])
+@login_required_api
+def recalls(request):
+    year = _year(request)
+    model = str(request.query_params.get("model") or "").strip()
+    if not year or not model:
+        return Response({"detail": "year and model are required."}, status=400)
+    try:
+        return Response(nhtsa.recalls(model, year))
+    except ProviderError as exc:
+        return Response({"detail": str(exc), "count": None, "campaigns": []}, status=exc.status)
+
+
+@api_view(["POST"])
+@login_required_api
+def decode_vin(request):
+    vin = str(request.data.get("vin") or "").strip().upper()
+    year = request.data.get("year")
+    model_year = int(year) if str(year or "").isdigit() else None
+    if not VIN_RE.match(vin):
+        return Response({"detail": "Enter a 17-character VIN. Letters I, O, and Q are not used."}, status=400)
+    try:
+        return Response(nhtsa.decode_vin(vin, model_year))
+    except ProviderError as exc:
+        logger.warning("VIN decode failed")
+        return Response({"detail": str(exc)}, status=exc.status)
+
+
+@api_view(["GET"])
+@login_required_api
+def market_value(request):
     return Response(
         {
-            "available": True,
-            "kind": "estimated_market_value",
-            "trade_in_clean": trade.get("adjusted_trade_in_clean") or trade.get("base_trade_in_clean"),
-            "retail_clean": retail.get("adjusted_retail_clean") or retail.get("base_retail_clean"),
-            "note": "CarsXE market estimate. Not a guaranteed trade-in offer from Toyota.",
+            "available": False,
+            "detail": "Verified pricing is not currently connected. NHTSA and CarImagesAPI do not provide market values.",
         }
     )
 
 
 def lookup(year: int, model: str, trim: str | None) -> tuple[dict | None, dict | None]:
-    """Full record with image, shared by the API and the assistant tools."""
-    active = provider()
     try:
-        record = active.detail(year, model, trim)
-    except carsxe.CarsXERateLimited as exc:
-        return None, {"status": 429, "detail": str(exc)}
-    except carsxe.CarsXEError as exc:
-        return None, {"status": 502, "detail": str(exc)}
+        record = catalog_service.detail(year, model, trim)
+    except ProviderError as exc:
+        return None, {"status": exc.status, "detail": str(exc)}
     if not record:
-        return None, {"status": 404, "detail": f"No {year} Toyota {model} {trim or ''} in {active.source} data.".replace("  ", " ")}
-    try:
-        record["image"] = active.image(year, model, trim)
-    except carsxe.CarsXEError:
-        record["image"] = None
+        return None, {"status": 404, "detail": f"No {year} Toyota {model} in NHTSA data."}
     return record, None
 
 
 def _summary(record: dict) -> dict:
-    return {k: v for k, v in record.items() if k not in ("spec_groups", "features", "safety")}
+    skip = {"spec_groups", "features", "safety", "recalls"}
+    return {k: v for k, v in record.items() if k not in skip}

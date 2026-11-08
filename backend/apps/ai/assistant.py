@@ -10,7 +10,7 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from apps.accounts.views import account_from_request
+from apps.accounts.authz import login_required_api
 
 from . import nim_client, tools
 from .account_context import account_context, bind_signed_in
@@ -61,8 +61,11 @@ def _grounded(messages: list[dict], customer_id: str | None, context: dict) -> t
     if results:
         extra += "\nTOOL RESULTS (computed by the backend; quote these figures, do not change them):\n"
         extra += "\n".join(f"- {r['name']}: {json.dumps(r['result'], default=str)}" for r in results)
-        if '"source": "demo"' in extra:
-            extra += "\nThe vehicle figures above are DEMO reference data, not CarsXE. Say so in one short clause."
+        if '"source": "nhtsa"' in extra:
+            extra += (
+                "\nVehicle figures come from NHTSA (and CarImagesAPI for photos). "
+                "Do not invent MSRP, horsepower, MPG, or payments. If a field is null, say it is unavailable."
+            )
     reply = nim_client.generate_reply(messages, extra_system=extra, base=ASSISTANT_PROMPT)
     return reply, results
 
@@ -91,14 +94,16 @@ def _native(messages: list[dict], customer_id: str | None, context: dict) -> tup
 
 
 @api_view(["POST"])
+@login_required_api
 def assistant(request):
     """POST {"messages": [...], "customer_id": "C002"?, "context": {"page": "compare", "vehicles": ["2025|Camry|LE"]}}"""
     serializer = ChatRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     messages = serializer.validated_data["messages"]
-    customer_id = str(request.data.get("customer_id") or "").strip() or None
+    account = request.account
+    bind_signed_in(account)
+    customer_id = account.customer_id
     context = request.data.get("context") if isinstance(request.data.get("context"), dict) else {}
-    bind_signed_in(account_from_request(request))
 
     try:
         run = _native if settings.NIM_TOOL_CALLING else _grounded

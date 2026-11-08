@@ -314,7 +314,37 @@ def _persist_appointment(row: PendingAction, payload: dict) -> dict[str, Any]:
     )
     email_status = appt.email_status
     email_detail = str(email.get("detail") or "")
-    if email_status == "sent":
+    # Phone the customer now and transfer them to a live specialist (when a Retell number is set up).
+    call = {"status": "not_configured"}
+    if row.action_type in {"request_callback", "request_human_transfer", "request_deferral_review"} and appt.contact_phone:
+        from . import connect
+
+        call = connect.start_specialist_call(
+            customer_id=row.customer_id,
+            customer_phone=appt.contact_phone,
+            topic=category,
+            first_name=str(payload.get("name") or ""),
+            appointment_id=appt.appointment_id,
+        )
+    # Email the specialist a callback task; they call the customer from their own phone.
+    alert = {"status": "not_sent"}
+    if call.get("status") != "calling" and appt.contact_phone and row.action_type in {
+        "request_callback", "request_human_transfer", "request_deferral_review", "book_appointment"
+    }:
+        alert = notify.send_specialist_alert(appt, first_name=str(payload.get("name") or ""))
+    masked = f"***-***-{''.join(c for c in appt.contact_phone if c.isdigit())[-4:]}" if appt.contact_phone else ""
+    if alert.get("status") == "sent":
+        detail = (
+            f"A Toyota Financial Services specialist has your request and will call you at {masked}"
+            + (f" ({appt.preferred_when})" if appt.preferred_when else "")
+            + ". Nothing on your contract changed."
+        )
+    elif call.get("status") == "calling":
+        detail = (
+            f"We're calling you now at {call.get('to')} to connect you with a Toyota Financial Services specialist. "
+            "Answer and stay on the line. Nothing on your contract changed."
+        )
+    elif email_status == "sent":
         detail = (
             "A specialist request was recorded on your account and a confirmation email was accepted by the mail provider. "
             "It is not a confirmed calendar booking because no live scheduling provider is connected. "
@@ -342,6 +372,9 @@ def _persist_appointment(row: PendingAction, payload: dict) -> dict[str, Any]:
         "email_status": email_status,
         "email_detail": email_detail,
         "detail": detail,
+        "call_status": call.get("status"),
+        "specialist_alert": alert.get("status"),
+        "call_id": call.get("call_id") or "",
         "location": loc,
     }
 

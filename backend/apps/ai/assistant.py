@@ -55,4 +55,5 @@ def assistant(request):
     reply_id = live_sync.assistant_turn(customer_id, role="assistant", content=result["response"],
                                         tools=result["tool_results"], actions=result["proposed_actions"])
     return Response({"reply": result["response"], "tools": result["tool_results"], "actions": result["proposed_actions"],
-                     "turn_id": reply_id, "user_turn_id": user_turn_id})
+                     "turn_id": reply_id, "user_turn_id": user_turn_id,
+                     "end_conversation": bool(result.get("end_conversation")), "end_reason": result.get("end_reason")})

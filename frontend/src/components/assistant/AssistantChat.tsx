@@ -215,7 +215,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
     setError(null);
     try {
       const res = await sendAssistantMessage(
-        next.filter((t) => !t.offline).map(({ role, content }) => ({ role, content })),
+        currentConversation(next).filter((t) => !t.offline).map(({ role, content }) => ({ role, content })),
         context,
         customerId,
         retry ? undefined : userTurnId
@@ -230,7 +230,14 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
       setTurns((cur) => [
         ...cur,
         res.reply
-          ? { id: res.turn_id ?? `a-${Date.now()}`, role: "assistant", content: res.reply, tools: res.tools, actions: res.actions }
+          ? {
+              id: res.turn_id ?? `a-${Date.now()}`,
+              role: "assistant",
+              content: res.reply,
+              tools: res.tools,
+              actions: res.actions,
+              ended: res.end_conversation ? res.end_reason ?? "farewell" : undefined,
+            }
           : {
               id: res.turn_id ?? `a-${Date.now()}`,
               role: "assistant",
@@ -316,7 +323,10 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
           </motion.div>
         )}
         {turns.map((t) => (
-          <Message key={t.id} turn={t} customerId={customerId} name={profile?.customer.first_name ?? ""} />
+          <div key={t.id}>
+            <Message turn={t} customerId={customerId} name={profile?.customer.first_name ?? ""} />
+            {t.ended && <ConversationEnded reason={t.ended} />}
+          </div>
         ))}
         {voiceActive && (
           <div className="space-y-3" aria-live="polite">
@@ -618,5 +628,24 @@ export function ActionButton({ action, customerId, name }: { action: AssistantAc
     <button onClick={() => setConfirming(true)} className="inline-flex w-fit items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:bg-black">
       <PhoneCall className="h-3 w-3" /> {action.label}
     </button>
+  );
+}
+
+/** Turns since the last reply that ended a conversation. */
+function currentConversation(turns: Turn[]): Turn[] {
+  let start = 0;
+  turns.forEach((t, i) => {
+    if (t.ended) start = i + 1;
+  });
+  return turns.slice(start);
+}
+
+function ConversationEnded({ reason }: { reason: "callback_scheduled" | "farewell" }) {
+  return (
+    <div role="status" className="my-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-wider text-muted">
+      <span className="h-px flex-1 bg-line" />
+      {reason === "callback_scheduled" ? "Callback scheduled · conversation ended" : "Conversation ended"}
+      <span className="h-px flex-1 bg-line" />
+    </div>
   );
 }

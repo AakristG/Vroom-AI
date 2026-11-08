@@ -14,6 +14,8 @@ export interface Turn {
   voice?: boolean;
   /** Voice caption stopped early because the customer interrupted. */
   voiceInterrupted?: boolean;
+  /** This reply ended the conversation; the next message starts a new one. */
+  ended?: "callback_scheduled" | "farewell";
 }
 
 interface Assistant {
@@ -66,7 +68,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   // History lives in SpacetimeDB, so every tab and device shows the same conversation. Local turns
   // that have not landed there yet (the message being sent, voice transcript lines) follow it.
   const turns = useMemo(() => {
-    const remote = rows.map(rowToTurn);
+    const endedById = new Map(localTurns.filter((t) => t.ended).map((t) => [t.id, t.ended]));
+    const remote = rows.map((r) => {
+      const t = rowToTurn(r);
+      const ended = endedById.get(t.id);
+      return ended ? { ...t, ended } : t;
+    });
     const seen = new Set(remote.map((t) => t.id));
     return [...remote, ...localTurns.filter((t) => !seen.has(t.id))];
   }, [rows, localTurns]);

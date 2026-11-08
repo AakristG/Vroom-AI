@@ -132,3 +132,63 @@ def send_appointment_notice(appointment) -> dict:
         return {"status": "failed", "detail": f"Email provider returned {response.status_code}."}
     body = response.json() if response.content else {}
     return {"status": "sent", "id": body.get("id") or "", "detail": "Email accepted by Resend."}
+
+
+def send_specialist_alert(appointment, *, first_name: str = "", topic_detail: str = "") -> dict:
+    """Email the specialist a callback task: who to call, at what number, and why.
+
+    The specialist then calls the customer from their own phone, so no Retell or Twilio number is
+    needed. Goes to SPECIALIST_EMAIL; nothing is sent when it (or Resend) is not configured.
+    """
+    key = getattr(settings, "EMAIL_PROVIDER_API_KEY", "") or ""
+    sender = getattr(settings, "EMAIL_FROM_ADDRESS", "") or ""
+    to_addr = (getattr(settings, "SPECIALIST_EMAIL", "") or "").strip()
+    if not key or not sender or not to_addr:
+        return {"status": "not_configured",
+                "detail": "Set EMAIL_PROVIDER_API_KEY, EMAIL_FROM_ADDRESS and SPECIALIST_EMAIL to alert a specialist."}
+    phone = (appointment.contact_phone or "").strip()
+    if not phone:
+        return {"status": "not_sent", "detail": "The request has no callback number."}
+
+    name = first_name.strip()
+    if not name:
+        try:
+            from apps.accounts.models import CustomerAccount
+
+            row = CustomerAccount.objects.filter(customer_id=appointment.customer_id).first()
+            name = (row.first_name or "").strip() if row else ""
+        except Exception:
+            name = ""
+    who = name or f"Customer {appointment.customer_id}"
+    when = appointment.preferred_when or "As soon as possible"
+    tz = appointment.customer_time_zone or "America/Chicago"
+    subject = f"Call back {who} at {phone} — {appointment.category} ({appointment.appointment_id})"
+    text = (
+        "Vroom AI — specialist callback request\n\n"
+        f"Please call {who} back.\n\n"
+        f"Callback number: {phone}\n"
+        f"Topic: {appointment.category}\n"
+        f"Preferred time: {when} ({tz})\n"
+        f"Customer ID: {appointment.customer_id}\n"
+        f"Reference: {appointment.appointment_id}\n"
+        f"Requested through: {appointment.source or 'website'}\n"
+        + (f"Notes: {appointment.notes}\n" if appointment.notes else "")
+        + (f"Context: {topic_detail}\n" if topic_detail else "")
+        + "\nThe customer confirmed this request and was told a specialist will call them.\n"
+        "Nothing on their contract has changed.\n"
+    )
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={"from": sender, "to": [to_addr], "subject": subject, "text": text},
+            timeout=15,
+        )
+    except requests.RequestException:
+        logger.exception("Specialist alert email failed")
+        return {"status": "failed", "detail": "The email provider could not be reached."}
+    if not response.ok:
+        logger.warning("Specialist alert rejected by Resend %s: %s", response.status_code, response.text[:300])
+        return {"status": "failed", "detail": f"Email provider returned {response.status_code}."}
+    body = response.json() if response.content else {}
+    return {"status": "sent", "id": body.get("id") or "", "detail": "Specialist alert accepted by Resend."}

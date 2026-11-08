@@ -196,6 +196,8 @@ NIM_TOOL_CALLING = env_bool("NIM_TOOL_CALLING", False)
 RETELL_API_KEY = os.environ.get("RETELL_API_KEY", "")
 RETELL_AGENT_ID = os.environ.get("RETELL_AGENT_ID", "")
 RETELL_FROM_NUMBER = os.environ.get("RETELL_FROM_NUMBER", "")
+# Where "connect me with a specialist" calls are transferred (apps/voice/connect.py). E.164 or 10-digit US.
+SPECIALIST_PHONE_NUMBER = os.environ.get("SPECIALIST_PHONE_NUMBER", "")
 
 TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
@@ -206,6 +208,8 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5173")
 PUBLIC_WEBHOOK_BASE_URL = os.environ.get("PUBLIC_WEBHOOK_BASE_URL", "http://127.0.0.1:8000")
 EMAIL_PROVIDER_API_KEY = os.environ.get("EMAIL_PROVIDER_API_KEY", "")
 EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "")
+# Inbox that gets "call this customer back" alerts when a specialist request is confirmed.
+SPECIALIST_EMAIL = os.environ.get("SPECIALIST_EMAIL", "")
 # Local/demo only: route simulated pack customer notifications (C###) to one test inbox.
 # Ignored when DJANGO_DEBUG is false so production never uses the shared override.
 DEMO_NOTIFICATION_EMAIL_OVERRIDE = os.environ.get("DEMO_NOTIFICATION_EMAIL_OVERRIDE", "")

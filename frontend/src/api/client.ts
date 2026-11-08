@@ -177,6 +177,9 @@ export interface AssistantResponse {
   /** Ids the backend used for this turn in SpacetimeDB, so local and live copies merge. */
   turn_id?: string;
   user_turn_id?: string;
+  /** The agent wrapped up: a specialist callback was scheduled, or it said goodbye. */
+  end_conversation?: boolean;
+  end_reason?: "callback_scheduled" | "farewell" | null;
 }
 
 /** POST /api/ai/assistant/ — Nemotron grounded in backend tool results for this page. */

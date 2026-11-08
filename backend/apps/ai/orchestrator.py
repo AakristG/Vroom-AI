@@ -136,6 +136,9 @@ def _action_brief(payload: dict | None, summary: str = "") -> str:
         bits.append(f"for {when}")
     if zip_code:
         bits.append(f"in ZIP code {zip_code}")
+    phone = re.sub(r"\D", "", str(data.get("phone") or ""))
+    if len(phone) >= 4:
+        bits.append(f"at the number ending in {phone[-4:]}")
     phrase = " ".join(bits)
     if summary and "ZIP" in summary and not zip_code:
         return summary.rstrip(".")
@@ -161,6 +164,8 @@ def confirmation_reply(pending: Any | None = None, *, proposed: dict | None = No
     if status == actions.PendingAction.COMPLETED:
         result = getattr(pending, "result", None) or {}
         if isinstance(result, dict) and result.get("ok"):
+            if result.get("call_status") == "calling" or result.get("specialist_alert") == "sent":
+                return str(result.get("detail"))
             return (
                 "Your consultation request has been submitted. It is currently pending review. "
                 "This is not a confirmed appointment yet."
@@ -244,11 +249,40 @@ def _shopping_reply(question: str, customer_id: str | None, context: dict, decis
     return shopping.compose(result, reasons, careful=decision.protected), results
 
 
-def _maybe_propose(question: str, customer_id: str | None, channel: str, conversation_id: str, call_id: str) -> dict | None:
+_PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})(?!\d)")
+_WHEN_RE = re.compile(
+    r"\b(?:(?:today|tomorrow|tonight|this|next|on)\s+)?"
+    r"(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow|tonight|morning|afternoon|evening|weekend)"
+    r"(?:\s+(?:morning|afternoon|evening|night))?"
+    r"(?:\s+(?:at|around|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)?)?"
+    r"|\b(?:at|around|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)"
+    r"|\b(?:as soon as possible|asap|any ?time|right away)\b",
+    re.I,
+)
+
+
+def _extract_phone(text: str) -> str:
+    m = None
+    for m in _PHONE_RE.finditer(text or ""):
+        pass  # the most recently stated number wins
+    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else ""
+
+
+def _extract_when(text: str) -> str:
+    m = None
+    for m in _WHEN_RE.finditer(text or ""):
+        pass
+    return m.group(0).strip() if m else ""
+
+
+def _maybe_propose(question: str, customer_id: str | None, channel: str, conversation_id: str, call_id: str,
+                   history: str = "") -> dict | None:
     if not customer_id:
         return None
     q = question.lower()
-    if not any(k in q for k in ("appointment", "schedule", "book", "trade-in", "trade in", "call me", "speak to", "talk to someone", "representative", "deferral", "hardship")):
+    if not any(k in q for k in ("appointment", "schedule", "book", "trade-in", "trade in", "call me", "speak to",
+                                "talk to someone", "representative", "deferral", "hardship", "specialist",
+                                "callback", "call back")):
         return None
     if actions.open_action(customer_id):
         return None
@@ -273,7 +307,15 @@ def _maybe_propose(question: str, customer_id: str | None, channel: str, convers
     row = actions.propose(
         customer_id=customer_id,
         action_type=action_type,
-        payload={"category": category, "zip": zip_code, "notes": question[:400]},
+        payload={
+            "category": category,
+            "zip": zip_code,
+            "notes": question[:400],
+            # Callback details the customer stated in this conversation (shown back to them to confirm).
+            "phone": _extract_phone(question) or _extract_phone(history),
+            "when": _extract_when(question) or _extract_when(history),
+            "name": ((tools._profile(customer_id) or {}).get("customer") or {}).get("first_name") or "",
+        },
         summary=summary,
         channel=channel,
         conversation_id=conversation_id,
@@ -294,12 +336,59 @@ def run_turn(
 ) -> dict[str, Any]:
     result = _run_turn(messages=messages, customer_id=customer_id, context=context, channel=channel,
                        conversation_id=conversation_id, call_id=call_id, verified=verified)
+    _decide_end(result, channel)
     if verified and customer_id:
         from apps.spacetime import sync as live_sync
 
         for action in result.get("proposed_actions") or []:
             live_sync.dashboard(customer_id, action, channel)
     return result
+
+
+# Requests that put a specialist callback on the books (and email the specialist).
+CALLBACK_ACTIONS = {"request_callback", "request_human_transfer", "request_deferral_review", "book_appointment"}
+_FAREWELL = re.compile(
+    r"\bhave an? (?:wonderful|great|good|nice|lovely|fantastic) (?:day|evening|night|weekend|afternoon|morning|one)\b"
+    r"|\bgood ?bye\b|\btake care\b[.!]?\s*$",
+    re.I,
+)
+_CALLBACK_CLAIM = re.compile(
+    r"\b(?:i|we)(?:'ve| have)? (?:just )?(?:scheduled|arranged|booked|set up|requested|submitted)\b[^.]*\b(?:call ?back|specialist|call you)\b"
+    r"|\b(?:a |the )?specialist (?:will|is going to) (?:call|reach out to|contact) you\b",
+    re.I,
+)
+VOICE_SIGNOFF = "Thank you for calling Toyota Financial Services. Have a wonderful day."
+
+
+def _decide_end(result: dict[str, Any], channel: str) -> None:
+    """Decide whether this reply ends the conversation, and keep "says it" and "did it" in step.
+
+    * A specialist callback just went through (the email went out): confirm, sign off, end.
+    * The agent said goodbye ("have a wonderful day"): end after saying it.
+    * The agent claimed a callback that did not happen: replace the claim with an offer, so a
+      customer is never told a specialist will call when nobody was notified.
+    """
+    text = result.get("response") or ""
+    completed = result.get("action_completed") in CALLBACK_ACTIONS
+    if completed:
+        if channel in {"voice", "phone"} and not _FAREWELL.search(text):
+            text = f"{text.rstrip()} {VOICE_SIGNOFF}"
+        result["response"] = text
+        result["end_conversation"] = True
+        result["end_reason"] = "callback_scheduled"
+        return
+    if text and _CALLBACK_CLAIM.search(text):
+        result["response"] = (
+            "I can set up a callback with a Toyota Financial Services specialist. "
+            "What phone number should they call, and when is a good time?"
+        )
+        result["end_conversation"] = False
+        return
+    if text and _FAREWELL.search(text):
+        result["end_conversation"] = True
+        result["end_reason"] = "farewell"
+        return
+    result["end_conversation"] = False
 
 
 def _run_turn(
@@ -326,7 +415,8 @@ def _run_turn(
     extra = _context_text(context, customer_id, channel)
     proposed_tool = None
     if customer_id and not pending:
-        proposed_tool = _maybe_propose(user_text, customer_id, channel, conversation_id, call_id)
+        history = " ".join(m["content"] for m in messages if m.get("role") == "user")
+        proposed_tool = _maybe_propose(user_text, customer_id, channel, conversation_id, call_id, history)
 
     # Never dump public_action JSON into the model prompt — that is the root cause of spoken/chat leaks.
     safe_confirm = confirmation_reply(pending, proposed=proposed_tool)
@@ -369,6 +459,12 @@ def _run_turn(
                 open_row and open_row.status in {actions.PendingAction.AWAIT_INTENT, actions.PendingAction.AWAIT_FINAL}
             ),
             "error": None,
+            # Set only on the turn the request actually finished (an old completed action is never "open").
+            "action_completed": (
+                pending.action_type
+                if pending and pending.status == actions.PendingAction.COMPLETED and (pending.result or {}).get("ok")
+                else None
+            ),
         }
 
     if not pending and not proposed_tool and not decision.distressed and shopping.is_shopping(user_text):

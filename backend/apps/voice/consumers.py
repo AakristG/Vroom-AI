@@ -21,7 +21,7 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from apps.ai.orchestrator import run_turn
-from apps.voice import live
+from apps.voice import connect, live
 from apps.voice.verified_calls import resolve_verified_customer
 
 GREETING = "Hi, thanks for calling Toyota Financial Services. How can I help you today?"
@@ -41,8 +41,14 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
         self.verified = False
         self.transcript: list[dict] = []
         self.owner_published = False
+        self.transferring = False
         await self.accept()
         await self._send_json({"response_type": "config", "config": {"auto_reconnect": True, "call_details": True}})
+        # Outbound "connect me with a specialist" call: greet, then hand the call to the specialist.
+        meta = connect.take(self.call_id)
+        if meta:
+            await self._transfer_to_specialist(meta, response_id=0)
+            return
         # Prefer the server-minted binding immediately; call_details may arrive later.
         await self._apply_verified_binding()
         name = await sync_to_async(_first_name)(self.customer_id) if self.customer_id else None
@@ -68,11 +74,21 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
         elif interaction_type == "call_details":
             # Retell metadata / caller ID is not proof of ownership. Only our mint table authorizes account context.
             await self._apply_verified_binding()
-            await self._publish_owner(event.get("call") or {})
+            call = event.get("call") or {}
+            await self._publish_owner(call)
+            meta = None if self.transferring else connect.take(self.call_id, call.get("metadata"))
+            if meta:
+                await self._transfer_to_specialist(meta, response_id=0)
         elif interaction_type == "update_only":
             self.transcript = event.get("transcript") or []
             await sync_to_async(live.sync_transcript)(self.customer_id, self.call_id, self.transcript)
         elif interaction_type in ("response_required", "reminder_required"):
+            if self.transferring:
+                # Still connecting: keep the caller informed instead of starting a new conversation.
+                await self._send_json({"response_type": "response", "response_id": event.get("response_id"),
+                                       "content": "Connecting you now. One moment.", "content_complete": True,
+                                       "transfer_number": connect.specialist_number()})
+                return
             await self._handle_response_required(event)
 
     async def _apply_verified_binding(self):
@@ -112,11 +128,29 @@ class RetellLLMConsumer(AsyncWebsocketConsumer):
                 verified=self.verified,
             )
             reply = result.get("response")
+            end_call = bool(result.get("end_conversation"))
         except Exception:
-            reply = None
+            reply, end_call = None, False
         reply = reply or "I could not reach the assistant just now. Nothing on any account was changed."
         await sync_to_async(live.append_agent)(self.customer_id, self.call_id, reply, response_id)
-        await self._send_json({"response_type": "response", "response_id": response_id, "content": reply, "content_complete": True})
+        payload = {"response_type": "response", "response_id": response_id, "content": reply, "content_complete": True}
+        if end_call:
+            # Callback scheduled (specialist emailed) or the agent said goodbye: Retell speaks the reply, then hangs up.
+            payload["end_call"] = True
+        await self._send_json(payload)
+
+    async def _transfer_to_specialist(self, meta: dict, *, response_id: int):
+        """Say why we're calling, then ask Retell to transfer the live call to the specialist."""
+        number = connect.specialist_number()
+        if not number:
+            return
+        self.transferring = True
+        self.customer_id = meta.get("customer_id") or self.customer_id
+        greeting = connect.connect_greeting(meta)
+        await self._send_json({"response_type": "response", "response_id": response_id, "content": greeting,
+                               "content_complete": True, "transfer_number": number})
+        await sync_to_async(live.publish_session)(self.call_id, "ongoing", last_speaker="agent")
+        await sync_to_async(live.append_agent)(self.customer_id, self.call_id, greeting, response_id)
 
     async def _send_json(self, payload: dict):
         await self.send(text_data=json.dumps(payload))

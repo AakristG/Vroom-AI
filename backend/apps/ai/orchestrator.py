@@ -379,7 +379,8 @@ def run_turn(
             "response": "",
             "conversation_id": conversation_id,
             "tool_results": results,
-            "proposed_actions": tools.suggested_actions([r["name"] for r in results], customer_id, context),
+            "proposed_actions": [*tools.dashboard_actions(results, user_text),
+                                 *tools.suggested_actions([r["name"] for r in results], customer_id, context)][:4],
             "requires_confirmation": False,
             "error": "Nemotron is not available right now.",
         }
@@ -387,7 +388,7 @@ def run_turn(
     if proposed_tool:
         results = [proposed_tool, *results]
     names = [r["name"] for r in results]
-    suggested = tools.suggested_actions(names, customer_id, context)
+    suggested = [*tools.dashboard_actions(results, user_text), *tools.suggested_actions(names, customer_id, context)]
     open_row = actions.open_action(customer_id) if customer_id else None
     if open_row:
         suggested = [actions.public_action(open_row), *suggested]

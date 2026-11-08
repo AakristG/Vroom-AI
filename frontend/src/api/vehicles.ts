@@ -126,6 +126,21 @@ export const vehiclePath = (v: { year: number; model: string; trim: string | nul
 export const getCatalogStatus = () =>
   cached("status", async () => (await apiClient.get<CatalogStatus>("/api/vehicles/status/")).data);
 
+export interface CompareSuggestion {
+  id: string;
+  year: number;
+  model: string;
+  category: string | null;
+  fuel_type: string | null;
+  price: number | null;
+  reason: string;
+}
+
+export const getCompareSuggestions = async (ids: string[]) => {
+  const { data } = await apiClient.post("/api/ai/compare-suggestions/", { ids }, slow);
+  return data as { suggestions: CompareSuggestion[]; source: "nemotron" | "ranked" | "none"; year?: number };
+};
+
 export const getYears = () =>
   cached("years", async () => {
     const { data } = await apiClient.get("/api/vehicles/years/", slow);

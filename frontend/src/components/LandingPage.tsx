@@ -185,7 +185,7 @@ export function LandingPage() {
             <aside className="card relative overflow-hidden p-6 md:p-8" style={{ boxShadow: "var(--shadow-lift)" }}>
               <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-signal/10 blur-3xl" aria-hidden />
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">Example · synthetic account</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted"></p>
               </div>
               <h3 className="mt-3 text-2xl font-semibold tracking-tight">A payment that got harder to make</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">

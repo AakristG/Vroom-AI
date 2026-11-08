@@ -43,8 +43,10 @@ export function ExplorePage() {
   const [trimCards, setTrimCards] = useState<Load<VehicleRecord[]> | null>(null);
   const [reload, setReload] = useState(0);
 
-  const preferredYear = (status?.default_year && years.includes(status.default_year) ? status.default_year : years[0]) || 0;
-  const allYears = !params.get("year") || params.get("year") === "all";
+  const DEFAULT_YEAR = 2026;
+  const preferredYear =
+    (years.includes(DEFAULT_YEAR) ? DEFAULT_YEAR : status?.default_year && years.includes(status.default_year) ? status.default_year : years[0]) || 0;
+  const allYears = params.get("year") === "all";
   const year = allYears ? 0 : Number(params.get("year")) || preferredYear;
   const model = params.get("model") ?? "";
   const category = params.get("category") ?? "";

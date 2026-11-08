@@ -13,6 +13,9 @@ from . import catalog as catalog_service
 from .http import ProviderError
 from .nhtsa import VIN_RE, nhtsa
 
+# Keep in sync with COMPARE_LIMIT in frontend/src/state/compare.tsx.
+COMPARE_LIMIT = 8
+
 logger = logging.getLogger(__name__)
 
 
@@ -138,7 +141,7 @@ def image(request):
 @api_view(["GET"])
 @login_required_api
 def compare(request):
-    ids = request.query_params.getlist("v")[:3]
+    ids = request.query_params.getlist("v")[:COMPARE_LIMIT]
     out, errors = [], []
     for raw in ids:
         parts = raw.split("|")

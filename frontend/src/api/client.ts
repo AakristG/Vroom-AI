@@ -154,6 +154,13 @@ export interface AssistantTool {
 export type AssistantAction =
   | { type: "navigate"; label: string; to: string }
   | { type: "confirm"; action: "request_callback"; topic: string; label: string }
+  | {
+      type: "set_dashboard";
+      label: string;
+      to: string;
+      simulator?: { extra_monthly?: number; lump_sum?: number };
+      scenario?: { extend_months?: number };
+    }
   | PendingActionCard;
 
 export interface AssistantContext {

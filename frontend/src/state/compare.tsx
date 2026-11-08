@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 const STORAGE_KEY = "tfs-compare";
-export const COMPARE_LIMIT = 3;
+// Keep in sync with COMPARE_LIMIT in backend/apps/vehicles/views.py.
+export const COMPARE_LIMIT = 8;
 
 interface Compare {
   ids: string[];

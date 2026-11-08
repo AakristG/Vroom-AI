@@ -32,6 +32,7 @@ import { isNewAccount } from "../lib/sessionProfile";
 import { CountUp, Reveal, Stagger, StaggerItem } from "../components/ui/motion";
 import type { Profile } from "../data/types";
 import { addMonths, byYear, nextDueDate, payment, schedule } from "../lib/finance";
+import { useDashboardCommand } from "../lib/dashboardBus";
 import { cn, money } from "../lib/format";
 import { journeyFor } from "../lib/journey";
 import { useAssistant, usePageContext } from "../state/assistant";
@@ -117,7 +118,7 @@ function SectionNav({ lease }: { lease: boolean }) {
 function SectionLabel({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
   return (
     <div className={cn("flex items-center gap-4 pt-8", align === "right" && "flex-row-reverse")}>
-      <h2 className="font-headline text-[clamp(2.25rem,4.5vw,3.5rem)] font-bold uppercase leading-none tracking-[0.04em] text-signal">{children}</h2>
+      <h2 className="font-headline text-[clamp(2.75rem,5.5vw,4.25rem)] font-bold uppercase leading-none tracking-[0.04em] text-signal">{children}</h2>
       <span className="h-[2px] flex-1 bg-signal/20" />
     </div>
   );
@@ -496,6 +497,10 @@ function Scenarios({ p }: { p: Profile }) {
   const balance = a.current_balance!;
   const apr = a.apr!;
   const [extend, setExtend] = useState(12);
+  // Vroom AI can set the extension ("what would a 24-month extension do?"). The slider moves in 6-month steps.
+  useDashboardCommand("scenario", ({ extend_months }) => {
+    if (extend_months != null) setExtend(Math.min(24, Math.max(6, Math.round(extend_months / 6) * 6)));
+  });
 
   const run = (monthly: number) => {
     const rows = schedule(balance, apr, monthly);

@@ -21,6 +21,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "rea
 import { Link } from "react-router-dom";
 import { requestCallback, sendAssistantMessage, type AssistantAction, type AssistantTool, type PendingActionCard } from "../../api/client";
 import { parseVehicleId } from "../../api/vehicles";
+import { applyDashboard } from "../../lib/dashboardBus";
 import { cn } from "../../lib/format";
 import { journeyFor } from "../../lib/journey";
 import { sanitizeAssistantText } from "../../lib/sanitizeAssistantText";
@@ -215,6 +216,10 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         context,
         customerId
       );
+      // The agent can drive the What-if dashboards: apply its settings as soon as the reply lands.
+      for (const a of res.actions ?? []) {
+        if (a.type === "set_dashboard") applyDashboard({ simulator: a.simulator, scenario: a.scenario });
+      }
       setTurns((cur) => [
         ...cur,
         res.reply
@@ -539,6 +544,20 @@ export function ActionButton({ action, customerId, name }: { action: AssistantAc
 
   if (isPendingAction(action)) return <ConfirmActionCard action={action} />;
   if (pending) return <ConfirmActionCard action={pending} onChange={setPending} />;
+
+  if (action.type === "set_dashboard")
+    return (
+      <Link
+        to={action.to}
+        onClick={() => {
+          applyDashboard({ simulator: action.simulator, scenario: action.scenario });
+          setOpen(false);
+        }}
+        className="inline-flex w-fit items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:bg-black"
+      >
+        {action.label} <ArrowRight className="h-3 w-3" />
+      </Link>
+    );
 
   if (action.type === "navigate")
     return (

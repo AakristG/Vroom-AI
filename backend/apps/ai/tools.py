@@ -275,6 +275,9 @@ def run_tool(name: str, args: dict, customer_id: str | None) -> dict:
 # ---------------------------------------------------------------------------
 _MONEY = re.compile(r"\$\s?(\d[\d,]*)")
 _MONTHS = re.compile(r"(\d{1,2})\s*(?:more\s*)?months?")
+_LUMP = re.compile(r"(?:one[- ]time|lump[- ]?sum|single|once)\D{0,30}\$\s?(\d[\d,]*)|\$\s?(\d[\d,]*)\D{0,30}(?:one[- ]time|lump[- ]?sum|all at once|up ?front)")
+# "what if I paid $200 more", "$150 extra a month", "put another $50 toward it"
+_EXTRA_PHRASE = re.compile(r"(?:\$\s?\d[\d,]*\s*(?:more|extra)|(?:paid|pay|put|add)\s+(?:an?\s+)?(?:extra|another|additional)|what if i pa(?:y|id))")
 
 
 def _mentioned_vehicles(text: str, year: int) -> list[str]:
@@ -305,9 +308,17 @@ def plan(question: str, context: dict, customer_id: str | None, intent: str = "a
     if profile:
         calls.append(("customer_profile", {}))
         if contract == "loan":
-            if any(k in q for k in ("extra", "pay more", "pay off", "payoff early", "faster")):
-                amount = _MONEY.search(question)
-                calls.append(("extra_payment_scenario", {"extra_per_month": float(amount.group(1).replace(",", "")) if amount else 100}))
+            if any(k in q for k in ("extra", "pay more", "pay off", "payoff early", "faster")) or _EXTRA_PHRASE.search(q):
+                # A one-time amount ("one-time $1,500") is not the monthly extra; set it aside first.
+                lump = _LUMP.search(q)
+                lump_text = (lump.group(1) or lump.group(2)) if lump else None
+                amounts = [m.group(1) for m in _MONEY.finditer(question)]
+                if lump_text and lump_text in amounts:
+                    amounts.remove(lump_text)
+                if amounts:
+                    calls.append(("extra_payment_scenario", {"extra_per_month": float(amounts[0].replace(",", ""))}))
+                elif not lump_text:
+                    calls.append(("extra_payment_scenario", {"extra_per_month": 100.0}))
             if any(k in q for k in ("lower", "extend", "stretch", "afford", "smaller", "reduce", "tight", "hard")):
                 months = _MONTHS.search(q)
                 calls.append(("term_extension_scenario", {"extra_months": int(months.group(1)) if months else 12}))
@@ -332,6 +343,37 @@ def plan(question: str, context: dict, customer_id: str | None, intent: str = "a
             seen.add(key)
             unique.append((name, args))
     return unique
+
+
+def dashboard_actions(results: list[dict], question: str = "") -> list[dict[str, Any]]:
+    """Turn what-if tool calls into a command the Insights dashboards apply (sliders move to match)."""
+    simulator: dict[str, float] = {}
+    scenario: dict[str, int] = {}
+    for r in results:
+        args = r.get("args") or {}
+        if (r.get("result") or {}).get("error"):
+            continue
+        if r.get("name") == "extra_payment_scenario" and args.get("extra_per_month") is not None:
+            simulator["extra_monthly"] = float(args["extra_per_month"])
+        elif r.get("name") == "term_extension_scenario" and args.get("extra_months") is not None:
+            scenario["extend_months"] = int(args["extra_months"])
+    lump = _LUMP.search(question.lower())
+    if lump and any(r.get("name") == "customer_profile" and not (r.get("result") or {}).get("error") for r in results):
+        simulator["lump_sum"] = float((lump.group(1) or lump.group(2)).replace(",", ""))
+        simulator.setdefault("extra_monthly", 0.0)
+    if not simulator and not scenario:
+        return []
+    action: dict[str, Any] = {"type": "set_dashboard"}
+    if simulator:
+        action["simulator"] = simulator
+        action["to"] = "/insights#simulator"
+        action["label"] = "Show it in the What-if simulator"
+    if scenario:
+        action["scenario"] = scenario
+        if not simulator:
+            action["to"] = "/insights#scenarios"
+            action["label"] = f"Show the {scenario['extend_months']}-month extension"
+    return [action]
 
 
 def suggested_actions(tool_names: list[str], customer_id: str | None, context: dict) -> list[dict[str, Any]]:

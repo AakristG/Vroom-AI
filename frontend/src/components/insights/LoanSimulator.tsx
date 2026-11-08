@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ChartLine, Info, RotateCcw, Table2 } from "lucide-react";
-import { useId, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Profile } from "../../data/types";
+import { useDashboardCommand } from "../../lib/dashboardBus";
 import { addMonths, nextDueDate, simulate, type Simulation } from "../../lib/finance";
 import { cn, money } from "../../lib/format";
 import { useAssistant } from "../../state/assistant";
@@ -32,6 +33,17 @@ export function LoanSimulator({ p, selfReported = false }: { p: Profile; selfRep
   const [extra, setExtra] = useState(100);
   const [lump, setLump] = useState(0);
   const [view, setView] = useState<"chart" | "table">("chart");
+  const [aiSet, setAiSet] = useState(false);
+  const root = useRef<HTMLElement>(null);
+
+  // Vroom AI can set the sliders ("what if I paid $200 more a month?").
+  useDashboardCommand("simulator", ({ extra_monthly, lump_sum }) => {
+    const clamp = (n: number, max: number, step: number) => Math.min(max, Math.max(0, Math.round(n / step) * step));
+    if (extra_monthly != null) setExtra(clamp(extra_monthly, maxExtra, 10));
+    if (lump_sum != null) setLump(clamp(lump_sum, maxLump, 100));
+    setAiSet(true);
+    window.setTimeout(() => root.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+  });
 
   const base = useMemo(() => simulate({ balance, apr, monthly: a.monthly_payment }), [balance, apr, a.monthly_payment]);
   const sim = useMemo(() => simulate({ balance, apr, monthly: a.monthly_payment, extraMonthly: extra, lumpSum: lump }), [balance, apr, a.monthly_payment, extra, lump]);
@@ -66,10 +78,13 @@ export function LoanSimulator({ p, selfReported = false }: { p: Profile; selfRep
   }
 
   return (
-    <section id="simulator" className="card scroll-mt-28 overflow-hidden rounded-md" aria-labelledby="simulator-title">
+    <section ref={root} id="simulator" className={cn("card scroll-mt-28 overflow-hidden rounded-md transition-shadow", aiSet && "ring-2 ring-signal/50")} aria-labelledby="simulator-title">
       <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
         <div className="border-b border-line p-6 md:p-8 lg:border-b-0 lg:border-r">
-          <p className="eyebrow">What if?</p>
+          <p className="eyebrow flex items-center gap-2">
+            What if?
+            {aiSet && <span className="rounded-full bg-signal px-2 py-0.5 text-[10px] tracking-normal text-white normal-case">Set by Vroom AI</span>}
+          </p>
           <h2 id="simulator-title" className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">
             What if I paid a little more?
           </h2>
@@ -91,6 +106,7 @@ export function LoanSimulator({ p, selfReported = false }: { p: Profile; selfRep
               onClick={() => {
                 setExtra(0);
                 setLump(0);
+                setAiSet(false);
               }}
               className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted transition-colors duration-150 hover:text-ink"
             >

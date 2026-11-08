@@ -245,7 +245,7 @@ function SectionNav() {
 function SectionLabel({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
   return (
     <div className={cn("flex items-center gap-4 pt-8", align === "right" && "flex-row-reverse")}>
-      <h2 className="font-headline text-[clamp(2.25rem,4.5vw,3.5rem)] font-bold uppercase leading-none tracking-[0.04em] text-signal">{children}</h2>
+      <h2 className="font-headline text-[clamp(2.75rem,5.5vw,4.25rem)] font-bold uppercase leading-none tracking-[0.04em] text-signal">{children}</h2>
       <span className="h-[2px] flex-1 bg-signal/20" />
     </div>
   );

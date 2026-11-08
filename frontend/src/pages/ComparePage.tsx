@@ -1,16 +1,18 @@
-import { Car, Plus, Search, X } from "lucide-react";
+import { Car, Plus, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   apiErrorMessage,
   compareVehicles,
+  getCompareSuggestions,
   getCatalog,
   getTrims,
   getVehicle,
   getYears,
   vehicleId,
   vehiclePath,
+  type CompareSuggestion,
   type VehicleRecord,
 } from "../api/vehicles";
 import { VehicleMedia } from "../components/vehicles/VehicleCard";
@@ -22,7 +24,8 @@ import { useAssistant, usePageContext } from "../state/assistant";
 import { useAuth } from "../state/auth";
 import { COMPARE_LIMIT, useCompare } from "../state/compare";
 
-const COLORS = ["#eb0a1e", "#16171a", "#8a8f98", "#2f6fd6"];
+// One color per column: the page compares up to COMPARE_LIMIT models plus your own car.
+const COLORS = ["#eb0a1e", "#16171a", "#8a8f98", "#2f6fd6", "#1f8a70", "#f4b23e", "#7b4fd6", "#d65f9e", "#3fb6c8"];
 const MINE_PREFIX = "mine|";
 const KWH_PER_GALLON_EQUIVALENT = 33.7;
 
@@ -187,7 +190,7 @@ export function ComparePage() {
   return (
     <main className="pb-24">
       <PageIntro eyebrow="Compare models" title="Line them up, side by side.">
-        Pick up to three Toyotas. Differences are highlighted, and every estimate shows its assumptions.
+        Line up as many Toyotas as you like, up to {COMPARE_LIMIT}. Differences are highlighted, and every estimate shows its assumptions.
       </PageIntro>
 
       <div className="mx-auto max-w-7xl px-5 pt-10 md:px-8">
@@ -208,15 +211,28 @@ export function ComparePage() {
             )}
           </div>
         )}
-        <div className="grid gap-4 md:grid-cols-3">
-          {Array.from({ length: COMPARE_LIMIT }).map((_, i) => {
-            const v = picked.find((x) => x.id === ids[i]);
-            return ids[i] ? (
-              <SlotFilled key={ids[i]} id={ids[i]} v={v} color={COLORS[i + offset]} loading={data.loading && !v} onRemove={() => compare.remove(ids[i])} />
+        {ids.length > 0 && (
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {ids.map((id, i) => {
+              const v = picked.find((x) => x.id === id);
+              return <SlotFilled key={id} id={id} v={v} color={COLORS[(i + offset) % COLORS.length]} loading={data.loading && !v} onRemove={() => compare.remove(id)} />;
+            })}
+          </div>
+        )}
+        <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(18rem,22rem)_1fr]">
+          <div className="flex flex-col">
+            {ids.length < COMPARE_LIMIT ? (
+              <VehiclePicker key={`picker-${ids.length}`} onPick={(id) => compare.replace([...ids, id])} exclude={ids} />
             ) : (
-              <VehiclePicker key={`empty-${i}`} onPick={(id) => compare.replace([...ids, id])} exclude={ids} />
-            );
-          })}
+              <div className="grid flex-1 place-items-center rounded-md border-2 border-dashed border-line p-5 text-center text-sm text-muted">
+                Comparison is full. Remove a model to add another.
+              </div>
+            )}
+            <p className="mt-2 text-xs text-muted">
+              {ids.length} of {COMPARE_LIMIT} models selected.
+            </p>
+          </div>
+          <AiSuggestions ids={ids} full={ids.length >= COMPARE_LIMIT} onAdd={(id) => compare.replace([...ids, id])} />
         </div>
 
         {data.errors.map((e) => (
@@ -327,7 +343,7 @@ function VehiclePicker({ onPick, exclude }: { onPick: (id: string) => void; excl
     getYears()
       .then((r) => {
         setYears(r.data);
-        setYear(r.data[0] ?? 0);
+        setYear(r.data.includes(2026) ? 2026 : r.data[0] ?? 0);
       })
       .catch(() => undefined);
   }, []);
@@ -353,7 +369,7 @@ function VehiclePicker({ onPick, exclude }: { onPick: (id: string) => void; excl
   const id = model ? vehicleId(year, model, trim || null) : "";
 
   return (
-    <div className="rounded-3xl border-2 border-dashed border-line bg-paper/60 p-5">
+    <div className="flex-1 rounded-md border-2 border-dashed border-line bg-paper/60 p-5">
       <p className="flex items-center gap-2 text-sm font-semibold">
         <Plus className="h-4 w-4" /> Add a vehicle
       </p>
@@ -451,7 +467,7 @@ function SpecTable({ vs }: { vs: VehicleRecord[] }) {
               </th>
               {vs.map((v, i) => (
                 <th key={v.id} scope="col" className="px-5 py-4 text-left font-semibold">
-                  <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: COLORS[i] }} />
+                  <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
                   {v.id.startsWith(MINE_PREFIX) ? `Your ${vehicleName(v)}` : vehicleName(v)}
                 </th>
               ))}
@@ -537,7 +553,7 @@ function years(vs: VehicleRecord[]) {
 
 function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {
   const pick = (get: (v: VehicleRecord) => number | null) =>
-    vs.flatMap((v, i) => (get(v) == null ? [] : [{ name: shortName(v), value: get(v)!, color: COLORS[i] }]));
+    vs.flatMap((v, i) => (get(v) == null ? [] : [{ name: shortName(v), value: get(v)!, color: COLORS[i % COLORS.length] }]));
   const missing = (get: (v: VehicleRecord) => number | null, field: string) => vs.filter((v) => get(v) == null).map((v) => `${shortName(v)} (no ${field})`);
   const base = `Model year ${years(vs)}.`;
 
@@ -545,14 +561,14 @@ function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {
   const dimRows = vs.filter((v) => v.dimensions.length_in || v.dimensions.width_in || v.dimensions.height_in);
 
   return (
-    <section className="mt-12" aria-labelledby="charts">
-      <h2 id="charts" className="text-3xl font-semibold tracking-tight">
+    <section className="ml-90 mt-12" aria-labelledby="charts">
+      <h2 id="charts" className="text-3xl ml-18 font-semibold tracking-tight">
         How they compare
       </h2>
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <ChartCard
           title="Fuel efficiency (mpg)"
-          note={`${base} Gas and hybrid ratings in miles per gallon. Electric ratings (MPGe) are not on this axis; see the table.`}
+          note={`${base} Gas and hybrid ratings in miles per gallon. Electric ratings (MPGe) are not on this axis, so see the table.`}
           missing={vs.filter((v) => !mpgRows.includes(v)).map((v) => `${shortName(v)} (no mpg rating)`)}
         >
           {mpgRows.length ? (
@@ -569,7 +585,7 @@ function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {
                 <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 {mpgRows.map((v) => (
-                  <Bar key={v.id} dataKey={shortName(v)} fill={COLORS[vs.indexOf(v)]} radius={[8, 8, 0, 0]} maxBarSize={40} />
+                  <Bar key={v.id} dataKey={shortName(v)} fill={COLORS[vs.indexOf(v) % COLORS.length]} radius={[8, 8, 0, 0]} maxBarSize={40} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -610,7 +626,7 @@ function PerformanceCharts({ vs }: { vs: VehicleRecord[] }) {
                 <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 {dimRows.map((v) => (
-                  <Bar key={v.id} dataKey={shortName(v)} fill={COLORS[vs.indexOf(v)]} radius={[8, 8, 0, 0]} maxBarSize={40} />
+                  <Bar key={v.id} dataKey={shortName(v)} fill={COLORS[vs.indexOf(v) % COLORS.length]} radius={[8, 8, 0, 0]} maxBarSize={40} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -630,7 +646,7 @@ function CostCharts({ vs, assume }: { vs: VehicleRecord[]; assume: Assumptions }
       vs.map((v, i) => {
         const fuel = annualFuel(v, assume);
         const fiveYear = fuel.cost != null ? 5 * (fuel.cost + assume.other) : null;
-        return { v, color: COLORS[i], fuel, fiveYear };
+        return { v, color: COLORS[i % COLORS.length], fuel, fiveYear };
       }),
     [vs, assume]
   );
@@ -670,5 +686,76 @@ function NumberField({ label, value, step, onChange }: { label: string; value: n
         className="field mt-2"
       />
     </label>
+  );
+}
+
+/** Three models Nemotron suggests adding, chosen from the real catalog by the backend. */
+function AiSuggestions({ ids, full, onAdd }: { ids: string[]; full: boolean; onAdd: (id: string) => void }) {
+  const [state, setState] = useState<{ loading: boolean; items: CompareSuggestion[]; source?: string; error?: string }>({ loading: true, items: [] });
+  const key = ids.map((i) => i.split("|").slice(0, 2).join("|")).join(",");
+
+  useEffect(() => {
+    let live = true;
+    setState((s) => ({ ...s, loading: true, error: undefined }));
+    const t = window.setTimeout(() => {
+      getCompareSuggestions(ids)
+        .then((r) => live && setState({ loading: false, items: r.suggestions, source: r.source }))
+        .catch((err) => live && setState({ loading: false, items: [], error: apiErrorMessage(err, "Suggestions are unavailable right now.") }));
+    }, 400);
+    return () => {
+      live = false;
+      window.clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return (
+    <section aria-labelledby="ai-suggest" className="relative overflow-hidden rounded-md bg-gradient-to-br from-charcoal-2 to-charcoal p-6 text-white md:p-7">
+      <div aria-hidden className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-signal/25 blur-3xl" />
+      <div className="relative flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-signal">
+            <Sparkles className="h-4 w-4" /> Vroom AI suggests
+          </p>
+          <h2 id="ai-suggest" className="mt-2 text-2xl font-semibold tracking-tight">
+            {ids.length ? "Three more worth lining up" : "Three good places to start"}
+          </h2>
+        </div>
+        <p className="text-xs text-white/50">
+          {state.source === "nemotron" ? "Picked by NVIDIA Nemotron from the Toyota catalog" : state.source === "ranked" ? "Ranked from the Toyota catalog" : ""}
+        </p>
+      </div>
+
+      {state.error ? (
+        <p className="relative mt-5 text-sm text-white/70">{state.error}</p>
+      ) : (
+        <div className="relative mt-5 grid gap-3 sm:grid-cols-3">
+          {state.loading
+            ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-36 animate-pulse rounded-md bg-white/10" />)
+            : state.items.map((s) => (
+                <div key={s.id} className="flex flex-col rounded-md border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-semibold">
+                        {s.year} {s.model}
+                      </div>
+                      <div className="text-xs text-white/55">{[s.category, s.fuel_type].filter(Boolean).join(" · ")}</div>
+                    </div>
+                    {s.price != null && <div className="shrink-0 text-right text-xs text-white/55"></div>}
+                  </div>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-white/75">{s.reason}</p>
+                  <button
+                    onClick={() => onAdd(s.id)}
+                    disabled={full}
+                    className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus className="h-4 w-4" /> {full ? "Comparison is full" : "Add to comparison"}
+                  </button>
+                </div>
+              ))}
+        </div>
+      )}
+      <p className="relative mt-4 text-[11px] text-white/40">Starting prices are approximate base MSRPs, not quotes.</p>
+    </section>
   );
 }

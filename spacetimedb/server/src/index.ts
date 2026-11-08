@@ -35,6 +35,21 @@ const callMessage = table(
   }
 );
 
+const customerEvent = table(
+  {
+    name: 'customer_event',
+    public: true,
+    indexes: [{ accessor: 'byCustomer', algorithm: 'btree', columns: ['customerId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    customerId: t.string(),
+    eventType: t.string(),
+    payload: t.string(),
+    createdAt: t.string(),
+  }
+);
+
 const appointment = table(
   { name: 'appointment', public: true },
   {
@@ -52,6 +67,7 @@ const spacetimedb = schema({
   call_session: callSession,
   call_message: callMessage,
   appointment,
+  customer_event: customerEvent,
 });
 export default spacetimedb;
 
@@ -89,6 +105,18 @@ export const appendCallMessage = spacetimedb.reducer(
   },
   (ctx, { callId, role, content, createdAt }) => {
     ctx.db.call_message.insert({ id: 0n, callId, role, content, createdAt });
+  }
+);
+
+export const appendCustomerEvent = spacetimedb.reducer(
+  {
+    customerId: t.string(),
+    eventType: t.string(),
+    payload: t.string(),
+    createdAt: t.string(),
+  },
+  (ctx, { customerId, eventType, payload, createdAt }) => {
+    ctx.db.customer_event.insert({ id: 0n, customerId, eventType, payload, createdAt });
   }
 );
 

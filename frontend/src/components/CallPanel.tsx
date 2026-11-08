@@ -45,7 +45,7 @@ export function CallPanel({ p }: { p: Profile }) {
               <Play className="h-3.5 w-3.5" /> {state === "ended" ? "Replay demo call" : "Play demo call"}
             </button>
           )}
-          <VoiceWidget />
+          <VoiceWidget customerId={p.customer.customer_id} />
         </div>
         <div role="tablist" className="mt-4 flex gap-1 rounded-full bg-white/5 p-1 text-sm">
           {(

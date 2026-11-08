@@ -1,6 +1,7 @@
-"""In-memory bridge from a Retell phone call to the signed-in website.
+"""In-memory bridge from a Retell call to the signed-in website.
 
-The same events are written through SpacetimeDB so every open browser sees them.
+The same events are written through SpacetimeDB when that module is reachable.
+SpacetimeDB is not the source of truth for financing data.
 """
 
 from __future__ import annotations
@@ -45,6 +46,18 @@ def publish_turn(call_id: str, role: str, content: str, turn_id: str) -> None:
         {"callId": call_id, "role": role, "content": text, "createdAt": _now()},
     ):
         _published.add(turn_id)
+
+
+def try_event(customer_id: str, event_type: str, payload: dict) -> None:
+    try_reducer(
+        "append_customer_event",
+        {
+            "customerId": customer_id,
+            "eventType": event_type,
+            "payload": str(payload)[:2000],
+            "createdAt": _now(),
+        },
+    )
 
 
 def sync_transcript(customer_id: str | None, call_id: str, transcript: list[dict]) -> None:
@@ -97,7 +110,7 @@ def save_appointment(record: dict[str, Any]) -> dict[str, Any]:
             "topic": record.get("topic") or "",
             "whenText": record.get("when") or "",
             "phone": record.get("phone") or "",
-            "status": "scheduled",
+            "status": record.get("status") or "requested",
         },
     )
     return record

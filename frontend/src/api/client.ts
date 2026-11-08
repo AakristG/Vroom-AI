@@ -153,7 +153,8 @@ export interface AssistantTool {
 
 export type AssistantAction =
   | { type: "navigate"; label: string; to: string }
-  | { type: "confirm"; action: "request_callback"; topic: string; label: string };
+  | { type: "confirm"; action: "request_callback"; topic: string; label: string }
+  | PendingActionCard;
 
 export interface AssistantContext {
   page: string;
@@ -190,7 +191,94 @@ export async function sendAssistantMessage(
 
 export async function requestCallback(payload: { customer_id: string; name: string; topic: string; when: string; phone: string }) {
   const { data } = await apiClient.post("/api/voice/appointments/", payload, { timeout: 20000 });
-  return data as { appointment: Record<string, string>; call: { status: string } };
+  return data as { appointment: Record<string, string> | null; action?: PendingActionCard; call: { status: string } };
+}
+
+export interface PendingActionCard {
+  action_id: string;
+  type: "pending_action";
+  action_type: string;
+  status: string;
+  summary: string;
+  stage: "intent" | "final" | string;
+  label: string;
+  expires_at: string;
+  result?: Record<string, unknown> | null;
+  payload?: Record<string, unknown>;
+}
+
+export interface AppointmentRecord {
+  appointment_id: string;
+  category: string;
+  status: string;
+  preferred_when?: string;
+  location_label?: string;
+  representative_label?: string;
+  email_status: string;
+  source: string;
+  created_at: string;
+}
+
+export interface CustomerTimelineEvent {
+  event_id: string;
+  type: string;
+  channel: string;
+  payload?: Record<string, unknown>;
+  occurred_at: string;
+}
+
+export interface ActivitySnapshot {
+  appointments: AppointmentRecord[];
+  events: CustomerTimelineEvent[];
+  pending_action: PendingActionCard | null;
+  representatives?: { configured?: boolean; note?: string; results?: unknown[] };
+}
+
+export async function getActivity(zip?: string): Promise<ActivitySnapshot> {
+  const { data } = await apiClient.get<ActivitySnapshot>("/api/voice/activity/", {
+    params: zip ? { zip } : undefined,
+    timeout: 15000,
+  });
+  return data;
+}
+
+export async function confirmPendingAction(actionId: string, stage: "intent" | "execute" | "cancel") {
+  const { data } = await apiClient.post<{ action: PendingActionCard }>(
+    "/api/voice/actions/confirm/",
+    { action_id: actionId, stage },
+    { timeout: 20000 }
+  );
+  return data.action;
+}
+
+/** Server-minted Retell web call (v3). Keeps RETELL_API_KEY off the browser and marks the session verified. */
+export async function createVerifiedWebCall() {
+  try {
+    const { data } = await apiClient.post<{
+      access_token: string;
+      call_id: string;
+      transport?: string;
+      ice_servers?: RTCIceServer[];
+      expires_at?: number;
+      configured: boolean;
+      detail?: string;
+    }>("/api/voice/web-call/", {}, { timeout: 20000 });
+    return data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const detail = error.response?.data?.detail;
+      if (typeof detail === "string" && detail.trim()) throw new Error(detail);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw new Error("Sign in to start a browser voice call.");
+      }
+      if (error.response?.status === 503) {
+        throw new Error("Voice calling is not configured on the server yet.");
+      }
+      if (error.code === "ECONNABORTED") throw new Error("The voice server timed out. Try again.");
+      if (!error.response) throw new Error("Could not reach the voice server. Check that the backend is running.");
+    }
+    throw error instanceof Error ? error : new Error("Could not start the voice call.");
+  }
 }
 
 export async function checkBackendHealth(): Promise<boolean> {

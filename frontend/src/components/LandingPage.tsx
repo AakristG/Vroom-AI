@@ -8,6 +8,7 @@ import { useAssistant, usePageContext } from "../state/assistant";
 import { CountUp, EASE, Parallax, Reveal, Stagger, StaggerItem } from "./ui/motion";
 import { VehicleArt } from "./VehicleArt";
 import { VideoHero } from "./VideoHero";
+import { TundraOffroadSection } from "./TundraOffroadSection";
 
 const steps = [
   {
@@ -211,6 +212,9 @@ export function LandingPage() {
           ))}
         </Stagger>
       </section>
+
+      {/* Newly integrated Tundra Off-Road Showcase Section */}
+      <TundraOffroadSection />
 
       {/* Personalized journeys */}
       <section className="bg-mist">

@@ -5,6 +5,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from . import nim_client
+from apps.accounts.views import account_from_request
+
+from .account_context import account_context, bind_signed_in
 from .retrieve import relevant_account_context
 from .serializers import ChatRequestSerializer
 
@@ -21,6 +24,7 @@ def chat(request):
     serializer.is_valid(raise_exception=True)
 
     customer_id = str(request.data.get("customer_id") or "").strip()
+    bind_signed_in(account_from_request(request))
     question = next(
         (m.get("content", "") for m in reversed(serializer.validated_data["messages"]) if m.get("role") == "user"),
         "",

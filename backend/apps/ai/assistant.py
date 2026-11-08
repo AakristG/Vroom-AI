@@ -32,11 +32,17 @@ _SIGNED_OUT = (
 _BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+", re.MULTILINE)
 _EMPHASIS_RE = re.compile(r"(\*\*|__|\*|`)")
 _HEADING_RE = re.compile(r"^\s*#+\s*", re.MULTILINE)
+# Sentence-joining dashes only: spaced dashes, or an unspaced em dash between words.
+# Word hyphens (trade-in), ranges (2020–2024), and negative amounts (-$221) are left alone.
+_DASH_RE = re.compile(r"\s+(?:--|[-\u2013\u2014])\s+|(?<=\w)\u2014(?=\w)")
+_SEMICOLON_RE = re.compile(r";\s*(\w?)")
 
 
 def _plain(reply: str) -> str:
     """The chat UI renders plain text; strip markdown the model sometimes adds anyway."""
     text = _EMPHASIS_RE.sub("", _HEADING_RE.sub("", _BULLET_RE.sub("", reply)))
+    text = _DASH_RE.sub(", ", text)
+    text = _SEMICOLON_RE.sub(lambda m: ". " + m.group(1).upper(), text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 

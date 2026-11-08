@@ -476,7 +476,7 @@ function PersonaSelector() {
             <p className="eyebrow">Built around today</p>
             <h2 className="section-title mt-4 max-w-[22ch]">The page changes with your situation.</h2>
             <p className="mt-4 max-w-2xl text-lg text-white/65">
-              Pick one of these fictional customers to see how the dashboard and assistant adapt. Their accounts are simulated.
+              Some real life scenarios that our service can help with.
             </p>
           </div>
         </Reveal>
@@ -558,12 +558,11 @@ function PersonaSelector() {
                   <p className="mt-6 text-sm text-white/65">
                     <span className="font-semibold text-white">Suggested next move:</span> {p.golden.best_next_move}
                   </p>
-                  <Link to="/signin?next=/insights" className="btn-primary mt-8">
-                    {current ? "Open my insights" : `Sign in as ${p.customer.first_name}`} <ArrowRight className="h-4 w-4" />
-                  </Link>
                 </div>
-                <div className="relative min-h-[16rem] bg-gradient-to-b from-[#efeeec] to-[#d9d8d4]">
-                  <img src={modelImage(p.vehicle.model)} alt={`Representative image of a Toyota ${p.vehicle.model}`} title={modelImageNote(p.vehicle.model)} className="absolute inset-0 h-full w-full object-cover" />
+                <div className="flex items-center justify-center p-6 md:p-10 lg:pl-0">
+                  <div className="relative aspect-[4/3] w-full max-w-sm overflow-hidden rounded-2xl bg-gradient-to-b from-[#efeeec] to-[#d9d8d4]">
+                    <img src={modelImage(p.vehicle.model)} alt={`Representative image of a Toyota ${p.vehicle.model}`} title={modelImageNote(p.vehicle.model)} className="absolute inset-0 h-full w-full object-cover" />
+                  </div>
                 </div>
               </motion.div>
             </AnimatePresence>

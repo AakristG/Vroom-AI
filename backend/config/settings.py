@@ -160,6 +160,7 @@ NIM_EMBED_BASE_URL = os.environ.get("NIM_EMBED_BASE_URL", "https://integrate.api
 NIM_EMBED_MODEL = os.environ.get("NIM_EMBED_MODEL", "nvidia/nemotron-3-embed-1b")
 NIM_EMBED_TYPE = os.environ.get("NIM_EMBED_TYPE", "float")
 NIM_ENABLE_THINKING = env_bool("NIM_ENABLE_THINKING", False)
+NIM_TEMPERATURE = float(os.environ.get("NIM_TEMPERATURE", "0.2"))
 # Native OpenAI-style tool calls need the NIM container started with
 # --enable-auto-tool-choice --tool-call-parser qwen3_coder. Without it, the assistant runs
 # its backend tools first and grounds Nemotron in the results.

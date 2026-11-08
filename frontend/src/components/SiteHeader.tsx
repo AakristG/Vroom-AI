@@ -71,7 +71,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 md:h-[72px] md:px-8">
         <Link to="/" className="flex shrink-0 items-center gap-2.5" aria-label="Toyota Financial Services home">
-          <span className={cn("grid h-9 w-11 place-items-center rounded-lg transition-colors", overHero && "bg-white/95")}>
+          <span className={cn("grid h-9 w-11 place-items-center rounded-lg transition-colors", overHero ? "bg-transparent" : "bg-charcoal")}>
             <ToyotaMark className="h-7 w-auto" />
           </span>
           <span className="leading-tight">
@@ -245,7 +245,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-4 md:px-8">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-11 place-items-center rounded-lg bg-white">
+            <span className="grid h-9 w-11 place-items-center rounded-lg">
               <ToyotaMark className="h-7 w-auto" />
             </span>
             <span className="text-sm font-semibold tracking-[0.22em]">TOYOTA</span>

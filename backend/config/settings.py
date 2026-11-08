@@ -20,7 +20,16 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 def env_list(name: str, default: str = "") -> list[str]:
     raw = os.environ.get(name, default)
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    items: list[str] = []
+    for item in raw.split(","):
+        value = item.strip()
+        if not value:
+            continue
+        # django-cors-headers rejects origins that include a path, including a trailing slash.
+        if "://" in value:
+            value = value.rstrip("/")
+        items.append(value)
+    return items
 
 
 # ---------------------------------------------------------------------------

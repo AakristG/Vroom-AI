@@ -1,3 +1,4 @@
+﻿import { LaunchSplash } from "./components/LaunchSplash";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -13,10 +14,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <AuthProvider>
         <CompareProvider>
           <AssistantProvider>
-            <App />
+            <><LaunchSplash /><App /></>
           </AssistantProvider>
         </CompareProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
+

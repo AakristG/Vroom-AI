@@ -260,6 +260,24 @@ def _run(row: PendingAction) -> dict[str, Any]:
 def _persist_appointment(row: PendingAction, payload: dict) -> dict[str, Any]:
     category = payload.get("category") or CATEGORIES.get(row.action_type, row.action_type)
     loc = representatives.describe(payload.get("zip") or payload.get("city"))
+    # Idempotent: a repeated final confirmation must not create a second appointment row.
+    existing_id = (row.result or {}).get("appointment_id") if isinstance(row.result, dict) else None
+    if existing_id:
+        appt = AppointmentRequest.objects.filter(appointment_id=existing_id, customer_id=row.customer_id).first()
+        if appt:
+            return {
+                "ok": True,
+                "appointment_id": appt.appointment_id,
+                "status": appt.status,
+                "email_status": appt.email_status,
+                "email_detail": "",
+                "detail": (
+                    "This specialist request was already recorded. It is not a confirmed calendar booking "
+                    "unless a scheduling provider later confirms it. Nothing on your contract changed."
+                ),
+                "location": loc,
+            }
+
     appt = AppointmentRequest.objects.create(
         appointment_id=_new_id("apt"),
         customer_id=row.customer_id,
@@ -267,6 +285,7 @@ def _persist_appointment(row: PendingAction, payload: dict) -> dict[str, Any]:
         status=AppointmentRequest.REQUESTED,
         source=row.channel,
         preferred_when=str(payload.get("when") or ""),
+        customer_time_zone=str(payload.get("time_zone") or "America/Chicago"),
         contact_phone=str(payload.get("phone") or ""),
         contact_email=str(payload.get("email") or ""),
         location_label=loc.get("label") or str(payload.get("location") or ""),
@@ -293,32 +312,81 @@ def _persist_appointment(row: PendingAction, payload: dict) -> dict[str, Any]:
             "status": appt.status,
         }
     )
+    email_status = appt.email_status
+    email_detail = str(email.get("detail") or "")
+    if email_status == "sent":
+        detail = (
+            "A specialist request was recorded on your account and a confirmation email was accepted by the mail provider. "
+            "It is not a confirmed calendar booking because no live scheduling provider is connected. "
+            "Nothing on your contract changed."
+        )
+    elif email_status == "not_configured":
+        detail = (
+            "A specialist request was recorded on your account, but the confirmation email could not be sent "
+            "(email provider is not configured). It is not a confirmed calendar booking. Nothing on your contract changed."
+        )
+    elif email_status in {"failed", "not_sent"}:
+        detail = (
+            "Your request was saved, but the confirmation email could not be sent. "
+            "It is not a confirmed calendar booking. Nothing on your contract changed."
+        )
+    else:
+        detail = (
+            "A specialist request was recorded on your account. It is not a confirmed calendar booking "
+            "because no live scheduling provider is connected. Nothing on your contract changed."
+        )
     return {
         "ok": True,
         "appointment_id": appt.appointment_id,
         "status": appt.status,
-        "email_status": appt.email_status,
-        "detail": (
-            "A specialist request was recorded on your account. It is not a confirmed calendar booking "
-            "because no live scheduling provider is connected. Nothing on your contract changed."
-        ),
+        "email_status": email_status,
+        "email_detail": email_detail,
+        "detail": detail,
         "location": loc,
     }
 
 
+STATUS_RANK = {
+    AppointmentRequest.CONFIRMED: 0,
+    AppointmentRequest.PENDING: 1,
+    AppointmentRequest.REQUESTED: 2,
+    AppointmentRequest.COMPLETED: 3,
+    AppointmentRequest.CANCELLED: 4,
+    AppointmentRequest.FAILED: 5,
+}
+
+STATUS_LABELS = {
+    AppointmentRequest.REQUESTED: "Pending request",
+    AppointmentRequest.PENDING: "Awaiting confirmation",
+    AppointmentRequest.CONFIRMED: "Confirmed",
+    AppointmentRequest.COMPLETED: "Completed",
+    AppointmentRequest.CANCELLED: "Cancelled",
+    AppointmentRequest.FAILED: "Failed",
+}
+
+
 def list_appointments(customer_id: str) -> list[dict]:
-    rows = AppointmentRequest.objects.filter(customer_id=customer_id).order_by("-created_at")[:20]
+    rows = list(AppointmentRequest.objects.filter(customer_id=customer_id).order_by("-created_at")[:40])
+    rows.sort(key=lambda r: (STATUS_RANK.get(r.status, 9), -(r.created_at.timestamp() if r.created_at else 0)))
     return [
         {
             "appointment_id": r.appointment_id,
             "category": r.category,
             "status": r.status,
+            "status_label": STATUS_LABELS.get(r.status, r.status),
             "preferred_when": r.preferred_when,
+            "confirmed_when": r.preferred_when if r.status == AppointmentRequest.CONFIRMED else "",
+            "customer_time_zone": r.customer_time_zone,
+            "contact_phone": r.contact_phone,
+            "contact_email": r.contact_email,
+            "contact_method": "phone" if r.contact_phone else ("email" if r.contact_email else ""),
             "location_label": r.location_label,
             "representative_label": r.representative_label,
             "email_status": r.email_status,
+            "email_provider_id": r.email_provider_id,
             "source": r.source,
             "created_at": r.created_at.isoformat(),
+            "is_confirmed_booking": r.status == AppointmentRequest.CONFIRMED,
         }
         for r in rows
     ]

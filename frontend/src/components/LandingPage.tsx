@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowRight, ArrowUpRight, Check, MessageCircle, Phone, Shield, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, MessageCircle, Phone, Shield } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { profiles } from "../data/types";
@@ -119,7 +119,7 @@ export function LandingPage() {
               onClick={talkToAi}
               className="btn-ghost border-white/30 bg-white/10 px-7 py-3.5 text-base text-white backdrop-blur-md hover:border-white/50 hover:bg-white/20"
             >
-              <Sparkles className="h-4 w-4" /> Talk to Toyota AI
+              Talk to Toyota AI
             </button>
           </motion.div>
 
@@ -303,7 +303,7 @@ export function LandingPage() {
                 You can call, or sign in and review everything on the page first.
               </div>
               <button onClick={talkToAi} className="btn-primary relative mt-7">
-                <Sparkles className="h-4 w-4" /> Ask Toyota NextMove AI
+                Ask Toyota Vroom AI
               </button>
             </div>
           </Reveal>

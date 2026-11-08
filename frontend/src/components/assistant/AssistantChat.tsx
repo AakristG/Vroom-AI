@@ -3,7 +3,6 @@ import {
   ArrowRight,
   CalendarClock,
   Car,
-  Check,
   ChevronDown,
   Compass,
   Fuel,
@@ -12,7 +11,6 @@ import {
   RefreshCw,
   Scale,
   Send,
-  Sparkles,
   Trash2,
   TrendingDown,
   Wallet,
@@ -25,6 +23,7 @@ import { requestCallback, sendAssistantMessage, type AssistantAction, type Assis
 import { parseVehicleId } from "../../api/vehicles";
 import { cn } from "../../lib/format";
 import { journeyFor } from "../../lib/journey";
+import { sanitizeAssistantText } from "../../lib/sanitizeAssistantText";
 import { vehicleName } from "../../lib/spec";
 import type { VoiceCaption } from "../../lib/voiceCaptions";
 import { useAssistant, type Turn } from "../../state/assistant";
@@ -77,7 +76,7 @@ function suggestions(page: string, vehicles: string[], signedIn: boolean, isLeas
       ...pageSpecific,
       { q: "Which is better for a long commute, a Prius or a Corolla?", icon: Car },
       { q: "Compare a Camry and a RAV4", icon: Scale },
-      { q: "What can this assistant do?", icon: Sparkles },
+      { q: "What can this assistant do?", icon: Compass },
     ].slice(0, 4);
   const account: Suggestion[] = isLease
     ? [
@@ -98,7 +97,7 @@ function suggestions(page: string, vehicles: string[], signedIn: boolean, isLeas
 
 /** The model is told to answer in plain text; strip stray markdown emphasis and split into paragraphs and bullet lists. */
 function Prose({ text, muted }: { text: string; muted?: boolean }) {
-  const blocks = text
+  const blocks = sanitizeAssistantText(text)
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/^#+\s*/gm, "")
     .split(/\n{2,}/)
@@ -116,7 +115,7 @@ function Prose({ text, muted }: { text: string; muted?: boolean }) {
                   {/^\s*\d+[.)]/.test(l) ? (
                     <span className="shrink-0 font-semibold text-signal">{l.match(/\d+/)?.[0]}.</span>
                   ) : (
-                    <span className="mt-[0.55em] h-1 w-1 shrink-0 rounded-full bg-signal" />
+                    <span className="shrink-0 text-signal">–</span>
                   )}
                   <span>{l.replace(/^\s*([-•*]|\d+[.)])\s+/, "")}</span>
                 </li>
@@ -279,10 +278,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5" aria-live="polite">
         {turns.length === 0 && liveCaptions.length === 0 && !voiceActive && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-signal text-white">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <p className={cn("mt-4 font-semibold tracking-tight", compact ? "text-xl" : "text-3xl")}>
+            <p className={cn("font-semibold tracking-tight", compact ? "text-xl" : "text-3xl")}>
               {profile ? `Hi ${profile.customer.first_name}, what would you like to figure out today?` : "How can I help with your Toyota?"}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -313,7 +309,6 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
         {voiceActive && (
           <div className="space-y-3" aria-live="polite">
             <p className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-signal">
-              <span className="h-2 w-2 motion-safe:animate-pulse rounded-full bg-signal" />
               {voice.status === "connecting"
                 ? "Connecting voice call…"
                 : voice.userListening
@@ -334,16 +329,11 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
           </div>
         )}
         {busy && (
-          <div className="flex gap-3" role="status">
-            <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
-              <Sparkles className="h-3.5 w-3.5 motion-safe:animate-pulse" />
-            </span>
-            <div className="flex-1">
-              <p className="text-xs font-medium text-muted">{profile ? "Checking your account and running the numbers…" : "Checking the vehicle catalog…"}</p>
-              <div className="mt-2 space-y-1.5" aria-hidden>
-                <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-black/[0.06]" />
-                <div className="h-2.5 w-3/5 animate-pulse rounded-full bg-black/[0.06]" />
-              </div>
+          <div role="status">
+            <p className="text-xs font-medium text-muted">{profile ? "Checking your account and running the numbers…" : "Checking the vehicle catalog…"}</p>
+            <div className="mt-2 space-y-1.5" aria-hidden>
+              <div className="h-2.5 w-4/5 animate-pulse rounded bg-black/[0.06]" />
+              <div className="h-2.5 w-3/5 animate-pulse rounded bg-black/[0.06]" />
             </div>
           </div>
         )}
@@ -362,7 +352,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
       <div className="border-t border-line px-5 pb-5 pt-3">
         <form onSubmit={submit} className="flex gap-2">
           <label htmlFor={compact ? "assistant-input-dock" : "assistant-input"} className="sr-only">
-            Ask Toyota NextMove AI
+            Ask Toyota Vroom AI
           </label>
           <input
             id={compact ? "assistant-input-dock" : "assistant-input"}
@@ -422,17 +412,12 @@ function VoiceCaptionBubble({ caption }: { caption: VoiceCaption }) {
     );
   }
   return (
-    <div className="flex gap-3">
-      <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
-        <Sparkles className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0 max-w-[85%] flex-1">
-        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Toyota AI · {caption.isSpeaking ? "Speaking" : caption.interrupted ? "Interrupted" : "Voice"}
-          {caption.isSpeaking && <VoiceWave active />}
-        </p>
-        <p className={cn("text-sm leading-relaxed", caption.interrupted && "text-ink/80")}>{caption.text}</p>
-      </div>
+    <div className="max-w-[85%]">
+      <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+        Toyota AI · {caption.isSpeaking ? "Speaking" : caption.interrupted ? "Interrupted" : "Voice"}
+        {caption.isSpeaking && <VoiceWave active />}
+      </p>
+      <p className={cn("text-sm leading-relaxed", caption.interrupted && "text-ink/80")}>{sanitizeAssistantText(caption.text)}</p>
     </div>
   );
 }
@@ -454,39 +439,29 @@ function Message({ turn, customerId, name }: { turn: Turn; customerId: string | 
     );
   if (turn.voice)
     return (
-      <div className="flex gap-3">
-        <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
-          <Sparkles className="h-3.5 w-3.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            Toyota AI · {turn.voiceInterrupted ? "Interrupted" : "Voice"}
-          </p>
-          <p className="text-sm leading-relaxed">{turn.content}</p>
-        </div>
+      <div className="max-w-[85%]">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Toyota AI · {turn.voiceInterrupted ? "Interrupted" : "Voice"}
+        </p>
+        <p className="text-sm leading-relaxed">{turn.content}</p>
       </div>
     );
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="flex gap-3">
-      <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-white">
-        <Sparkles className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <Prose text={turn.content} muted={turn.offline} />
-        {!turn.offline && (
-          <p className="mt-2 text-[11px] text-muted">
-            AI-generated explanation{turn.tools && turn.tools.length > 0 ? " · figures from the tools below" : ""}. Estimates are not approvals or offers.
-          </p>
-        )}
-        {turn.tools && turn.tools.length > 0 && <ToolTrace tools={turn.tools} openByDefault={turn.offline} />}
-        {turn.actions && turn.actions.length > 0 && (
-          <div className="mt-3 flex flex-col gap-2">
-            {turn.actions.map((a) => (
-              <ActionButton key={a.label} action={a} customerId={customerId} name={name} />
-            ))}
-          </div>
-        )}
-      </div>
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="max-w-[92%]">
+      <Prose text={turn.content} muted={turn.offline} />
+      {!turn.offline && (
+        <p className="mt-2 text-[11px] text-muted">
+          AI-generated explanation{turn.tools && turn.tools.length > 0 ? " · figures from the tools below" : ""}. Estimates are not approvals or offers.
+        </p>
+      )}
+      {turn.tools && turn.tools.length > 0 && <ToolTrace tools={turn.tools} openByDefault={turn.offline} />}
+      {turn.actions && turn.actions.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2">
+          {turn.actions.map((a) => (
+            <ActionButton key={a.label} action={a} customerId={customerId} name={name} />
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -557,9 +532,11 @@ export function ActionButton({ action, customerId, name }: { action: AssistantAc
   const [confirming, setConfirming] = useState(false);
   const [phone, setPhone] = useState("");
   const [when, setWhen] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
+  const [pending, setPending] = useState<PendingActionCard | null>(null);
 
   if (isPendingAction(action)) return <ConfirmActionCard action={action} />;
+  if (pending) return <ConfirmActionCard action={pending} onChange={setPending} />;
 
   if (action.type === "navigate")
     return (
@@ -569,29 +546,32 @@ export function ActionButton({ action, customerId, name }: { action: AssistantAc
     );
 
   if (!customerId) return null;
-  if (status === "done")
-    return (
-      <p className="flex items-center gap-2 rounded-2xl bg-go/10 px-3 py-2 text-xs font-medium text-go" role="status">
-        <Check className="h-4 w-4" /> Request saved. A specialist will call {phone}. Nothing on your contract has changed.
-      </p>
-    );
 
   return confirming ? (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
+        if (status === "sending") return;
         setStatus("sending");
         try {
-          await requestCallback({ customer_id: customerId, name, topic: action.topic, when, phone });
-          setStatus("done");
+          const res = await requestCallback({
+            customer_id: customerId,
+            name,
+            topic: action.topic,
+            when,
+            phone,
+            time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
+          });
+          if (res.action) setPending(res.action);
+          else setStatus("error");
         } catch {
           setStatus("error");
         }
       }}
       className="rounded-2xl border border-line p-3 text-xs"
     >
-      <p className="font-semibold">Confirm: ask a specialist to call you about {action.topic.toLowerCase()}</p>
-      <p className="mt-1 text-muted">This only books a call. It does not change your payment, due date, or contract.</p>
+      <p className="font-semibold">Ask a specialist to call you about {action.topic.toLowerCase()}</p>
+      <p className="mt-1 text-muted">You will confirm twice before anything is recorded. This does not change your payment, due date, or contract.</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="field py-2" aria-label="Phone number" />
         <input required type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="field py-2" aria-label="Preferred time" />
@@ -599,7 +579,7 @@ export function ActionButton({ action, customerId, name }: { action: AssistantAc
       {status === "error" && <p className="mt-2 text-signal">That didn't go through. Please try again.</p>}
       <div className="mt-2 flex gap-2">
         <button disabled={status === "sending"} className="btn-primary px-4 py-2 text-xs">
-          {status === "sending" ? "Saving…" : "Confirm request"}
+          {status === "sending" ? "Starting…" : "Continue to confirmations"}
         </button>
         <button type="button" onClick={() => setConfirming(false)} className="btn-ghost border-line px-4 py-2 text-xs">
           Cancel

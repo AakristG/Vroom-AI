@@ -24,14 +24,18 @@ class ConfirmationMachineTests(TestCase):
         row = actions.propose(
             customer_id="C001",
             action_type="request_callback",
-            payload={"category": "Trade-in consultation", "when": "Tuesday 2pm", "phone": "2145550100"},
+            payload={"category": "Trade-in consultation", "when": "Tuesday 2pm", "phone": "2145550100", "email": "maya@example.com"},
             summary="Record a trade-in consultation request.",
         )
         actions.confirm_intent(row.action_id, "C001", "yes that's right")
-        done = actions.confirm_execution(row.action_id, "C001", "go ahead")
+        with mock.patch("apps.voice.notify.send_appointment_notice", return_value={"status": "not_configured", "detail": "no provider"}):
+            done = actions.confirm_execution(row.action_id, "C001", "go ahead")
         self.assertEqual(done.status, PendingAction.COMPLETED)
         self.assertEqual(done.result.get("status"), "requested")
         self.assertNotEqual(done.result.get("status"), "confirmed")
+        listed = actions.list_appointments("C001")
+        self.assertEqual(listed[0]["status_label"], "Pending request")
+        self.assertFalse(listed[0]["is_confirmed_booking"])
 
     def test_other_customer_cannot_confirm(self):
         row = actions.propose(

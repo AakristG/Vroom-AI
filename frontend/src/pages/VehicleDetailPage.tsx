@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Plus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiErrorMessage, decodeVin, getTrims, getVehicle, vehiclePath, type VehicleRecord } from "../api/vehicles";
@@ -110,7 +110,7 @@ export function VehicleDetailPage() {
                   {compare.has(v.id) ? "In comparison" : "Add to compare"}
                 </button>
                 <button onClick={() => ask(`Is the ${vehicleName(v)} a good fit for my commute and budget?`)} className="btn-primary">
-                  <Sparkles className="h-4 w-4" /> Ask NextMove AI
+                  Ask Vroom AI
                 </button>
               </div>
             </Reveal>
@@ -156,8 +156,6 @@ export function VehicleDetailPage() {
               ]}
             />
           </section>
-
-          <SafetyAndRecalls v={v} />
 
           {v.spec_groups && v.spec_groups.length > 0 && <AllSpecs groups={v.spec_groups} />}
 
@@ -274,43 +272,6 @@ function AllSpecs({ groups }: { groups: NonNullable<VehicleRecord["spec_groups"]
             ))}
           </div>
         )}
-      </div>
-    </section>
-  );
-}
-
-function SafetyAndRecalls({ v }: { v: VehicleRecord }) {
-  const rating = v.safety_rating_available ? v.safety_rating : null;
-  const recallCount = v.recall_count;
-  const recallNote =
-    typeof v.recalls === "object" && v.recalls && "note" in v.recalls ? String(v.recalls.note || "") : "";
-  const safety = typeof v.safety === "object" && v.safety && !Array.isArray(v.safety) ? v.safety : null;
-  const reason = safety && "reason" in safety ? String(safety.reason || "") : "";
-  const variants = safety && Array.isArray(safety.variants) ? (safety.variants as { description?: string }[]) : [];
-  return (
-    <section className="mx-auto mt-5 grid max-w-7xl gap-5 px-5 md:grid-cols-2 md:px-8">
-      <div className="card p-6">
-        <h2 className="font-semibold">Safety rating</h2>
-        <p className="mt-3 text-3xl font-semibold">{rating != null ? `${rating} / 5` : "Safety rating unavailable"}</p>
-        <p className="mt-2 text-sm text-muted">
-          {rating != null
-            ? "Overall 5-star crash-test rating for the only published crash-tested variant of this model year."
-            : reason || "No crash-test result has been published that we can show for this model year."}
-        </p>
-        {variants.length > 0 && (
-          <ul className="mt-3 space-y-1 text-sm text-muted">
-            {variants.map((item, i) => (
-              <li key={`${item.description}-${i}`}>{item.description}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className="card p-6">
-        <h2 className="font-semibold">Recalls</h2>
-        <p className="mt-3 text-3xl font-semibold">{recallCount == null ? NA : recallCount}</p>
-        <p className="mt-2 text-sm text-muted">
-          {recallNote || "Published model-year recall campaigns. This is not proof that a specific VIN has an open recall."}
-        </p>
       </div>
     </section>
   );

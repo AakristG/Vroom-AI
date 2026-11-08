@@ -1,4 +1,4 @@
-import { Car, Plus, Search, Sparkles, X } from "lucide-react";
+import { Car, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -245,9 +245,9 @@ export function ComparePage() {
                 onClick={() => ask(showMine && vs.length > 1 ? `How do these compare with my current car for my commute?` : vs.length > 1 ? `Which of these makes more sense for my commute?` : `Is the ${names[0]} a good fit for me?`)}
                 className="btn-primary"
               >
-                <Sparkles className="h-4 w-4" /> Ask which fits my commute
+                Ask which fits my commute
               </button>
-              <span className="text-sm text-muted">NextMove AI sees the vehicles on this page.</span>
+              <span className="text-sm text-muted">Vroom AI sees the vehicles on this page.</span>
             </div>
 
             <SpecTable vs={vs} />

@@ -1,4 +1,4 @@
-"""Toyota NextMove AI website chat — thin HTTP adapter over the shared orchestrator."""
+"""Toyota Vroom AI website chat — thin HTTP adapter over the shared orchestrator."""
 
 from __future__ import annotations
 

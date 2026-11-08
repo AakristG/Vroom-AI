@@ -1,4 +1,4 @@
-import { Bot, Play, Square, Wrench } from "lucide-react";
+import { Play, Square, Wrench } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { Profile } from "../data/types";
@@ -22,16 +22,7 @@ export function CallPanel({ p }: { p: Profile }) {
       <div className="border-b border-white/10 p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl tracking-wide">Call with {p.customer.first_name}</h2>
-          <span className="flex items-center gap-2 text-xs text-white/60">
-            {state === "live" ? (
-              <span className="flex h-4 items-end gap-0.5" aria-label="Call in progress">
-                {[0, 1, 2, 3].map((n) => (
-                  <span key={n} className="level-bar w-1 rounded-sm bg-signal" style={{ height: "100%", animationDelay: `${n * 0.15}s` }} />
-                ))}
-              </span>
-            ) : (
-              <span className={cn("h-2 w-2 rounded-full", state === "ended" ? "bg-white/40" : "bg-go")} />
-            )}
+          <span className="text-xs text-white/60">
             {state === "idle" ? "Ready" : state === "connecting" ? "Connecting" : state === "live" ? "Live" : "Ended"}
           </span>
         </div>
@@ -90,11 +81,7 @@ export function CallPanel({ p }: { p: Profile }) {
                         t.role === "user" ? "rounded-br-sm bg-white text-night" : "rounded-bl-sm bg-night-3 text-white"
                       )}
                     >
-                      {t.role === "agent" && (
-                        <span className="mb-0.5 flex items-center gap-1 text-[11px] text-white/50">
-                          <Bot className="h-3 w-3" /> Nemotron agent
-                        </span>
-                      )}
+                      {t.role === "agent" && <span className="mb-0.5 block text-[11px] text-white/50">Nemotron agent</span>}
                       {t.content}
                     </div>
                   </motion.li>

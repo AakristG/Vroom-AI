@@ -43,13 +43,7 @@ export function Hero({ onTakeCall }: { onTakeCall: (id: string) => void }) {
         <div className="relative">
           <div className="rounded-2xl border border-white/10 bg-night-2/80 p-6 backdrop-blur-md shadow-[0_30px_80px_-20px_rgba(0,0,0,.6)]">
             <div className="flex items-center justify-between text-sm text-white/60">
-              <span className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-60" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-signal" />
-                </span>
-                Incoming call
-              </span>
+              <span>Incoming call</span>
               <span>Synthetic customer</span>
             </div>
             <AnimatePresence mode="wait">

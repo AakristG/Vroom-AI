@@ -134,7 +134,7 @@ export function NewAccountView({ p, eyebrow }: { p: Profile; eyebrow: string }) 
           <Action to="/compare" icon={Scale} title="Compare models" body="Side-by-side specs and fuel-cost estimates." />
           <button onClick={() => setOpen(true)} className="card card-hover p-6 text-left">
             <MessageSquareText className="h-5 w-5 text-signal" />
-            <h3 className="mt-3 font-semibold">Ask Toyota NextMove AI</h3>
+            <h3 className="mt-3 font-semibold">Ask Toyota Vroom AI</h3>
             <p className="mt-1 text-sm text-muted">{entered ? "It can explain these numbers in plain language." : "General loan and lease questions, in plain language."}</p>
           </button>
         </div>

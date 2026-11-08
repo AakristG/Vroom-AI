@@ -1,8 +1,12 @@
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
+from types import SimpleNamespace
 
 from . import policy, shopping
 from .account_context import _profiles, account_context
 from .assistant import _plain
+from .orchestrator import confirmation_reply, sanitize_customer_reply
+from apps.voice import actions
+from apps.voice.notify import resolve_notification_email
 
 
 class PlainReplyTests(SimpleTestCase):
@@ -17,6 +21,62 @@ class PlainReplyTests(SimpleTestCase):
     def test_word_hyphens_ranges_and_negatives_kept(self):
         text = "Trade-in equity is -$221 for 2020\u20132024 models."
         self.assertEqual(_plain(text), text)
+
+
+class CustomerFacingActionCopyTests(SimpleTestCase):
+    def test_sanitize_strips_pending_action_json(self):
+        leak = (
+            'Sure. {"action_id": "act_123", "type": "pending_action", "status": "awaiting_final_confirmation", '
+            '"expires_at": "2026-01-01T00:00:00Z", "payload": {"category": "Trade-in consultation"}}'
+        )
+        cleaned = sanitize_customer_reply(leak)
+        self.assertNotIn("action_id", cleaned)
+        self.assertNotIn("pending_action", cleaned)
+        self.assertNotIn("expires_at", cleaned)
+
+    def test_confirmation_reply_is_natural_english(self):
+        pending = SimpleNamespace(
+            status=actions.PendingAction.AWAIT_INTENT,
+            payload={"category": "Trade-in consultation", "zip": "75075"},
+            summary="",
+            result={},
+        )
+        text = confirmation_reply(pending)
+        self.assertIn("trade-in consultation", text.lower())
+        self.assertIn("75075", text)
+        self.assertNotIn("action_id", text)
+        final = confirmation_reply(
+            SimpleNamespace(status=actions.PendingAction.AWAIT_FINAL, payload={}, summary="", result={})
+        )
+        self.assertIn("final confirmation", final.lower())
+        done = confirmation_reply(
+            SimpleNamespace(status=actions.PendingAction.COMPLETED, payload={}, summary="", result={"ok": True})
+        )
+        self.assertIn("pending review", done.lower())
+        self.assertIn("not a confirmed appointment", done.lower())
+
+
+class DemoEmailOverrideTests(SimpleTestCase):
+    @override_settings(DEBUG=True, DEMO_NOTIFICATION_EMAIL_OVERRIDE="aakrist.godar.1@gmail.com")
+    def test_simulated_customer_uses_override_in_debug(self):
+        self.assertEqual(
+            resolve_notification_email(customer_id="C001", contact_email="maya@example.com"),
+            "aakrist.godar.1@gmail.com",
+        )
+
+    @override_settings(DEBUG=False, DEMO_NOTIFICATION_EMAIL_OVERRIDE="aakrist.godar.1@gmail.com")
+    def test_override_disabled_outside_debug(self):
+        self.assertEqual(
+            resolve_notification_email(customer_id="C001", contact_email="maya@example.com"),
+            "maya@example.com",
+        )
+
+    @override_settings(DEBUG=True, DEMO_NOTIFICATION_EMAIL_OVERRIDE="aakrist.godar.1@gmail.com")
+    def test_non_simulated_customer_keeps_own_email(self):
+        self.assertEqual(
+            resolve_notification_email(customer_id="user_abc", contact_email="real@example.com"),
+            "real@example.com",
+        )
 
 
 def _ids(decision):

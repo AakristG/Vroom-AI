@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarClock, Gauge, Sparkles, Wallet } from "lucide-react";
+import { ArrowRight, CalendarClock, Gauge, Wallet } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -86,7 +86,7 @@ function Dashboard({ p }: { p: Profile }) {
                 {journey.cta.label} <ArrowRight className="h-4 w-4" />
               </Link>
               <button onClick={() => ask(journey.prompt)} className="btn-ghost border-white/25 bg-white/5 text-white hover:bg-white/15">
-                <Sparkles className="h-4 w-4" /> Ask NextMove AI
+                Ask Vroom AI
               </button>
             </div>
           </div>
@@ -505,12 +505,12 @@ function Recommendations({ p }: { p: Profile }) {
     ? ["My lease ends soon. What are my options?", "Should I buy my leased car?", "Which Toyota could replace my current one?"]
     : ["Can you help me understand my monthly payment?", "What happens if I pay extra toward my loan?", "Could a longer term lower my payment, and what would it cost?"];
   return (
-    <Panel title="Your next moves" subtitle="NextMove AI works through these for you. Nothing on your agreement changes until you confirm it.">
+    <Panel title="Your next moves" subtitle="Vroom AI works through these for you. Nothing on your agreement changes until you confirm it.">
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <AutoNextMoves p={p} />
         <div className="rounded-2xl bg-mist p-5">
           <p className="flex items-center gap-2 text-sm font-semibold">
-            <Sparkles className="h-4 w-4 text-signal" /> Ask Toyota NextMove AI
+            Ask Toyota Vroom AI
           </p>
           <div className="mt-4 flex flex-col gap-2">
             {prompts.map((q) => (

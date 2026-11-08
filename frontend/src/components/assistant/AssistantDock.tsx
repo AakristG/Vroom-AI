@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Maximize2, Sparkles, X } from "lucide-react";
+import { Maximize2, X } from "lucide-react";
 import { lazy, Suspense, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAssistant } from "../../state/assistant";
@@ -7,7 +7,7 @@ import { useAuth } from "../../state/auth";
 
 const AssistantChat = lazy(() => import("./AssistantChat").then((m) => ({ default: m.AssistantChat })));
 
-const DEFAULT_HINT = "Ask NextMove AI";
+const DEFAULT_HINT = "Ask Vroom AI";
 const HINTS: Record<string, string> = {
   explore: "Need help choosing a model?",
   "vehicle-detail": "Questions about this Toyota?",
@@ -40,7 +40,7 @@ export function AssistantDock() {
         {open && (
           <motion.div
             role="dialog"
-            aria-label="Toyota NextMove AI"
+            aria-label="Toyota Vroom AI"
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -48,14 +48,9 @@ export function AssistantDock() {
             className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[55] flex h-[min(42rem,calc(100svh-6rem))] flex-col overflow-hidden rounded-3xl border border-black/[0.08] bg-paper shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] sm:inset-x-auto sm:right-5 sm:w-[26rem]"
           >
             <div className="flex items-center justify-between bg-charcoal px-5 py-4 text-white">
-              <div className="flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-signal">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                <div>
-                  <div className="text-sm font-semibold">Toyota NextMove AI</div>
-                  <div className="text-[11px] text-white/60">Powered by NVIDIA Nemotron</div>
-                </div>
+              <div>
+                <div className="text-sm font-semibold">Toyota Vroom AI</div>
+                <div className="text-[11px] text-white/60">Powered by NVIDIA Nemotron</div>
               </div>
               <div className="flex items-center gap-1">
                 <Link to="/assistant" onClick={() => setOpen(false)} aria-label="Open full screen" className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/10">
@@ -83,12 +78,9 @@ export function AssistantDock() {
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => (account ? setOpen(true) : navigate("/signin?next=/assistant"))}
-            aria-label={`Open Toyota NextMove AI. ${hint}`}
-            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[55] flex items-center gap-2.5 rounded-full bg-charcoal py-2.5 pl-2.5 pr-2.5 text-sm font-semibold text-white shadow-[0_18px_40px_-12px_rgba(0,0,0,0.55)] ring-1 ring-white/10 sm:pr-5 md:bottom-6 md:right-6"
+            aria-label={`Open Toyota Vroom AI. ${hint}`}
+            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[55] flex items-center gap-2.5 rounded-full bg-charcoal px-4 py-2.5 text-sm font-semibold text-white shadow-[0_18px_40px_-12px_rgba(0,0,0,0.55)] ring-1 ring-white/10 sm:px-5 md:bottom-6 md:right-6"
           >
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-signal">
-              <Sparkles className="h-4 w-4" />
-            </span>
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
                 key={hint}
@@ -96,10 +88,10 @@ export function AssistantDock() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2 }}
-                className="hidden text-left leading-tight sm:block"
+                className="text-left leading-tight"
               >
                 <span className="block">{hint}</span>
-                <span className="block text-[10px] font-normal text-white/55">{hint === DEFAULT_HINT ? "Powered by NVIDIA Nemotron" : "Toyota NextMove AI"}</span>
+                <span className="hidden text-[10px] font-normal text-white/55 sm:block">{hint === DEFAULT_HINT ? "Powered by NVIDIA Nemotron" : "Toyota Vroom AI"}</span>
               </motion.span>
             </AnimatePresence>
           </motion.button>

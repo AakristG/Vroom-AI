@@ -1,4 +1,4 @@
-import { BarChart3, Car, LineChart, ShieldCheck, Sparkles } from "lucide-react";
+import { BarChart3, Car, LineChart, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AssistantChat } from "../components/assistant/AssistantChat";
 import { Reveal } from "../components/ui/motion";
@@ -27,9 +27,9 @@ export function AssistantPage() {
         <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-charcoal/70 via-charcoal/85 to-charcoal" />
         <div className="mx-auto max-w-7xl px-5 pt-12 md:px-8 md:pt-16">
           <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5 text-sodium" /> Powered by NVIDIA Nemotron
+            Powered by NVIDIA Nemotron
           </p>
-          <h1 className="mt-5 text-[clamp(2.5rem,5.5vw,4.5rem)] font-semibold leading-[1] tracking-[-0.03em]">Toyota NextMove AI</h1>
+          <h1 className="mt-5 text-[clamp(2.5rem,5.5vw,4.5rem)] font-semibold leading-[1] tracking-[-0.03em]">Toyota Vroom AI</h1>
           <p className="mt-4 max-w-xl text-lg leading-relaxed text-white/70">
             Ask in your own words. Answers come from your simulated account and the vehicle catalog, with backend tools behind every figure.
           </p>

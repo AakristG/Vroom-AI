@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, LogOut, Menu, Sparkles, UserRound, X } from "lucide-react";
+import { ArrowRight, LogOut, Menu, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../lib/format";
@@ -163,7 +163,7 @@ export function SiteHeader() {
             onClick={() => (profile ? setAssistantOpen(true) : navigate("/signin?next=/assistant"))}
             className="btn-primary hidden px-4 py-2.5 md:inline-flex"
           >
-            <Sparkles className="h-4 w-4" /> Ask AI
+            Ask AI
           </button>
           <button
             onClick={() => setOpen((o) => !o)}
@@ -209,7 +209,7 @@ export function SiteHeader() {
                   }}
                   className="btn-primary"
                 >
-                  <Sparkles className="h-4 w-4" /> Ask Toyota NextMove AI
+                  Ask Toyota Vroom AI
                 </button>
                 <Link to={profile ? "/financial-services" : "/signin?next=/financial-services"} className="btn-ghost border-line">
                   Financial services

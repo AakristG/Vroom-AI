@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ChartLine, Info, RotateCcw, Sparkles, Table2 } from "lucide-react";
+import { ChartLine, Info, RotateCcw, Table2 } from "lucide-react";
 import { useId, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Profile } from "../../data/types";
@@ -174,7 +174,7 @@ export function LoanSimulator({ p, selfReported = false }: { p: Profile; selfRep
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button onClick={explain} className="btn-primary">
-                  <Sparkles className="h-4 w-4" /> Ask Toyota AI to explain this scenario
+                  Ask Toyota AI to explain this scenario
                 </button>
                 <span className="text-xs text-muted">Estimate · not an approval or offer</span>
               </div>

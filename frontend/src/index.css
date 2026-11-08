@@ -1,6 +1,9 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter-tight";
-@import "@fontsource/bebas-neue";
+@import "@fontsource/josefin-sans/latin-300.css";
+@import "@fontsource/josefin-sans/latin-400.css";
+@import "@fontsource/josefin-sans/latin-500.css";
+@import "@fontsource/josefin-sans/latin-600.css";
+@import "@fontsource/josefin-sans/latin-700.css";
 @import "@fontsource-variable/jetbrains-mono";
 
 /*
@@ -41,8 +44,8 @@
   --dur-panel: 300ms;
   --dur-page: 350ms;
 
-  --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
-  --font-sans: "Inter Tight Variable", system-ui, sans-serif;
+  --font-display: "Josefin Sans", "Helvetica Neue", sans-serif;
+  --font-sans: "Josefin Sans", "Helvetica Neue", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
@@ -52,7 +55,15 @@
   }
   body {
     @apply bg-daylight text-ink font-sans antialiased;
-    font-feature-settings: "tnum" 1, "cv11" 1;
+    font-feature-settings: "tnum" 1;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    line-height: 1.15;
   }
   :focus-visible {
     outline: 2px solid var(--color-signal);
@@ -77,7 +88,7 @@
     @apply text-xs font-semibold uppercase tracking-[0.2em] text-signal;
   }
   .section-title {
-    @apply text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-[-0.02em] text-balance;
+    @apply text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.15] tracking-[-0.01em] text-balance;
   }
   .card {
     @apply rounded-3xl border border-black/[0.06] bg-paper;

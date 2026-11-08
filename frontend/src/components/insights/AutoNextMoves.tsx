@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Check, CircleAlert, Hand, Loader2, RefreshCw, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, CircleAlert, Hand, Loader2, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { runNextMoves, type AssistantAction, type NextMovePlan, type NextMoveStep } from "../../api/client";
 import type { Profile } from "../../data/types";
 import { cn } from "../../lib/format";
@@ -34,25 +34,31 @@ export function AutoNextMoves({ p }: { p: Profile }) {
   const [plan, setPlan] = useState<NextMovePlan | null>(null);
   const [state, setState] = useState<"running" | "ready" | "error">("running");
   const [runs, setRuns] = useState(0);
-  const startedFor = useRef<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   useEffect(() => {
-    const key = `${customerId}:${runs}`;
-    if (startedFor.current === key) return;
-    startedFor.current = key;
-    let alive = true;
+    const controller = new AbortController();
     setState("running");
     setPlan(null);
-    runNextMoves()
+    setErrorDetail(null);
+    runNextMoves({ signal: controller.signal })
       .then((r) => {
-        if (!alive) return;
+        if (controller.signal.aborted) return;
         setPlan(r);
         setState(r.error ? "error" : "ready");
+        if (r.error) setErrorDetail(r.error);
       })
-      .catch(() => alive && setState("error"));
-    return () => {
-      alive = false;
-    };
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        const name = err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code) : "";
+        const message = err instanceof Error ? err.message : "";
+        if (name === "ERR_CANCELED" || message.toLowerCase().includes("canceled") || message.toLowerCase().includes("aborted")) {
+          return;
+        }
+        setState("error");
+        setErrorDetail(message || "The assistant couldn't finish your plan.");
+      });
+    return () => controller.abort();
   }, [customerId, runs]);
 
   // Live rows win while the run is in flight; the HTTP response is the fallback without SpacetimeDB.
@@ -71,9 +77,8 @@ export function AutoNextMoves({ p }: { p: Profile }) {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-signal">
-            <Sparkles className="h-3.5 w-3.5" />
-            {state === "running" ? "NextMove AI is working through your plan…" : `${done} done for you · ${decisions} left for you`}
+          <p className="text-xs font-semibold uppercase tracking-wider text-signal">
+            {state === "running" ? "Vroom AI is working through your plan…" : `${done} done for you · ${decisions} left for you`}
           </p>
           {state === "running" && !plan ? (
             <div className="mt-3 space-y-2" aria-hidden>
@@ -83,7 +88,11 @@ export function AutoNextMoves({ p }: { p: Profile }) {
           ) : plan?.summary ? (
             <p className="mt-3 max-w-[70ch] text-lg leading-relaxed text-ink/85">{plan.summary}</p>
           ) : null}
-          {state === "error" && <p className="mt-3 text-sm text-signal">The assistant couldn't finish your plan. Your account is unchanged.</p>}
+          {state === "error" && (
+            <p className="mt-3 text-sm text-signal" role="alert">
+              {errorDetail || "The assistant couldn't finish your plan. Your account is unchanged."}
+            </p>
+          )}
         </div>
         <button
           onClick={() => setRuns((n) => n + 1)}

@@ -1,10 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { apiClient } from "../api/client";
+import { apiClient, requestCallback, type PendingActionCard } from "../api/client";
 import type { Profile } from "../data/types";
+import { requestActivityRefresh } from "../lib/activityRefresh";
 import { cn, money } from "../lib/format";
+import { ConfirmActionCard } from "./ConfirmActionCard";
 
 type Turn = { id: string; role: "user" | "agent"; content: string };
 const topics = ["Refinance", "Trade-in", "Vehicle information"] as const;
+
+function phoneDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
 
 export function PhoneDesk({ p }: { p: Profile }) {
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -16,6 +22,7 @@ export function PhoneDesk({ p }: { p: Profile }) {
   const [status, setStatus] = useState<string | null>(null);
   const [vehicleNote, setVehicleNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingActionCard | null>(null);
 
   useEffect(() => {
     if (!listening) return;
@@ -40,23 +47,46 @@ export function PhoneDesk({ p }: { p: Profile }) {
 
   async function book(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
+    if (busy) return;
     setStatus(null);
+    const digits = phoneDigits(phone);
+    if (digits.length < 10) {
+      setStatus("Enter a valid phone number with at least 10 digits.");
+      return;
+    }
+    if (!when) {
+      setStatus("Choose a date and time for the callback.");
+      return;
+    }
+    const cleanedVin = vin.trim().toUpperCase();
+    if (cleanedVin && (cleanedVin.length !== 17 || !/^[A-HJ-NPR-Z0-9]{17}$/i.test(cleanedVin))) {
+      setStatus("VIN must be exactly 17 letters or digits when provided.");
+      return;
+    }
+    setBusy(true);
     try {
-      const { data } = await apiClient.post("/api/voice/appointments/", {
+      const data = await requestCallback({
         customer_id: p.customer.customer_id,
         name: p.customer.first_name,
         topic,
         when,
         phone,
+        vin: cleanedVin || undefined,
+        time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
       });
-      const call = data.call?.status;
-      const sms = data.appointment?.sms;
-      if (call === "calling") setStatus("Toyota Financial is calling the number you entered. This page will show the conversation.");
-      else if (sms === "sent") setStatus("A representative time is saved, and a text confirmation was sent. The phone call starts when Retell is configured.");
-      else setStatus("A representative time is saved. Connect Retell and Twilio to place the call and send the text.");
-    } catch {
-      setStatus("That request did not go through. Check the time and phone number, and that the backend is running.");
+      if (data.action) {
+        setPending(data.action);
+        setStatus(
+          data.detail ||
+            "Review the request below and confirm twice. Nothing is recorded until both confirmations succeed."
+        );
+        requestActivityRefresh();
+      } else {
+        setStatus("The server did not return a confirmation step. Your account was not changed.");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      setStatus(message || "That request did not go through. Check the time and phone number, and that the backend is running.");
     } finally {
       setBusy(false);
     }
@@ -65,13 +95,19 @@ export function PhoneDesk({ p }: { p: Profile }) {
   async function lookupVehicle() {
     setBusy(true);
     setVehicleNote(null);
+    const cleanedVin = vin.trim().toUpperCase();
+    if (cleanedVin && (cleanedVin.length !== 17 || !/^[A-HJ-NPR-Z0-9]{17}$/i.test(cleanedVin))) {
+      setVehicleNote("VIN must be exactly 17 letters or digits when provided.");
+      setBusy(false);
+      return;
+    }
     try {
       const { data } = await apiClient.get("/api/voice/vehicle/", {
         params: {
           year: p.vehicle.model_year,
           model: p.vehicle.model,
           trim: p.vehicle.trim,
-          vin,
+          vin: cleanedVin,
           mileage: p.vehicle.odometer_now,
           state: p.customer.state,
         },
@@ -91,10 +127,10 @@ export function PhoneDesk({ p }: { p: Profile }) {
   }
 
   return (
-    <section className="rounded-3xl border border-line bg-paper p-6 md:p-8">
-      <h2 className="text-2xl font-semibold tracking-tight">Talk with a person, by phone</h2>
+    <section id="phone-desk" className="rounded-3xl border border-line bg-paper p-6 md:p-8">
+      <h2 className="text-2xl font-semibold tracking-tight">Talk with an AI agent</h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-        Schedule a call about refinancing, a trade-in, or your vehicle. If a call is connected for this account, the transcript shows up here while you stay on the page.
+        Schedule a call about refinancing, a trade-in, or your vehicle. After you submit, confirm twice. Until both confirmations succeed, nothing is recorded on your account.
       </p>
 
       <form onSubmit={book} className="mt-5 grid gap-3 md:grid-cols-4">
@@ -115,12 +151,24 @@ export function PhoneDesk({ p }: { p: Profile }) {
           <input required value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1..." className="mt-1 w-full rounded-2xl border border-line px-3 py-3" />
         </label>
         <div className="flex items-end">
-          <button disabled={busy} className="w-full rounded-full bg-ink px-4 py-3 text-sm font-medium text-white hover:bg-black disabled:opacity-50">
+          <button disabled={busy || Boolean(pending && pending.status !== "completed" && pending.status !== "cancelled")} className="w-full rounded-full bg-ink px-4 py-3 text-sm font-medium text-white hover:bg-black disabled:opacity-50">
             Schedule the call
           </button>
         </div>
       </form>
       {status && <p className="mt-3 text-sm">{status}</p>}
+      {pending ? (
+        <div className="mt-4">
+          <ConfirmActionCard
+            action={pending}
+            onChange={setPending}
+            onDone={() => {
+              requestActivityRefresh();
+              setStatus("Request recorded. Check Requests and appointments below for status and email delivery.");
+            }}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap items-end gap-3">
         <label className="text-sm">

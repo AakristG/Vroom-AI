@@ -35,12 +35,25 @@ _SIGNED_OUT = (
 
 _CONFIRM_RULES = (
     "SIDE-EFFECT RULES: You cannot book appointments, send messages, transfer calls, or change a contract. "
-    "If TOOL RESULTS include a pending_action, explain those details and ask only the confirmation question "
-    "for that stage. Do not say a request was submitted, booked, or emailed unless the tool result status is completed."
+    "Never paste JSON, action_id, pending_action, payload, expires_at, or internal status names to the customer. "
+    "Speak only natural English. Do not say a request was submitted, booked, or emailed unless told the backend completed it."
 )
 
+_INTERNAL_KEYS = (
+    "action_id",
+    "pending_action",
+    "action_type",
+    "expires_at",
+    "awaiting_intent_confirmation",
+    "awaiting_final_confirmation",
+    "idempotency",
+    '"payload"',
+    '"result"',
+    '"type": "pending_action"',
+)
 
 _NUMBERED_RE = re.compile(r"^\s*(\d+)[.)]\s+", re.MULTILINE)
+_FENCE_RE = re.compile(r"```[\s\S]*?```")
 
 
 def plain(reply: str, keep_numbers: bool = False) -> str:
@@ -53,6 +66,112 @@ def plain(reply: str, keep_numbers: bool = False) -> str:
     text = _DASH_RE.sub(", ", text)
     text = _SEMICOLON_RE.sub(lambda m: ". " + m.group(1).upper(), text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def _contains_internal_keys(chunk: str) -> bool:
+    lower = chunk.lower()
+    return any(key.lower() in lower for key in _INTERNAL_KEYS)
+
+
+def sanitize_customer_reply(reply: str) -> str:
+    """Remove leaked tool/action JSON so customers never see internal structures."""
+    text = _FENCE_RE.sub(" ", reply or "")
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] == "{":
+            depth = 0
+            j = i
+            while j < n:
+                if text[j] == "{":
+                    depth += 1
+                elif text[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        chunk = text[i : j + 1]
+                        if not _contains_internal_keys(chunk):
+                            out.append(chunk)
+                        i = j + 1
+                        break
+                j += 1
+            else:
+                out.append(text[i])
+                i += 1
+        elif text[i] == "[":
+            depth = 0
+            j = i
+            while j < n:
+                if text[j] == "[":
+                    depth += 1
+                elif text[j] == "]":
+                    depth -= 1
+                    if depth == 0:
+                        chunk = text[i : j + 1]
+                        if not _contains_internal_keys(chunk):
+                            out.append(chunk)
+                        i = j + 1
+                        break
+                j += 1
+            else:
+                out.append(text[i])
+                i += 1
+        else:
+            out.append(text[i])
+            i += 1
+    cleaned = re.sub(r"[ \t]{2,}", " ", "".join(out))
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip(" \n\t,;:")
+    if _contains_internal_keys(cleaned):
+        return ""
+    return cleaned
+
+
+def _action_brief(payload: dict | None, summary: str = "") -> str:
+    data = payload or {}
+    category = str(data.get("category") or "specialist consultation").strip()
+    zip_code = str(data.get("zip") or "").strip()
+    when = str(data.get("when") or "").strip()
+    bits = [f"a {category.lower()}"]
+    if when:
+        bits.append(f"for {when}")
+    if zip_code:
+        bits.append(f"in ZIP code {zip_code}")
+    phrase = " ".join(bits)
+    if summary and "ZIP" in summary and not zip_code:
+        return summary.rstrip(".")
+    return phrase
+
+
+def confirmation_reply(pending: Any | None = None, *, proposed: dict | None = None) -> str | None:
+    """Deterministic natural-language confirmation copy. Never includes action JSON."""
+    if proposed:
+        result = proposed.get("result") or {}
+        payload = result.get("payload") if isinstance(result, dict) else {}
+        brief = _action_brief(payload if isinstance(payload, dict) else {}, str(result.get("summary") or ""))
+        return f"I can help you request {brief}. Are those details correct?"
+    if pending is None:
+        return None
+    status = getattr(pending, "status", "")
+    payload = getattr(pending, "payload", None) or {}
+    brief = _action_brief(payload if isinstance(payload, dict) else {}, getattr(pending, "summary", "") or "")
+    if status == actions.PendingAction.AWAIT_INTENT:
+        return f"I can help you request {brief}. Are those details correct?"
+    if status == actions.PendingAction.AWAIT_FINAL:
+        return "Thanks. Before I submit your request, I need your final confirmation. Would you like me to go ahead?"
+    if status == actions.PendingAction.COMPLETED:
+        result = getattr(pending, "result", None) or {}
+        if isinstance(result, dict) and result.get("ok"):
+            return (
+                "Your consultation request has been submitted. It is currently pending review. "
+                "This is not a confirmed appointment yet."
+            )
+        detail = result.get("detail") if isinstance(result, dict) else None
+        return str(detail or "I could not finish that request. Nothing on your account was changed.")
+    if status == actions.PendingAction.CANCELLED:
+        return "Okay, I cancelled that request. Nothing on your account was changed."
+    if status == actions.PendingAction.FAILED:
+        return "I could not finish that request. Nothing on your account was changed."
+    return None
 
 
 def _context_text(context: dict, customer_id: str | None, channel: str) -> str:
@@ -185,26 +304,53 @@ def run_turn(
             pending = actions.open_action(customer_id)
 
     extra = _context_text(context, customer_id, channel)
-    if pending:
-        extra += "\nPENDING ACTION: " + json.dumps(actions.public_action(pending), default=str)
-        if pending.status == actions.PendingAction.AWAIT_INTENT:
-            extra += "\nAsk only: are those details correct?"
-        elif pending.status == actions.PendingAction.AWAIT_FINAL:
-            extra += "\nAsk only: everything is ready. Should I record this request now? Do not claim it is already submitted."
-        elif pending.status == actions.PendingAction.COMPLETED:
-            extra += "\nThe backend recorded the request. Quote the result.detail field. Do not say booked or approved."
-        elif pending.status == actions.PendingAction.CANCELLED:
-            extra += "\nThe customer cancelled. Acknowledge and do not resubmit."
-
     proposed_tool = None
     if customer_id and not pending:
         proposed_tool = _maybe_propose(user_text, customer_id, channel, conversation_id, call_id)
-        if proposed_tool:
-            extra += "\nPENDING ACTION: " + json.dumps(proposed_tool["result"], default=str)
-            extra += "\nAsk only whether those details are correct. Do not record anything yet."
+
+    # Never dump public_action JSON into the model prompt — that is the root cause of spoken/chat leaks.
+    safe_confirm = confirmation_reply(pending, proposed=proposed_tool)
+    if safe_confirm:
+        extra += (
+            "\nCONFIRMATION STATE (internal; do not quote as JSON): "
+            + safe_confirm
+            + " Reply with that meaning in natural English only."
+        )
 
     policy.bind_conversation(messages)
     decision = policy.decide(tools._profile(customer_id))
+
+    # Confirmation turns use deterministic customer-facing copy so Retell/chat cannot speak raw actions.
+    if safe_confirm and (proposed_tool or (pending and pending.status in {
+        actions.PendingAction.AWAIT_INTENT,
+        actions.PendingAction.AWAIT_FINAL,
+        actions.PendingAction.COMPLETED,
+        actions.PendingAction.CANCELLED,
+        actions.PendingAction.FAILED,
+    })):
+        results = [proposed_tool] if proposed_tool else []
+        # Keep financial tools available in the response metadata only when no confirmation is active.
+        names = [r["name"] for r in results]
+        suggested = tools.suggested_actions(names, customer_id, context)
+        open_row = actions.open_action(customer_id) if customer_id else None
+        if open_row:
+            suggested = [actions.public_action(open_row), *suggested]
+        if pending and pending.status == actions.PendingAction.COMPLETED:
+            suggested = [{"type": "navigate", "label": "See this request on My Toyota", "to": "/my-toyota#appointments"}, *suggested]
+        text = safe_confirm
+        if channel in {"voice", "phone"}:
+            text = " ".join(text.split())
+        return {
+            "response": text,
+            "conversation_id": conversation_id,
+            "tool_results": [r for r in results if r and r.get("name") != "propose_action"],
+            "proposed_actions": suggested[:4],
+            "requires_confirmation": bool(
+                open_row and open_row.status in {actions.PendingAction.AWAIT_INTENT, actions.PendingAction.AWAIT_FINAL}
+            ),
+            "error": None,
+        }
+
     if not pending and not proposed_tool and not decision.distressed and shopping.is_shopping(user_text):
         reply, results = _shopping_reply(user_text, customer_id, context, decision)
         picks = [s["id"] for r in results for s in (r["result"].get("suggestions") or [])][:3]
@@ -248,7 +394,9 @@ def run_turn(
     if pending and pending.status == actions.PendingAction.COMPLETED:
         suggested = [{"type": "navigate", "label": "See this request on My Toyota", "to": "/my-toyota#appointments"}, *suggested]
 
-    text = plain(reply)
+    text = sanitize_customer_reply(plain(reply)) or (
+        "I can help with that. Ask me about your account or vehicles, and I will keep the answer in plain language."
+    )
     if channel in {"voice", "phone"}:
         text = " ".join(text.split())
     elif customer_id and not pending and not proposed_tool:
@@ -257,7 +405,7 @@ def run_turn(
     return {
         "response": text,
         "conversation_id": conversation_id,
-        "tool_results": results,
+        "tool_results": [r for r in results if r.get("name") != "propose_action"],
         "proposed_actions": suggested[:4],
         "requires_confirmation": bool(open_row and open_row.status in {actions.PendingAction.AWAIT_INTENT, actions.PendingAction.AWAIT_FINAL}),
         "error": None,

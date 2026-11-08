@@ -59,7 +59,7 @@ def inbound_sms(request):
         return HttpResponse("Unauthorized", status=401)
     body = (request.POST.get("Body") or "").strip().upper()
     if body in {"STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT"}:
-        xml = '<?xml version="1.0" encoding="UTF-8"?><Response><Message>You are unsubscribed from Toyota NextMove AI texts.</Message></Response>'
+        xml = '<?xml version="1.0" encoding="UTF-8"?><Response><Message>You are unsubscribed from Toyota Vroom AI texts.</Message></Response>'
         return HttpResponse(xml, content_type="text/xml")
     xml = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
     return HttpResponse(xml, content_type="text/xml")

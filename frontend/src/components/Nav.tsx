@@ -22,12 +22,9 @@ export function Nav({ backendOk }: { backendOk: boolean | null }) {
           </a>
           <span
             title={backendOk === null ? "Checking backend" : backendOk ? "Backend connected" : "Backend unreachable — running on bundled data"}
-            className="mx-2 flex items-center gap-1.5 text-xs text-white/60"
+            className="mx-2 hidden text-xs text-white/60 lg:inline"
           >
-            <span
-              className={`h-2 w-2 rounded-full ${backendOk === null ? "bg-white/40" : backendOk ? "bg-go" : "bg-sodium"}`}
-            />
-            <span className="hidden lg:inline">{backendOk === null ? "Checking" : backendOk ? "Live" : "Demo data"}</span>
+            {backendOk === null ? "Checking" : backendOk ? "Live" : "Demo data"}
           </span>
           <a
             href="#console"

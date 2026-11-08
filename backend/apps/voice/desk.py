@@ -79,6 +79,10 @@ def saved_calls(request):
     ]})
 
 
+def _digits(phone: str) -> str:
+    return "".join(ch for ch in phone if ch.isdigit())
+
+
 @api_view(["POST"])
 @login_required_api
 def book_appointment(request):
@@ -88,25 +92,49 @@ def book_appointment(request):
     when = str(request.data.get("when") or "").strip()
     phone = str(request.data.get("phone") or "").strip()
     name = str(request.data.get("name") or "").strip() or account.first_name
+    vin = str(request.data.get("vin") or "").strip().upper()
+    time_zone = str(request.data.get("time_zone") or "America/Chicago").strip() or "America/Chicago"
     customer_id = str(request.data.get("customer_id") or account.customer_id).strip()
     if topic not in ALLOWED_TOPICS or not when or not phone:
         return Response({"detail": "Choose a topic, a time, and a phone number."}, status=400)
     if customer_id != account.customer_id:
         return Response({"detail": "You can only book a call for your own account."}, status=403)
+    digits = _digits(phone)
+    if len(digits) < 10 or len(digits) > 15:
+        return Response({"detail": "Enter a valid phone number with at least 10 digits."}, status=400)
+    if vin and (len(vin) != 17 or not vin.isalnum()):
+        return Response({"detail": "VIN must be exactly 17 letters or digits when provided."}, status=400)
     category = actions.CATEGORIES.get(ALLOWED_TOPICS[topic], topic)
+    notes = f"VIN on request: {vin}" if vin else ""
     summary = (
-        f"Record a {category.lower()} request for {name} at {when}, callback {phone}. "
+        f"Record a {category.lower()} request for {name} at {when} ({time_zone}), callback {phone}. "
         "This is not a confirmed calendar booking and does not change the contract."
     )
     row = actions.propose(
         customer_id=customer_id,
         action_type="request_callback",
-        payload={"category": category, "when": when, "phone": phone, "name": name, "email": account.email},
+        payload={
+            "category": category,
+            "when": when,
+            "phone": phone,
+            "name": name,
+            "email": account.email,
+            "time_zone": time_zone,
+            "notes": notes,
+            "vin": vin,
+        },
         summary=summary,
         channel="web",
         conversation_id=f"web:{customer_id}",
     )
-    return Response({"action": actions.public_action(row), "appointment": None, "call": {"status": "awaiting_two_confirmations"}})
+    return Response(
+        {
+            "action": actions.public_action(row),
+            "appointment": None,
+            "call": {"status": "awaiting_two_confirmations"},
+            "detail": "Confirm the details twice below to record this specialist request. It is not booked until both confirmations succeed.",
+        }
+    )
 
 
 @api_view(["POST"])

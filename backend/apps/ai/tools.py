@@ -1,4 +1,4 @@
-"""Backend tools for Toyota NextMove AI. Each tool returns verified or deterministically computed data.
+"""Backend tools for Toyota Vroom AI. Each tool returns verified or deterministically computed data.
 
 The same functions back both the native tool-calling path (NIM_TOOL_CALLING=true) and the
 default path, where the backend picks tools from the page context and the question.

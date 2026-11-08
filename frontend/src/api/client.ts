@@ -189,9 +189,30 @@ export async function sendAssistantMessage(
   }
 }
 
-export async function requestCallback(payload: { customer_id: string; name: string; topic: string; when: string; phone: string }) {
-  const { data } = await apiClient.post("/api/voice/appointments/", payload, { timeout: 20000 });
-  return data as { appointment: Record<string, string> | null; action?: PendingActionCard; call: { status: string } };
+export async function requestCallback(payload: {
+  customer_id: string;
+  name: string;
+  topic: string;
+  when: string;
+  phone: string;
+  vin?: string;
+  time_zone?: string;
+}) {
+  try {
+    const { data } = await apiClient.post("/api/voice/appointments/", payload, { timeout: 20000 });
+    return data as {
+      appointment: Record<string, string> | null;
+      action?: PendingActionCard;
+      call: { status: string };
+      detail?: string;
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const detail = error.response?.data?.detail;
+      if (typeof detail === "string" && detail.trim()) throw new Error(detail);
+    }
+    throw error instanceof Error ? error : new Error("Could not submit the specialist request.");
+  }
 }
 
 export interface PendingActionCard {
@@ -211,12 +232,20 @@ export interface AppointmentRecord {
   appointment_id: string;
   category: string;
   status: string;
+  status_label?: string;
   preferred_when?: string;
+  confirmed_when?: string;
+  customer_time_zone?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  contact_method?: string;
   location_label?: string;
   representative_label?: string;
   email_status: string;
+  email_provider_id?: string;
   source: string;
   created_at: string;
+  is_confirmed_booking?: boolean;
 }
 
 export interface CustomerTimelineEvent {
@@ -318,7 +347,7 @@ export interface NextMovePlan {
 }
 
 /** Runs the AI-automated plan. Steps also stream live through SpacetimeDB while this is in flight. */
-export async function runNextMoves() {
-  const { data } = await apiClient.post<NextMovePlan>("/api/ai/next-moves/", {}, { timeout: 120000 });
+export async function runNextMoves(opts?: { signal?: AbortSignal }) {
+  const { data } = await apiClient.post<NextMovePlan>("/api/ai/next-moves/", {}, { timeout: 120000, signal: opts?.signal });
   return data;
 }

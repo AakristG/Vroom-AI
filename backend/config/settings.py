@@ -205,6 +205,9 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5173")
 PUBLIC_WEBHOOK_BASE_URL = os.environ.get("PUBLIC_WEBHOOK_BASE_URL", "http://127.0.0.1:8000")
 EMAIL_PROVIDER_API_KEY = os.environ.get("EMAIL_PROVIDER_API_KEY", "")
 EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "")
+# Local/demo only: route simulated pack customer notifications (C###) to one test inbox.
+# Ignored when DJANGO_DEBUG is false so production never uses the shared override.
+DEMO_NOTIFICATION_EMAIL_OVERRIDE = os.environ.get("DEMO_NOTIFICATION_EMAIL_OVERRIDE", "")
 
 NHTSA_VPIC_BASE_URL = os.environ.get("NHTSA_VPIC_BASE_URL", "https://vpic.nhtsa.dot.gov/api")
 NHTSA_DATA_BASE_URL = os.environ.get("NHTSA_DATA_BASE_URL", "https://api.nhtsa.gov")

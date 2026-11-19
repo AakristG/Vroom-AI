@@ -1,10 +1,10 @@
 import { Play, Square, Wrench } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Profile } from "../data/types";
 import { useLiveCall } from "../hooks/useLiveCall";
 import { cn } from "../lib/format";
-const VoiceWidget = lazy(() => import("./VoiceWidget").then((m) => ({ default: m.VoiceWidget })));
+import { VoiceWidget } from "./VoiceWidget";
 
 export function CallPanel({ p }: { p: Profile }) {
   const { state, turns, steps, mode, startDemo, end } = useLiveCall(p);
@@ -36,9 +36,7 @@ export function CallPanel({ p }: { p: Profile }) {
               <Play className="h-3.5 w-3.5" /> {state === "ended" ? "Replay demo call" : "Play demo call"}
             </button>
           )}
-          <Suspense fallback={null}>
-            <VoiceWidget customerId={p.customer.customer_id} />
-          </Suspense>
+          <VoiceWidget customerId={p.customer.customer_id} />
         </div>
         <div role="tablist" className="mt-4 flex gap-1 rounded-full bg-white/5 p-1 text-sm">
           {(
